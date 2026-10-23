@@ -17,10 +17,36 @@ import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datensc
  * im Zustand dieser Seite und geht erst am Ende in **einem** Aufruf an den Server; wer
  * mittendrin weggeht, hinterlässt nichts, und die Zeitsperre wirft die Eingaben weg.
  *
- * **Kein Eingabefeld für die GUID.** Die GUIDs sind fortlaufend; mit einem Feld könnte am
- * Tablet jeder einen fremden Pass registrieren, einfach durch Hochzählen. Der Schutz ist der
- * physische Pass vor der Kamera, und das Gerät gehört in den Kioskmodus des Browsers.
+ * **Die GUID lässt sich auch von Hand eingeben**, seit dem 23.10.2026, falls Kamera oder
+ * QR-Code versagen. Das war vorher ausgeschlossen, weil das Tablet damals fremde Daten lesen
+ * und ändern konnte. Heute registriert es nur freie Pässe; das Restrisiko ist, dass jemand eine
+ * fremde, noch freie Passnummer belegt. Der echte Inhaber sieht dann „schon registriert“, und
+ * das Personal kann den Datensatz löschen.
  */
+
+/** Dasselbe Muster wie `pruefeGuid` im Server. */
+const GUID_MUSTER = /^[A-Za-z0-9_-]{1,50}$/;
+
+/**
+ * Die GUID aus einer Pass-Adresse (`…/SPS2026-0001`), oder `null`.
+ *
+ * Kamera und Handeingabe nutzen dieselbe Auswertung, damit beide Wege zum selben Ergebnis
+ * kommen. Von Hand darf auch die GUID allein stehen; ein QR-Code muss die ganze Adresse sein,
+ * sonst liefe jeder Werbe-QR-Code in eine Serverabfrage.
+ */
+function guidAus(inhalt: string, basis: string, nurAdresse: boolean): string | null {
+  const text = inhalt.trim();
+  let guid: string;
+  if (text.startsWith(basis)) {
+    // Der hintere Teil der Adresse ist die GUID.
+    guid = decodeURIComponent(text.slice(basis.length).split(/[/?#]/)[0] ?? "");
+  } else if (nurAdresse) {
+    return null;
+  } else {
+    guid = text;
+  }
+  return GUID_MUSTER.test(guid) ? guid : null;
+}
 
 // --- Scannen --------------------------------------------------------------------------
 
@@ -28,24 +54,26 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
   const navigate = useNavigate();
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
+  const [eingabe, setzeEingabe] = useState("");
+
+  const oeffne = useCallback(
+    (guid: string) => {
+      setzeLaeuft(true);
+      void navigate(`/kiosk/${encodeURIComponent(guid)}`);
+    },
+    [navigate],
+  );
 
   const ausQr = useCallback(
     (inhalt: string) => {
-      // Ohne diese Prüfung liefe jeder Werbe-QR-Code in eine Serverabfrage.
-      if (!inhalt.startsWith(ich.viewerBaseUrl)) {
+      const guid = guidAus(inhalt, ich.viewerBaseUrl, true);
+      if (guid === null) {
         setzeFehler("Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.");
         return;
       }
-      // Der hintere Teil der Adresse ist die GUID: …/SPS2026-0001.
-      const guid = inhalt.slice(ich.viewerBaseUrl.length).split(/[/?#]/)[0] ?? "";
-      if (guid === "") {
-        setzeFehler("Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.");
-        return;
-      }
-      setzeLaeuft(true);
-      void navigate(`/kiosk/${encodeURIComponent(decodeURIComponent(guid))}`);
+      oeffne(guid);
     },
-    [ich.viewerBaseUrl, navigate],
+    [ich.viewerBaseUrl, oeffne],
   );
 
   return (
@@ -78,6 +106,42 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
           Standpersonal ansprechen.
         </Fehlerhinweis>
       )}
+
+      <form
+        className="flex flex-col gap-3 bg-flaeche p-6 shadow-flaeche"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          const guid = guidAus(eingabe, ich.viewerBaseUrl, false);
+          if (guid === null) {
+            setzeFehler(
+              "Das ist keine gültige Passnummer. Bitte so eingeben, wie sie auf dem Pass steht.",
+            );
+            return;
+          }
+          oeffne(guid);
+        }}
+      >
+        <h2 className="text-[15px] font-semibold">Kein QR-Code lesbar? GUID von Hand eingeben</h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex min-w-0 flex-1 flex-col gap-2 text-[14px] font-semibold">
+            GUID vom Pass
+            <Feld
+              value={eingabe}
+              onChange={(ev) => {
+                setzeEingabe(ev.target.value);
+              }}
+              placeholder="SPS2026-0001"
+              className="h-12 font-mono text-[16px] font-normal"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+          </label>
+          <Knopf type="submit" className="h-12 px-8" disabled={eingabe.trim() === "" || laeuft}>
+            Weiter
+          </Knopf>
+        </div>
+      </form>
     </Kioskrahmen>
   );
 }

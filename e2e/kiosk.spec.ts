@@ -60,14 +60,51 @@ test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ 
 });
 
 /**
- * **Kein Eingabefeld für die GUID.** Die GUIDs sind fortlaufend; mit einem Feld könnte am
- * Tablet jeder einen fremden Pass registrieren.
+ * **Die GUID lässt sich auch von Hand eingeben**, falls Kamera oder QR-Code versagen: als
+ * Passnummer oder als ganze Adresse vom Pass. Beides führt zur selben Registrierung.
  */
-test("auf dem Scanbildschirm lässt sich keine GUID eintippen", async ({ page }) => {
+test("eine GUID von Hand führt zur Registrierung", async ({ page }) => {
+  const guid = neueGuid();
+  const feld = page.getByLabel("GUID vom Pass");
+
   await page.goto("/kiosk");
-  await expect(page.getByRole("heading", { name: "Pass scannen" })).toBeVisible();
-  await expect(page.getByRole("textbox")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /von Hand/i })).toHaveCount(0);
+  await feld.fill(guid);
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await expect(page).toHaveURL(new RegExp(`/kiosk/${guid}$`));
+  await expect(page.getByRole("heading", { name: "Deine Daten" })).toBeVisible();
+
+  // Die ganze Adresse vom Pass, so wie sie im QR-Code steht.
+  const ich = (await (await page.request.get("/api/auth/ich")).json()) as { viewerBaseUrl: string };
+  await page.goto("/kiosk");
+  await feld.fill(`${ich.viewerBaseUrl}${guid}`);
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await expect(page).toHaveURL(new RegExp(`/kiosk/${guid}$`));
+});
+
+test("eine ungültige Passnummer bleibt auf dem Scan", async ({ page }) => {
+  await page.goto("/kiosk");
+  for (const falsch of ["mit leerzeichen", "https://example.com/SPS2026-0001", "x".repeat(51)]) {
+    await page.getByLabel("GUID vom Pass").fill(falsch);
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await expect(page.getByText(/keine gültige Passnummer/), falsch).toBeVisible();
+    await expect(page, falsch).toHaveURL(/\/kiosk$/);
+  }
+});
+
+test("eine schon registrierte GUID von Hand zeigt nur den Hinweis", async ({ page, request }) => {
+  const guid = neueGuid();
+  await alsAdmin(request);
+  await request.post("/api/besucher", {
+    data: { guid, vorname: "Schon", nachname: "Da", email: `${guid}@example.invalid` },
+  });
+  try {
+    await page.goto("/kiosk");
+    await page.getByLabel("GUID vom Pass").fill(guid);
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await expect(page.getByRole("heading", { name: /schon registriert/ })).toBeVisible();
+  } finally {
+    await raeumeAuf(request, guid);
+  }
 });
 
 test("ein Besucher registriert sich und meldet sich danach selbst an", async ({
