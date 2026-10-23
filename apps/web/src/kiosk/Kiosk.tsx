@@ -4,7 +4,14 @@ import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { Feld, Fehlerhinweis, Flaeche, Knopf, Ueberschrift, Zustand } from "../bausteine/basis.js";
 import { Kamera, kameraMoeglich, type Kamerafehler } from "../scan/Kamera.js";
 import type { Ich } from "../lib/ich.js";
-import { GRUPPEN, PERSONENFELDER, felderDerGruppe, mitTitel } from "../lib/personenfelder.js";
+import {
+  GRUPPEN,
+  PERSONENFELDER,
+  besucherFehlertext,
+  felderDerGruppe,
+  mitTitel,
+  pflichtBeimBesucher,
+} from "../lib/personenfelder.js";
 import { Kioskrahmen } from "./Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
 
@@ -25,6 +32,53 @@ type Feldname = string;
 interface Besucher extends Record<Feldname, string | null> {
   guid: string;
   avatarDateiId: string | null;
+}
+
+/**
+ * Wo die Daten liegen und wohin die Bildschirme führen.
+ *
+ * Seit dem 23.10.2026 zeigen dieselben Bildschirme zwei Bereiche: das Terminal (GUID aus dem
+ * gescannten Pass, in der Adresse) und den angemeldeten Besucher (GUID allein aus der
+ * Sitzung, `/api/mein`). Die Bildschirme kennen nur die Quelle, nicht den Bereich.
+ */
+export type Bereich = "terminal" | "besucher";
+
+interface Quelle {
+  besucher: boolean;
+  /** Stammdaten lesen und ändern. */
+  api: string;
+  avatarApi: string;
+  galerieApi: string;
+  bild: (id: string) => string;
+  /** Das Menü mit den beiden Kacheln. */
+  menue: string;
+  /** Wohin „Fertig“ und die Zeitsperre führen. */
+  start: string;
+}
+
+const BESUCHERQUELLE: Quelle = {
+  besucher: true,
+  api: "/api/mein",
+  avatarApi: "/api/mein/avatar",
+  galerieApi: "/api/mein/avatare",
+  bild: (id) => `/api/mein/bild/${id}`,
+  menue: "/mein",
+  start: "/mein",
+};
+
+function useQuelle(bereich: Bereich): Quelle {
+  const { guid } = useParams();
+  if (bereich === "besucher") return BESUCHERQUELLE;
+  const api = `/api/kiosk/besucher/${String(guid)}`;
+  return {
+    besucher: false,
+    api,
+    avatarApi: `${api}/avatar`,
+    galerieApi: "/api/kiosk/avatare",
+    bild: (id) => `/api/dateien/${id}`,
+    menue: `/kiosk/${String(guid)}`,
+    start: "/kiosk",
+  };
 }
 
 // --- Scannen --------------------------------------------------------------------------
@@ -89,17 +143,24 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
 
 // --- Zwischenmenü ---------------------------------------------------------------------
 
-export function KioskMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
-  const { guid } = useParams();
+export function KioskMenue({
+  aufAbmelden,
+  bereich = "terminal",
+}: {
+  aufAbmelden: () => void;
+  bereich?: Bereich;
+}) {
+  const q = useQuelle(bereich);
   const navigate = useNavigate();
-  const abruf = useAbruf<Besucher>(`/api/kiosk/besucher/${String(guid)}`);
+  const abruf = useAbruf<Besucher>(q.api);
   const b = abruf.daten;
 
   return (
     <Kioskrahmen
       aufAbmelden={aufAbmelden}
+      besucher={q.besucher}
       aufAblauf={() => {
-        void navigate("/kiosk", { replace: true });
+        void navigate(q.start, { replace: true });
       }}
     >
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
@@ -108,7 +169,7 @@ export function KioskMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
             <div className="flex flex-wrap items-center gap-5">
               {b.avatarDateiId !== null && (
                 <img
-                  src={`/api/dateien/${b.avatarDateiId}`}
+                  src={q.bild(b.avatarDateiId)}
                   alt="Dein Bild"
                   className="size-20 shrink-0 object-cover"
                 />
@@ -126,27 +187,30 @@ export function KioskMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 titel="Daten ändern"
                 text="Name, Firma, Anschrift und Kontakt."
                 aufKlick={() => {
-                  void navigate(`/kiosk/${String(guid)}/stammdaten`);
+                  void navigate(`${q.menue}/stammdaten`);
                 }}
               />
               <Kachel
                 titel="Bild aussuchen"
                 text="Wähle ein Bild, das im Viewer erscheint."
                 aufKlick={() => {
-                  void navigate(`/kiosk/${String(guid)}/avatar`);
+                  void navigate(`${q.menue}/avatar`);
                 }}
               />
             </div>
 
-            <Knopf
-              art="rand"
-              className="self-start"
-              onClick={() => {
-                void navigate("/kiosk", { replace: true });
-              }}
-            >
-              Fertig
-            </Knopf>
+            {/* Am Terminal geht es zurück zum Scan. Der Besucher bleibt in seinem Bereich. */}
+            {!q.besucher && (
+              <Knopf
+                art="rand"
+                className="self-start"
+                onClick={() => {
+                  void navigate(q.start, { replace: true });
+                }}
+              >
+                Fertig
+              </Knopf>
+            )}
           </>
         )}
       </Zustand>
@@ -197,10 +261,16 @@ function Kachel({ titel, text, aufKlick }: { titel: string; text: string; aufKli
 
 // --- Stammdaten -----------------------------------------------------------------------
 
-export function KioskStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
-  const { guid } = useParams();
+export function KioskStammdaten({
+  aufAbmelden,
+  bereich = "terminal",
+}: {
+  aufAbmelden: () => void;
+  bereich?: Bereich;
+}) {
+  const q = useQuelle(bereich);
   const navigate = useNavigate();
-  const abruf = useAbruf<Besucher>(`/api/kiosk/besucher/${String(guid)}`);
+  const abruf = useAbruf<Besucher>(q.api);
   const [entwurf, setzeEntwurf] = useState<Record<string, string> | null>(null);
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -223,16 +293,15 @@ export function KioskStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
     setzeLaeuft(true);
     setzeFehler(null);
     try {
-      await api(`/api/kiosk/besucher/${String(guid)}`, {
+      await api(q.api, {
         method: "PATCH",
         body: JSON.stringify(werte),
       });
-      void navigate(`/kiosk/${String(guid)}`);
+      void navigate(q.menue);
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler && ursache.code === "pflicht-fehlt"
-          ? "Vorname und Nachname dürfen nicht leer sein."
-          : "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
+        (ursache instanceof ApiFehler ? besucherFehlertext(ursache.code) : null) ??
+          "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
       );
     } finally {
       setzeLaeuft(false);
@@ -242,8 +311,9 @@ export function KioskStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
   return (
     <Kioskrahmen
       aufAbmelden={aufAbmelden}
+      besucher={q.besucher}
       aufAblauf={() => {
-        void navigate("/kiosk", { replace: true });
+        void navigate(q.start, { replace: true });
       }}
     >
       <Ueberschrift>Deine Daten</Ueberschrift>
@@ -266,7 +336,7 @@ export function KioskStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
                   {felderDerGruppe(gruppe).map((f) => (
                     <label key={f.name} className="flex flex-col gap-2 text-[14px] font-semibold">
                       {f.text}
-                      {f.pflicht === true && <span className="sr-only">Pflichtfeld</span>}
+                      {pflichtBeimBesucher(f) && <span className="sr-only">Pflichtfeld</span>}
                       <Feld
                         className="h-12 text-[16px] font-normal"
                         value={werte[f.name] ?? ""}
@@ -284,7 +354,7 @@ export function KioskStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
               laeuft={laeuft}
               aufSpeichern={() => void speichere()}
               aufAbbrechen={() => {
-                void navigate(`/kiosk/${String(guid)}`);
+                void navigate(q.menue);
               }}
             />
           </>
@@ -301,11 +371,17 @@ interface Galerie {
   avatare: string[];
 }
 
-export function KioskAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
-  const { guid } = useParams();
+export function KioskAvatar({
+  aufAbmelden,
+  bereich = "terminal",
+}: {
+  aufAbmelden: () => void;
+  bereich?: Bereich;
+}) {
+  const q = useQuelle(bereich);
   const navigate = useNavigate();
-  const besucher = useAbruf<Besucher>(`/api/kiosk/besucher/${String(guid)}`);
-  const galerie = useAbruf<Galerie>("/api/kiosk/avatare");
+  const besucher = useAbruf<Besucher>(q.api);
+  const galerie = useAbruf<Galerie>(q.galerieApi);
   const [gewaehlt, setzeGewaehlt] = useState<string | null>(null);
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -317,11 +393,11 @@ export function KioskAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
     setzeLaeuft(true);
     setzeFehler(null);
     try {
-      await api(`/api/kiosk/besucher/${String(guid)}/avatar`, {
+      await api(q.avatarApi, {
         method: "PATCH",
         body: JSON.stringify({ avatarDateiId: aktuell }),
       });
-      void navigate(`/kiosk/${String(guid)}`);
+      void navigate(q.menue);
     } catch {
       setzeFehler("Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.");
     } finally {
@@ -332,8 +408,9 @@ export function KioskAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
   return (
     <Kioskrahmen
       aufAbmelden={aufAbmelden}
+      besucher={q.besucher}
       aufAblauf={() => {
-        void navigate("/kiosk", { replace: true });
+        void navigate(q.start, { replace: true });
       }}
     >
       <Ueberschrift>Dein Bild</Ueberschrift>
@@ -348,13 +425,14 @@ export function KioskAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
               avatare={g.avatare}
               gewaehlt={aktuell}
               aufWahl={setzeGewaehlt}
+              bild={q.bild}
             />
 
             <Knopfzeile
               laeuft={laeuft}
               aufSpeichern={() => void speichere()}
               aufAbbrechen={() => {
-                void navigate(`/kiosk/${String(guid)}`);
+                void navigate(q.menue);
               }}
             />
           </>

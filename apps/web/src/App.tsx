@@ -9,7 +9,6 @@ import { Api } from "./seiten/Api.js";
 import { GlobaleDaten } from "./seiten/GlobaleDaten.js";
 import { Besucher } from "./seiten/Besucher.js";
 import { BesucherDetail } from "./seiten/BesucherDetail.js";
-import { CsvImport } from "./seiten/CsvImport.js";
 import { Dashboard } from "./seiten/Dashboard.js";
 import { Einstellungen } from "./seiten/Einstellungen.js";
 import { Monitoring } from "./seiten/Monitoring.js";
@@ -95,6 +94,24 @@ export function App() {
           <Route path="/kiosk/:guid/avatar" element={<KioskAvatar aufAbmelden={abmelden} />} />
           <Route path="*" element={<Navigate to="/kiosk" replace />} />
         </Routes>
+      ) : ich.rolle === "besucher" ? (
+        /*
+          **Der angemeldete Besucher**, seit dem 23.10.2026: dieselben Bildschirme wie am
+          Terminal, nur ohne Scan. Die GUID steht nicht in der Adresse; der Server nimmt sie aus
+          der Sitzung. Jede andere Adresse landet in seinem Menü.
+        */
+        <Routes>
+          <Route path="/mein" element={<KioskMenue bereich="besucher" aufAbmelden={abmelden} />} />
+          <Route
+            path="/mein/stammdaten"
+            element={<KioskStammdaten bereich="besucher" aufAbmelden={abmelden} />}
+          />
+          <Route
+            path="/mein/avatar"
+            element={<KioskAvatar bereich="besucher" aufAbmelden={abmelden} />}
+          />
+          <Route path="*" element={<Navigate to="/mein" replace />} />
+        </Routes>
       ) : (
         <Routes>
           <Route path="/anmeldung" element={<Navigate to="/" replace />} />
@@ -130,7 +147,6 @@ export function App() {
             />
             <Route path="/besucher" element={<Besucher />} />
             <Route path="/besucher/neu" element={<BesucherDetail ich={ich} />} />
-            <Route path="/besucher/import" element={<CsvImport />} />
             <Route path="/besucher/:guid" element={<BesucherDetail ich={ich} />} />
             <Route path="/exponate" element={<Exponate ich={ich} />} />
             <Route path="/exponate/:id" element={<ExponatDetail ich={ich} />} />

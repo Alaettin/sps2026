@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, like, ne, or, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { besucher, zuordnungen } from "../db/schema.js";
 import { badRequest, conflict, notFound } from "../errors.js";
 import { avatarFuer } from "./standardavatar.js";
 
 /**
- * Besucher der Konferenz. Sie melden sich nie an, es gibt keine Selbstregistrierung.
+ * Besucher der Konferenz. Sie melden sich mit ihrer E-Mail an (siehe
+ * `services/besucherzugang.ts`); eine Selbstregistrierung gibt es nicht.
  *
  * Die GUID ist der Primaerschluessel und zugleich die `itemId` fuer Axon. Sie steht im
  * QR-Code des Passes und in der Adresse des Viewers.
@@ -58,7 +59,7 @@ export interface BesucherEingabe {
   alias?: string | null;
   firma?: string | null;
   position?: string | null;
-  email?: string | null;
+  email: string;
   strasse?: string | null;
   plz?: string | null;
   ort?: string | null;
@@ -67,8 +68,41 @@ export interface BesucherEingabe {
   avatarDateiId?: string | null;
 }
 
+/**
+ * Alle Spalten **ausser dem Passworthash**. Jede Antwort, die einen Besucher zeigt, geht
+ * ueber diese Auswahl; so kann der Hash nicht aus Versehen mit hinausgehen.
+ */
+const { passwortHash: _hash, ...OEFFENTLICH } = getTableColumns(besucher);
+
+/** Das Muster, das schon der CSV-Import nutzt. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Prueft die E-Mail: Pflicht, plausibles Format, eindeutig ohne Gross- und Kleinschreibung.
+ *
+ * `ausser` ist der Besucher selbst beim Aendern, damit seine eigene Adresse nicht als
+ * vergeben gilt. Der Index in der Datenbank haelt dieselbe Regel; hier steht sie, damit die
+ * Antwort eine 409 mit Namen ist und kein Constraint-Fehler.
+ */
+function pruefeEmail(db: Db, roh: unknown, ausser: string | null): string {
+  const email = typeof roh === "string" ? roh.trim() : "";
+  if (email === "") throw badRequest("pflicht-fehlt", "Field email is required.");
+  if (!EMAIL.test(email))
+    throw badRequest("email-ungueltig", "Field email is not a valid address.");
+  const gleich = sql`lower(${besucher.email}) = lower(${email})`;
+  const vergeben = db
+    .select({ guid: besucher.guid })
+    .from(besucher)
+    .where(ausser === null ? gleich : and(gleich, ne(besucher.guid, ausser)))
+    .get();
+  if (vergeben !== undefined) {
+    throw conflict("email-vergeben", "Another visitor already uses this email address.");
+  }
+  return email;
+}
+
 export function findeBesucher(db: Db, guid: string) {
-  const reihe = db.select().from(besucher).where(eq(besucher.guid, guid)).get();
+  const reihe = db.select(OEFFENTLICH).from(besucher).where(eq(besucher.guid, guid)).get();
   if (reihe === undefined) throw notFound("besucher-unbekannt", "Unknown visitor.");
   return reihe;
 }
@@ -91,11 +125,13 @@ export function legeBesucherAn(db: Db, eingabe: BesucherEingabe) {
   if (eingabe.vorname.trim() === "" || eingabe.nachname.trim() === "") {
     throw badRequest("feld-fehlt", "Fields vorname and nachname are required.");
   }
+  const email = pruefeEmail(db, eingabe.email, null);
 
   const jetzt = Date.now();
   const reihe = {
     guid,
     ...leseTextfelder(eingabe),
+    email,
     /*
      * **Jeder neue Besucher traegt den Standard-Avatar**, auch der aus dem CSV-Import: der
      * laeuft durch dieselbe Funktion. `avatarFuer` liefert ihn nur, wenn die Zeile wirklich
@@ -107,7 +143,7 @@ export function legeBesucherAn(db: Db, eingabe: BesucherEingabe) {
     geaendert: jetzt,
   };
   db.insert(besucher).values(reihe).run();
-  return reihe;
+  return findeBesucher(db, guid);
 }
 
 export function aendereBesucher(db: Db, guid: string, eingabe: Partial<BesucherEingabe>) {
@@ -119,6 +155,7 @@ export function aendereBesucher(db: Db, guid: string, eingabe: Partial<BesucherE
       aenderung[feld] = wert === null || wert === undefined ? null : String(wert).trim();
     }
   }
+  if ("email" in eingabe) aenderung["email"] = pruefeEmail(db, eingabe.email, guid);
   if ("avatarDateiId" in eingabe) aenderung["avatarDateiId"] = eingabe.avatarDateiId ?? null;
   db.update(besucher).set(aenderung).where(eq(besucher.guid, guid)).run();
   return findeBesucher(db, guid);
@@ -170,7 +207,7 @@ export function listeBesucher(db: Db, suche: string, seite: Seite) {
     .get();
 
   const eintraege = db
-    .select()
+    .select(OEFFENTLICH)
     .from(besucher)
     .where(bedingung)
     .orderBy(asc(besucher.nachname), asc(besucher.vorname))
@@ -206,14 +243,15 @@ export function zaehleZuordnungen(db: Db, guid: string, exponatId: string): numb
  * laesst leere Felder aus, und ein Besucher ohne Namen waere im Viewer eine leere Karte.
  * Die Pflicht wird in `legeBesucherAn` geprueft, bevor diese Funktion laeuft.
  */
-type Optionale = Exclude<Textfeld, "vorname" | "nachname">;
+type Optionale = Exclude<Textfeld, "vorname" | "nachname" | "email">;
 
 function leseTextfelder(
   eingabe: Partial<BesucherEingabe>,
 ): Record<Optionale, string | null> & { vorname: string; nachname: string } {
   const optional = {} as Record<Optionale, string | null>;
   for (const feld of TEXTFELDER) {
-    if (feld === "vorname" || feld === "nachname") continue;
+    // Die E-Mail prueft und setzt `pruefeEmail`.
+    if (feld === "vorname" || feld === "nachname" || feld === "email") continue;
     const wert = eingabe[feld];
     optional[feld] =
       wert === null || wert === undefined || String(wert).trim() === ""

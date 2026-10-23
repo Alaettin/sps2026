@@ -38,7 +38,9 @@ test("ein Exponat lässt sich löschen, aber erst nach der Kennung", async ({ pa
   expect(nachher.status()).toBe(404);
 });
 
-test("die CSV-Vorlage lässt sich herunterladen und trägt die Kopfzeile", async ({ page }) => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login der
+// Besucher, die Regeln fuer den Import stehen noch aus). Beim Einschalten wieder aktivieren.
+test.skip("die CSV-Vorlage lässt sich herunterladen und trägt die Kopfzeile", async ({ page }) => {
   await page.goto("/besucher/import");
 
   const [download] = await Promise.all([
@@ -64,7 +66,7 @@ test("die CSV-Vorlage lässt sich herunterladen und trägt die Kopfzeile", async
 
 /** Der Browser setzt den Text neben ein sichtbares Dateifeld; er darf nirgends stehen. */
 test("nirgends steht 'Keine Datei ausgewählt'", async ({ page }) => {
-  for (const pfad of ["/besucher/import", "/exponate"]) {
+  for (const pfad of ["/exponate"]) {
     await page.goto(pfad);
     await expect(page.getByText(/Keine Datei ausgewählt/i)).toHaveCount(0);
   }
@@ -130,7 +132,7 @@ test("im Auswahlfenster scrollt genau ein Element", async ({ page, request, view
 test("das Monitoring zeigt einen Abruf über die Konnektor-API", async ({ page, request }) => {
   const guid = `MON-${String(Date.now()).slice(-8)}`;
   await request.post("/api/besucher", {
-    data: { guid, vorname: "Monitor", nachname: "Probe" },
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Monitor", nachname: "Probe" },
   });
 
   // Ohne Anmeldung, genau wie Axon es täte.

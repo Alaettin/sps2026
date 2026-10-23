@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { pruefeInsLeere, pruefePasswort } from "../auth/passwort.js";
-import { clearSession, issueSession } from "../auth/session.js";
+import { pruefePasswort } from "../auth/passwort.js";
+import { clearSession, issueSession, readSession } from "../auth/session.js";
 import { anmeldungFalsch, badRequest } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { findeNutzerPerEmail, merkeAnmeldung } from "../services/nutzer.js";
+import { findeBesucher } from "../services/besucher.js";
+import { pruefeBesucherAnmeldung } from "../services/besucherzugang.js";
 
 interface AnmeldeKoerper {
   email?: unknown;
@@ -35,20 +37,44 @@ export function authRoutes(app: FastifyInstance, ctx: Kontext): void {
       const reihe = findeNutzerPerEmail(ctx.db, email);
 
       /*
-       * **Auch ohne Treffer wird gehasht**, siehe `pruefeInsLeere`.
+       * **Kein Personal mit dieser E-Mail: dann vielleicht ein Besucher.** Gibt es die Adresse
+       * bei beiden, gewinnt das Personal; der Besucher kommt dann nicht hinein, statt dass
+       * ein Passwort entscheidet, welches Konto gemeint war.
+       */
+      if (reihe === null) {
+        const guid = await pruefeBesucherAnmeldung(ctx.db, email, passwort);
+        if (guid === null) throw anmeldungFalsch();
+        const person = findeBesucher(ctx.db, guid);
+        issueSession(
+          req,
+          reply,
+          { art: "besucher", sub: guid, exp: Date.now() + ctx.env.sessionTtlMs },
+          ctx.env,
+        );
+        return {
+          id: guid,
+          name: `${person.vorname} ${person.nachname}`,
+          email: person.email,
+          rolle: "besucher",
+        };
+      }
+
+      /*
+       * Ohne Treffer hasht `pruefeBesucherAnmeldung` ins Leere, siehe `pruefeInsLeere`.
        *
        * Deaktivierte Nutzer laufen durch dieselbe Pruefung und bekommen dieselbe Meldung:
        * ob jemand gesperrt ist, geht die Anmeldemaske nichts an.
        */
-      const stimmt =
-        reihe === null
-          ? await pruefeInsLeere(passwort)
-          : await pruefePasswort(reihe.passwortHash, passwort);
-
-      if (reihe === null || !reihe.aktiv || !stimmt) throw anmeldungFalsch();
+      const stimmt = await pruefePasswort(reihe.passwortHash, passwort);
+      if (!reihe.aktiv || !stimmt) throw anmeldungFalsch();
 
       merkeAnmeldung(ctx.db, reihe.id);
-      issueSession(req, reply, { sub: reihe.id, exp: Date.now() + ctx.env.sessionTtlMs }, ctx.env);
+      issueSession(
+        req,
+        reply,
+        { art: "nutzer", sub: reihe.id, exp: Date.now() + ctx.env.sessionTtlMs },
+        ctx.env,
+      );
       return {
         id: reihe.id,
         name: reihe.name,
@@ -70,7 +96,26 @@ export function authRoutes(app: FastifyInstance, ctx: Kontext): void {
    * Zwischenspeicher im localStorage, der sofort rendert: der haette den Anmeldezustand
    * von gestern, und ein deaktivierter Nutzer saehe die Verwaltung aufblitzen.
    */
-  app.get("/api/auth/ich", { preHandler: app.verlangeAnmeldung }, async (req) => {
+  app.get("/api/auth/ich", async (req) => {
+    /*
+     * Beide Arten von Sitzung. Der Besucher bekommt die Rolle `besucher` und seine GUID; die
+     * Oberflaeche zeigt ihm danach nur seinen eigenen Bereich.
+     */
+    if (readSession(req)?.art === "besucher") {
+      await app.verlangeBesucher(req);
+      const person = findeBesucher(ctx.db, req.besucherGuid ?? "");
+      return {
+        id: person.guid,
+        guid: person.guid,
+        name: `${person.vorname} ${person.nachname}`,
+        email: person.email,
+        rolle: "besucher",
+        appName: ctx.env.appName,
+        viewerBaseUrl: ctx.env.viewerBaseUrl,
+      };
+    }
+
+    await app.verlangeAnmeldung(req);
     const nutzer = req.nutzer;
     return {
       id: nutzer?.id,

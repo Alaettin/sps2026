@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PROJEKT_WURZEL } from "../src/env.js";
 import { STANDARD_AVATAR_ID } from "../src/services/standardavatar.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Der Standard-Avatar als Rueckfall.
@@ -35,7 +35,7 @@ async function werteVon(s: Pruefstand, keks: string, guid: string): Promise<Eige
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Ohne", nachname: "Bild" },
+    payload: { guid, vorname: "Ohne", nachname: "Bild", email: testEmail() },
   });
   const antwort = await s.app.inject({
     method: "POST",
@@ -113,7 +113,7 @@ describe("Standard-Avatar", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid, vorname: "Mit", nachname: "Bild" },
+      payload: { guid, vorname: "Mit", nachname: "Bild", email: testEmail() },
     });
 
     /*
@@ -201,7 +201,7 @@ describe("Standard-Avatar", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "NACH-RESET", vorname: "Nach", nachname: "Reset" },
+      payload: { guid: "NACH-RESET", vorname: "Nach", nachname: "Reset", email: testEmail() },
     });
     expect(neu.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(STANDARD_AVATAR_ID);
   });
@@ -214,7 +214,7 @@ describe("Standard-Avatar", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "EINZELN-1", vorname: "Einzeln", nachname: "Probe" },
+      payload: { guid: "EINZELN-1", vorname: "Einzeln", nachname: "Probe", email: testEmail() },
     });
     expect(einzeln.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(STANDARD_AVATAR_ID);
     // Der Weg ueber den CSV-Import steht in `import.test.ts`, dort liegt der Multipart-Helfer.

@@ -12,6 +12,7 @@ import {
 } from "../services/besucher.js";
 import { exponateFuerBesucher, leseElemente, setzeZuordnungen } from "../services/zuordnungen.js";
 import { pruefeAvatarWahl } from "../services/avatare.js";
+import { setzeBesucherPasswortZurueck } from "../services/besucherzugang.js";
 
 /**
  * Ein mitgeschicktes `avatarDateiId` geht durch dieselbe Pruefung wie am Tablet.
@@ -68,6 +69,19 @@ export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
       }
       void reply.code(201);
       return legeBesucherAn(ctx.db, mitGeprueftemAvatar(ctx, koerper));
+    },
+  );
+
+  /**
+   * Setzt das Passwort des Besuchers zurueck. Vorerst heisst das: auf das Standardpasswort,
+   * siehe `services/besucherzugang.ts`. Was hier spaeter genau passiert, ist offen.
+   */
+  app.post<{ Params: { guid: string } }>(
+    "/api/besucher/:guid/passwort-zuruecksetzen",
+    { preHandler: app.verlangeAdmin },
+    async (req) => {
+      setzeBesucherPasswortZurueck(ctx.db, req.params.guid);
+      return { zurueckgesetzt: true };
     },
   );
 

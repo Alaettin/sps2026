@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { csvFeld } from "../src/services/auswertung.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Die Auswertung als CSV, seit dem 19.10.2026: eine Zeile je Besucher, alle Stammdaten,
@@ -38,7 +38,7 @@ async function aufbau() {
     felder: object,
     exponate: { id: string; link: string }[],
   ) => {
-    await ruf("POST", "/api/besucher", { guid, ...felder });
+    await ruf("POST", "/api/besucher", { guid, email: testEmail(), ...felder });
     for (const e of exponate) {
       await ruf("POST", "/api/scan/zuordnen", {
         guid,

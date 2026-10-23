@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
 
@@ -64,7 +64,7 @@ describe("Besucher", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { vorname: "Anna", nachname: "Ahrens" },
+      payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
     });
     expect(antwort.statusCode).toBe(201);
     expect(antwort.json<{ guid: string }>().guid).toMatch(/^[A-Za-z0-9_-]{1,50}$/);
@@ -82,7 +82,7 @@ describe("Besucher", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { guid, vorname: "A", nachname: "B" },
+        payload: { guid, vorname: "A", nachname: "B", email: testEmail() },
       });
       expect(antwort.statusCode, guid).toBe(400);
     }
@@ -91,7 +91,7 @@ describe("Besucher", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "a".repeat(50), vorname: "A", nachname: "B" },
+      payload: { guid: "a".repeat(50), vorname: "A", nachname: "B", email: testEmail() },
     });
     expect(grenzfall.statusCode).toBe(201);
   });
@@ -103,7 +103,7 @@ describe("Besucher", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Test", nachname: name },
+        payload: { vorname: "Test", nachname: name, email: testEmail() },
       });
     }
     const gefiltert = (
@@ -263,7 +263,7 @@ describe("Exponate und Plaetze", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens" },
+        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
       })
     ).json<{ guid: string }>();
 
@@ -297,7 +297,7 @@ describe("Scan und Zuordnungen", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens" },
+        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
       })
     ).json<{ guid: string }>();
 
@@ -338,7 +338,7 @@ describe("Scan und Zuordnungen", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens" },
+        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
       })
     ).json<{ guid: string }>();
 
@@ -370,7 +370,7 @@ describe("Scan und Zuordnungen", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens" },
+        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
       })
     ).json<{ guid: string }>();
 
@@ -471,7 +471,7 @@ describe("Rechte", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens" },
+        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
       })
     ).json<{ guid: string }>();
 
@@ -542,7 +542,7 @@ describe("Dashboard", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { vorname: "Anna", nachname: "Ahrens" },
+      payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
     });
     await s.app.inject({
       method: "POST",

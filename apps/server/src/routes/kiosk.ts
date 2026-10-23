@@ -1,15 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import { badRequest } from "../errors.js";
 import type { Kontext } from "../kontext.js";
-import { aendereBesucher, findeBesucher, TEXTFELDER } from "../services/besucher.js";
-import { STANDARD_AVATAR_ID } from "../services/standardavatar.js";
-import { galerieIds, pruefeAvatarWahl } from "../services/avatare.js";
+import {
+  aendereSelbst,
+  avatarAuswahl,
+  selbstAnsicht,
+  waehleAvatar,
+} from "../services/selbstbedienung.js";
 
 /**
  * Das Selbstbedienungs-Tablet am Stand.
  *
  * Ein Besucher scannt seinen eigenen Pass und pflegt danach seine Stammdaten oder waehlt
- * einen Avatar. Mehr nicht.
+ * einen Avatar. Mehr nicht. Was er sehen und aendern darf, steht in
+ * `services/selbstbedienung.ts`, gemeinsam mit dem angemeldeten Besucher (`routes/mein.ts`).
  *
  * **Eigene Routen statt geweiteter Rechte.** Die Verwaltungsrouten bleiben Admin-Sache;
  * haette man sie fuer `kiosk` geoeffnet, waere die enge Rolle eine Frage von Wachsamkeit
@@ -24,78 +27,25 @@ import { galerieIds, pruefeAvatarWahl } from "../services/avatare.js";
  * deshalb hat die Oberflaeche kein Eingabefeld fuer die GUID.
  */
 export function kioskRoutes(app: FastifyInstance, ctx: Kontext): void {
-  /**
-   * Der Besucher, wie das Tablet ihn braucht.
-   *
-   * **Ausdruecklich aufgezaehlt, nicht durchgereicht.** `findeBesucher` liefert auch
-   * Zeitstempel und interne Felder; was ein Geraet im Publikum sieht, soll hier
-   * dastehen und nicht davon abhaengen, was eine andere Funktion spaeter ergaenzt.
-   */
   app.get<{ Params: { guid: string } }>(
     "/api/kiosk/besucher/:guid",
     { preHandler: app.verlangeKiosk },
-    async (req) => {
-      const b = findeBesucher(ctx.db, req.params.guid);
-      const felder = Object.fromEntries(TEXTFELDER.map((f) => [f, b[f]]));
-      return { guid: b.guid, ...felder, avatarDateiId: b.avatarDateiId };
-    },
+    async (req) => selbstAnsicht(ctx.db, req.params.guid),
   );
 
-  /**
-   * Stammdaten aendern.
-   *
-   * Die GUID steht im Pfad und wird nie aus dem Rumpf gelesen; `aendereBesucher` fasst
-   * ohnehin nur `TEXTFELDER` und `avatarDateiId` an. Letzteres wird hier **entfernt**,
-   * damit dieser Weg nicht am Galerie-Filter der Avatar-Route vorbeifuehrt.
-   */
+  // Die GUID steht im Pfad und wird nie aus dem Rumpf gelesen.
   app.patch<{ Params: { guid: string }; Body: Record<string, unknown> }>(
     "/api/kiosk/besucher/:guid",
     { preHandler: app.verlangeKiosk },
-    async (req) => {
-      const roh = req.body ?? {};
-      const eingabe: Record<string, unknown> = {};
-      for (const feld of TEXTFELDER) {
-        if (feld in roh) eingabe[feld] = roh[feld];
-      }
-      if (typeof eingabe["vorname"] === "string" && eingabe["vorname"].trim() === "") {
-        throw badRequest("pflicht-fehlt", "Field vorname must not be empty.");
-      }
-      if (typeof eingabe["nachname"] === "string" && eingabe["nachname"].trim() === "") {
-        throw badRequest("pflicht-fehlt", "Field nachname must not be empty.");
-      }
-
-      const b = aendereBesucher(ctx.db, req.params.guid, eingabe);
-      const felder = Object.fromEntries(TEXTFELDER.map((f) => [f, b[f]]));
-      return { guid: b.guid, ...felder, avatarDateiId: b.avatarDateiId };
-    },
+    async (req) => aendereSelbst(ctx.db, req.params.guid, req.body ?? {}),
   );
 
-  /**
-   * Die Auswahl der Avatare. Nur Ids; die Bilder holt der Klient ueber `/api/dateien/:id`.
-   *
-   * `standard` steht getrennt daneben, weil er kein Galeriebild ist, aber waehlbar sein
-   * soll: jeder neue Besucher traegt ihn, und man muss dorthin zurueckkommen koennen.
-   */
-  app.get("/api/kiosk/avatare", { preHandler: app.verlangeKiosk }, () => ({
-    standard: STANDARD_AVATAR_ID,
-    avatare: galerieIds(ctx.db),
-  }));
+  // Nur Ids; die Bilder holt der Klient ueber `/api/dateien/:id`.
+  app.get("/api/kiosk/avatare", { preHandler: app.verlangeKiosk }, () => avatarAuswahl(ctx.db));
 
-  /**
-   * Einen Avatar setzen. `null` bedeutet den Standard.
-   *
-   * **Nur Ids aus der Galerie.** Ohne diese Pruefung koennte ein Tablet den Avatar eines
-   * Besuchers auf eine beliebige Datei zeigen lassen, etwa auf ein PDF von einem Exponat,
-   * und das ginge als Base64 in jede `values`-Antwort der Konnektor-API hinaus.
-   */
   app.patch<{ Params: { guid: string }; Body: { avatarDateiId?: unknown } }>(
     "/api/kiosk/besucher/:guid/avatar",
     { preHandler: app.verlangeKiosk },
-    async (req) => {
-      // Nur Galerie oder Standard, siehe `pruefeAvatarWahl`.
-      const wunsch = pruefeAvatarWahl(ctx.db, req.body?.avatarDateiId ?? null);
-      const b = aendereBesucher(ctx.db, req.params.guid, { avatarDateiId: wunsch });
-      return { guid: b.guid, avatarDateiId: b.avatarDateiId };
-    },
+    async (req) => waehleAvatar(ctx.db, req.params.guid, req.body?.avatarDateiId ?? null),
   );
 }

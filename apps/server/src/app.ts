@@ -18,12 +18,12 @@ import { besucherRoutes } from "./routes/besucher.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { monitoringRoutes } from "./routes/monitoring.js";
 import { kioskRoutes } from "./routes/kiosk.js";
+import { meinRoutes } from "./routes/mein.js";
 import { avatarRoutes } from "./routes/avatare.js";
 import { dateiRoutes } from "./routes/dateien.js";
 import { entwicklerRoutes } from "./routes/entwickler.js";
 import { exponatRoutes } from "./routes/exponate.js";
 import { healthRoutes } from "./routes/health.js";
-import { importRoutes } from "./routes/import.js";
 import { nutzerRoutes } from "./routes/nutzer.js";
 import { scanRoutes } from "./routes/scan.js";
 import { sicherungRoutes } from "./routes/sicherung.js";
@@ -134,13 +134,19 @@ export async function buildServer(
   nutzerRoutes(app, ctx);
   dateiRoutes(app, ctx);
   besucherRoutes(app, ctx);
-  importRoutes(app, ctx);
+  /*
+   * **Der CSV-Import ist vorerst abgeschaltet** (23.10.2026): seit die E-Mail Pflicht und
+   * Login der Besucher ist, muesste er Zeilen ohne E-Mail und doppelte Adressen behandeln, und
+   * das ist noch nicht entschieden. Der Code in `routes/import.ts` bleibt; zum Einschalten
+   * hier wieder `importRoutes(app, ctx)` eintragen.
+   */
   exponatRoutes(app, ctx);
   ansprechpartnerRoutes(app, ctx);
   scanRoutes(app, ctx);
   dashboardRoutes(app, ctx);
   monitoringRoutes(app, ctx);
   kioskRoutes(app, ctx);
+  meinRoutes(app, ctx);
   avatarRoutes(app, ctx);
   entwicklerRoutes(app, ctx);
   sicherungRoutes(app, ctx);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FELDER_BESUCHER } from "../src/modell/modell.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Der akademische Titel.
@@ -132,7 +132,13 @@ describe("Der Titel in values", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "TITEL-0001", titel: "Dr.", vorname: "Anna", nachname: "Ahrens" },
+      payload: {
+        guid: "TITEL-0001",
+        titel: "Dr.",
+        vorname: "Anna",
+        nachname: "Ahrens",
+        email: testEmail(),
+      },
     });
 
     const alle = await werte(s, "TITEL-0001");
@@ -151,7 +157,7 @@ describe("Der Titel in values", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "TITEL-0002", vorname: "Bernd", nachname: "Dietrich" },
+      payload: { guid: "TITEL-0002", vorname: "Bernd", nachname: "Dietrich", email: testEmail() },
     });
 
     const alle = await werte(s, "TITEL-0002");
@@ -167,7 +173,13 @@ describe("Der Titel in values", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "TITEL-0003", titel: "Prof. Dr.", vorname: "Clara", nachname: "Groth" },
+      payload: {
+        guid: "TITEL-0003",
+        titel: "Prof. Dr.",
+        vorname: "Clara",
+        nachname: "Groth",
+        email: testEmail(),
+      },
     });
 
     const alle = await werte(s, "TITEL-0003");
@@ -219,7 +231,7 @@ describe("Der Titel in values", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "TITEL-0004", vorname: "Eva", nachname: "Klein" },
+      payload: { guid: "TITEL-0004", vorname: "Eva", nachname: "Klein", email: testEmail() },
     });
     await s.app.inject({
       method: "POST",

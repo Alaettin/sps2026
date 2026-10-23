@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * Das vollstaendige Schema nach der Uebergabe, in einer Datei und einer Datenbank.
@@ -75,34 +75,47 @@ export const dateien = sqliteTable("dateien", {
 
 // --- Besucher ------------------------------------------------------------------------
 
-export const besucher = sqliteTable("besucher", {
-  /** Die GUID ist der Schluessel, nicht eine eigene Id: sie ist die `itemId` fuer Axon. */
-  guid: text("guid").primaryKey(),
-  /** Akademischer Titel, etwa "Dr." oder "Prof. Dr.". Freitext, weil die Formen zu viele sind. */
-  titel: text("titel"),
-  vorname: text("vorname").notNull(),
-  nachname: text("nachname").notNull(),
-  /**
-   * Freitext, optional, nicht eindeutig. **Nur beim Besucher**, nicht bei den
-   * Ansprechpartnern; geht als eigene Eigenschaft `Visitor_Alias` an Axon.
-   */
-  alias: text("alias"),
-  firma: text("firma"),
-  position: text("position"),
-  email: text("email"),
-  strasse: text("strasse"),
-  plz: text("plz"),
-  ort: text("ort"),
-  land: text("land"),
-  website: text("website"),
-  /*
-   * `set null`, nicht `cascade`: wird ein Bild geloescht, verliert der Besucher sein
-   * Avatar, aber nicht seinen Datensatz.
-   */
-  avatarDateiId: text("avatar_datei_id").references(() => dateien.id, { onDelete: "set null" }),
-  angelegt: integer("angelegt").notNull().default(jetzt),
-  geaendert: integer("geaendert").notNull().default(jetzt),
-});
+export const besucher = sqliteTable(
+  "besucher",
+  {
+    /** Die GUID ist der Schluessel, nicht eine eigene Id: sie ist die `itemId` fuer Axon. */
+    guid: text("guid").primaryKey(),
+    /** Akademischer Titel, etwa "Dr." oder "Prof. Dr.". Freitext, weil die Formen zu viele sind. */
+    titel: text("titel"),
+    vorname: text("vorname").notNull(),
+    nachname: text("nachname").notNull(),
+    /**
+     * Freitext, optional, nicht eindeutig. **Nur beim Besucher**, nicht bei den
+     * Ansprechpartnern; geht als eigene Eigenschaft `Visitor_Alias` an Axon.
+     */
+    alias: text("alias"),
+    firma: text("firma"),
+    position: text("position"),
+    /**
+     * **Pflicht und eindeutig**, ohne Gross- und Kleinschreibung: sie ist der Login des
+     * Besuchers. Eindeutig ueber den Index unten, die freundliche 409 kommt aus dem Service.
+     */
+    email: text("email").notNull(),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    land: text("land"),
+    website: text("website"),
+    /*
+     * `set null`, nicht `cascade`: wird ein Bild geloescht, verliert der Besucher sein
+     * Avatar, aber nicht seinen Datensatz.
+     */
+    avatarDateiId: text("avatar_datei_id").references(() => dateien.id, { onDelete: "set null" }),
+    /**
+     * argon2id-Hash des eigenen Passworts. **`null` heisst: es gilt das Standardpasswort**,
+     * siehe `services/besucherzugang.ts`. Verlaesst den Server nie.
+     */
+    passwortHash: text("passwort_hash"),
+    angelegt: integer("angelegt").notNull().default(jetzt),
+    geaendert: integer("geaendert").notNull().default(jetzt),
+  },
+  (t) => [uniqueIndex("besucher_email_eindeutig").on(sql`lower(${t.email})`)],
+);
 
 // --- Exponate und ihre Inhalte -------------------------------------------------------
 

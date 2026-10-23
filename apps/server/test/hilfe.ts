@@ -15,6 +15,16 @@ import { SCHLUESSEL_ANMELDUNG, setzeSchalter } from "../src/services/einstellung
 
 export const MIGRATIONEN = fileURLToPath(new URL("../drizzle", import.meta.url));
 
+/**
+ * Eine eindeutige E-Mail fuer einen Testbesucher. Seit dem 23.10.2026 ist sie Pflicht und
+ * eindeutig; jeder Test, der einen Besucher anlegt, braucht deshalb eine eigene.
+ */
+let emailZaehler = 0;
+export function testEmail(): string {
+  emailZaehler++;
+  return `besucher-${String(emailZaehler)}@example.invalid`;
+}
+
 /** 32 Zeichen, die Untergrenze. Kein echtes Geheimnis, nur ein gueltiges. */
 export const TEST_SECRET = "0123456789abcdef0123456789abcdef";
 

@@ -16,7 +16,11 @@ export interface Personenfeld {
   name: string;
   text: string;
   gruppe: Feldgruppe;
-  pflicht?: boolean;
+  /**
+   * `true`: ueberall Pflicht. `"besucher"`: nur beim Besucher, dort ist die E-Mail sein Login;
+   * ein Ansprechpartner braucht keine.
+   */
+  pflicht?: boolean | "besucher";
   typ?: "text" | "email";
   /** Nur in der Besuchermaske, nicht bei den Ansprechpartnern. */
   nurBesucher?: boolean;
@@ -33,9 +37,32 @@ export const PERSONENFELDER: Personenfeld[] = [
   { name: "plz", text: "PLZ", gruppe: "Anschrift" },
   { name: "ort", text: "Ort", gruppe: "Anschrift" },
   { name: "land", text: "Land", gruppe: "Anschrift" },
-  { name: "email", text: "E-Mail", gruppe: "Kontakt", typ: "email" },
+  { name: "email", text: "E-Mail", gruppe: "Kontakt", typ: "email", pflicht: "besucher" },
   { name: "website", text: "Website", gruppe: "Kontakt" },
 ];
+
+/** Pflicht in einer Besuchermaske (Verwaltung, Terminal, eigener Bereich). */
+export function pflichtBeimBesucher(f: Personenfeld): boolean {
+  return f.pflicht === true || f.pflicht === "besucher";
+}
+
+/**
+ * Die deutschen Meldungen zu den Fehlern, die ein Besucherdatensatz beim Speichern bekommen
+ * kann. `null`, wenn der Code keiner davon ist.
+ */
+export function besucherFehlertext(code: string | undefined): string | null {
+  switch (code) {
+    case "pflicht-fehlt":
+    case "feld-fehlt":
+      return "Vorname, Nachname und E-Mail dürfen nicht leer sein.";
+    case "email-ungueltig":
+      return "Die E-Mail-Adresse ist ungültig.";
+    case "email-vergeben":
+      return "Diese E-Mail-Adresse ist schon vergeben.";
+    default:
+      return null;
+  }
+}
 
 /** In Anzeigereihenfolge, damit keine Maske eine eigene Folge erfindet. */
 export const GRUPPEN: Feldgruppe[] = ["Person", "Firma", "Anschrift", "Kontakt"];

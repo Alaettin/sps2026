@@ -1,7 +1,7 @@
 import type { InjectOptions } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { exponatBetreuer, zuordnungen } from "../src/db/schema.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Nutzer loeschen, seit dem 20.10.2026.
@@ -69,7 +69,7 @@ describe("Nutzer loeschen", () => {
       {
         method: "POST",
         url: "/api/besucher",
-        payload: { guid: "LOE-1", vorname: "G", nachname: "H" },
+        payload: { guid: "LOE-1", vorname: "G", nachname: "H", email: testEmail() },
       },
       201,
     );

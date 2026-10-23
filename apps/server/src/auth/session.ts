@@ -14,7 +14,12 @@ import type { ServerEnv } from "../env.js";
 export const SESSION_COOKIE = "idta_passport_sitzung";
 
 export interface SessionPayload {
-  /** Die Id in `app_nutzer`. */
+  /**
+   * Wer angemeldet ist: Personal aus `app_nutzer` oder ein Besucher, seit dem 23.10.2026.
+   * Ein Cookie ohne Angabe stammt von vorher und gilt als Personal.
+   */
+  readonly art: "nutzer" | "besucher";
+  /** Die Id in `app_nutzer`, bei einem Besucher seine GUID. */
   readonly sub: string;
   /** Ablauf in Millisekunden seit 1970. */
   readonly exp: number;
@@ -77,7 +82,8 @@ export function readSession(req: FastifyRequest): SessionPayload | null {
     ) as Partial<SessionPayload>;
     if (typeof payload.sub !== "string" || typeof payload.exp !== "number") return null;
     if (payload.exp <= Date.now()) return null;
-    return { sub: payload.sub, exp: payload.exp };
+    const art = payload.art === "besucher" ? "besucher" : "nutzer";
+    return { art, sub: payload.sub, exp: payload.exp };
   } catch {
     return null;
   }

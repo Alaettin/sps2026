@@ -38,7 +38,11 @@ function datei(kennung: string): Buffer {
   ]);
 }
 
-test("führt durch alle drei Schritte und überspringt die beanstandete Zeile", async ({ page }) => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login der
+// Besucher, die Regeln fuer den Import stehen noch aus). Beim Einschalten wieder aktivieren.
+test.skip("führt durch alle drei Schritte und überspringt die beanstandete Zeile", async ({
+  page,
+}) => {
   const kennung = `CSV${String(Date.now()).slice(-6)}`;
   // Die Datei enthaelt genau diese beiden GUIDs, siehe `datei()`.
   merkeBesucher(`${kennung}-1`);
@@ -81,7 +85,9 @@ test("führt durch alle drei Schritte und überspringt die beanstandete Zeile", 
   await expect(page.getByRole("cell", { name: "Anna Grüße" })).toBeVisible();
 });
 
-test("Ersetzen verlangt ein getipptes Wort", async ({ page }) => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login der
+// Besucher, die Regeln fuer den Import stehen noch aus). Beim Einschalten wieder aktivieren.
+test.skip("Ersetzen verlangt ein getipptes Wort", async ({ page }) => {
   const kennung = `ERS${String(Date.now()).slice(-6)}`;
   await page.goto("/besucher/import");
   await page.locator('input[type="file"]').setInputFiles({

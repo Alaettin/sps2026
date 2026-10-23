@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
-import { GRUPPEN, PERSONENFELDER, felderDerGruppe } from "../lib/personenfelder.js";
+import {
+  GRUPPEN,
+  PERSONENFELDER,
+  besucherFehlertext,
+  felderDerGruppe,
+  pflichtBeimBesucher,
+} from "../lib/personenfelder.js";
 import {
   Feld,
   Fehlerhinweis,
@@ -106,7 +112,11 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
         setzeGespeichert(true);
       }
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Speichern nicht möglich.");
+      setzeFehler(
+        ursache instanceof ApiFehler
+          ? (besucherFehlertext(ursache.code) ?? ursache.message)
+          : "Speichern nicht möglich.",
+      );
     } finally {
       setzeLaeuft(false);
     }
@@ -150,10 +160,10 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                 {felderDerGruppe(gruppe).map((f) => (
                   <label key={f.name} className="flex flex-col gap-2 text-[13px] font-semibold">
                     {f.text}
-                    {f.pflicht === true && <span className="sr-only">Pflichtfeld</span>}
+                    {pflichtBeimBesucher(f) && <span className="sr-only">Pflichtfeld</span>}
                     <Feld
                       type={f.typ ?? "text"}
-                      required={f.pflicht === true}
+                      required={pflichtBeimBesucher(f)}
                       value={werte[f.name] ?? ""}
                       onChange={(e) => {
                         setzeWerte((w) => ({ ...w, [f.name]: e.target.value }));
@@ -256,6 +266,8 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               </div>
             </Flaeche>
 
+            <Zugangsbereich guid={aktuelleGuid} email={abruf.daten?.email ?? null} />
+
             <BesucherExponate guid={aktuelleGuid} aufFehler={setzeFehler} />
           </>
         )}
@@ -289,6 +301,79 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
  * nicht. Der Server prüft das selbst (`pruefeAvatarWahl`). Nach dem Übernehmen wechselt das
  * Bild ohne Neuladen der Seite.
  */
+/**
+ * Die Anmeldung des Besuchers: seine E-Mail ist der Login, seit dem 23.10.2026.
+ *
+ * „Passwort zurücksetzen“ setzt vorerst auf das Standardpasswort zurück. Was hier später
+ * genau passieren soll, ist noch offen; der Knopf steht schon, damit der Weg feststeht.
+ */
+function Zugangsbereich({ guid, email }: { guid: string; email: string | null }) {
+  const [frage, setzeFrage] = useState(false);
+  const [laeuft, setzeLaeuft] = useState(false);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const [erledigt, setzeErledigt] = useState(false);
+
+  async function setzeZurueck() {
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      await api(`/api/besucher/${encodeURIComponent(guid)}/passwort-zuruecksetzen`, {
+        method: "POST",
+      });
+      setzeFrage(false);
+      setzeErledigt(true);
+    } catch (ursache) {
+      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Zurücksetzen nicht möglich.");
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Flaeche className="flex flex-col gap-4 p-6">
+      <h2 className="text-lg font-semibold">Anmeldung</h2>
+      <p className="text-sm text-text-zweit">
+        Der Besucher meldet sich mit seiner E-Mail an
+        {email === null ? (
+          ""
+        ) : (
+          <>
+            {" "}
+            (<span className="font-mono text-xs">{email}</span>)
+          </>
+        )}
+        .
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Knopf
+          art="rand"
+          onClick={() => {
+            setzeErledigt(false);
+            setzeFrage(true);
+          }}
+        >
+          Passwort zurücksetzen
+        </Knopf>
+        <span role="status" className="text-sm font-semibold text-primaer-dunkel">
+          {erledigt && "Passwort zurückgesetzt."}
+        </span>
+      </div>
+
+      <Rueckfrage
+        offen={frage}
+        aufOffen={setzeFrage}
+        titel="Passwort zurücksetzen?"
+        bestaetigenText="Zurücksetzen"
+        laeuft={laeuft}
+        fehler={fehler}
+        aufBestaetigen={() => void setzeZurueck()}
+      >
+        Das Passwort dieses Besuchers wird auf das Standardpasswort zurückgesetzt.
+      </Rueckfrage>
+    </Flaeche>
+  );
+}
+
 function Fotobereich({
   guid,
   anfang,

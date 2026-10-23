@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { STANDARD_AVATAR_ID } from "../src/services/standardavatar.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Den Avatar aus der Verwaltung waehlen, seit dem 20.10.2026.
@@ -24,7 +24,12 @@ async function aufbau() {
   const ruf = (method: "GET" | "POST" | "PATCH", url: string, payload?: object) =>
     s.app.inject({ method, url, headers: { cookie: keks }, payload });
 
-  await ruf("POST", "/api/besucher", { guid: "AVA-ADM", vorname: "Ava", nachname: "Admin" });
+  await ruf("POST", "/api/besucher", {
+    guid: "AVA-ADM",
+    vorname: "Ava",
+    nachname: "Admin",
+    email: testEmail(),
+  });
   const galerie = (await ruf("GET", "/api/avatare")).json<{ avatare: { dateiId: string }[] }>();
   const bild = galerie.avatare[1]?.dateiId;
   expect(bild, "Galerie im Pruefstand leer").toBeDefined();
@@ -94,6 +99,7 @@ describe("Avatar aus der Verwaltung", () => {
       guid: "AVA-NEU",
       vorname: "Neu",
       nachname: "Fremd",
+      email: testEmail(),
       avatarDateiId: fremd,
     });
     expect(anlegen.statusCode).toBe(400);

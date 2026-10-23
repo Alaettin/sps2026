@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Globale Daten, seit dem 20.10.2026: Datenpunkte, die der Konnektor **jedem** Besucher gleich
@@ -66,8 +66,18 @@ async function aufbau() {
   };
 
   // Zwei Besucher, einer davon ganz ohne Zuordnung: auch er bekommt alles.
-  await ruf("POST", "/api/besucher", { guid: "GL-1", vorname: "Gina", nachname: "Global" });
-  await ruf("POST", "/api/besucher", { guid: "GL-2", vorname: "Gero", nachname: "Global" });
+  await ruf("POST", "/api/besucher", {
+    guid: "GL-1",
+    vorname: "Gina",
+    nachname: "Global",
+    email: testEmail(),
+  });
+  await ruf("POST", "/api/besucher", {
+    guid: "GL-2",
+    vorname: "Gero",
+    nachname: "Global",
+    email: testEmail(),
+  });
 
   return { s, keks, ruf, lege, hochladen };
 }

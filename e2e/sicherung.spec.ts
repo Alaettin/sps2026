@@ -26,7 +26,9 @@ test("im Besucherdetail lässt sich ein Exponat ganz und einzeln zuweisen", asyn
     });
   }
   const guid = `BXD-${String(Date.now()).slice(-8)}`;
-  await request.post("/api/besucher", { data: { guid, vorname: "Kai", nachname: "Kasten" } });
+  await request.post("/api/besucher", {
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Kai", nachname: "Kasten" },
+  });
   merkeBesucher(guid);
 
   await page.goto(`/besucher/${guid}`);
@@ -119,7 +121,9 @@ test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen
     data: { url: "https://industrialdigitaltwin.org/", titel: "Ein Link" },
   });
   const guid = `SPE-${String(Date.now()).slice(-8)}`;
-  await request.post("/api/besucher", { data: { guid, vorname: "Sina", nachname: "Speicher" } });
+  await request.post("/api/besucher", {
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Sina", nachname: "Speicher" },
+  });
   merkeBesucher(guid);
 
   await page.goto(`/besucher/${guid}`);
@@ -148,7 +152,9 @@ test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen
 /** Das Foto lässt sich im Besucherdetail aus der Galerie wählen, seit dem 20.10.2026. */
 test("im Besucherdetail lässt sich das Bild aus der Galerie wählen", async ({ page, request }) => {
   const guid = `AVB-${String(Date.now()).slice(-8)}`;
-  await request.post("/api/besucher", { data: { guid, vorname: "Bea", nachname: "Bild" } });
+  await request.post("/api/besucher", {
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Bea", nachname: "Bild" },
+  });
   merkeBesucher(guid);
   const galerie = (await (await request.get("/api/avatare")).json()) as {
     avatare: { dateiId: string }[];

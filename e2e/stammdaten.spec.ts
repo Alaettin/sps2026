@@ -113,7 +113,7 @@ test.describe("Stammdaten", () => {
   }) => {
     const guid = `FOTO-${String(Date.now()).slice(-8)}`;
     await request.post("/api/besucher", {
-      data: { guid, vorname: "Bildlos", nachname: "Probe" },
+      data: { guid, email: `${guid}@example.invalid`, vorname: "Bildlos", nachname: "Probe" },
     });
     merkeBesucher(guid);
 

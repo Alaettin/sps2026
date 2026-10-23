@@ -44,7 +44,9 @@ async function lege(page: Page, request: APIRequestContext, name: string, art: "
 test("Text und Bild anlegen, im Konnektor sehen, wieder löschen", async ({ page, request }) => {
   const marke = String(Date.now()).slice(-6);
   const guid = `GLB-${marke}`;
-  await request.post("/api/besucher", { data: { guid, vorname: "Gabi", nachname: "Global" } });
+  await request.post("/api/besucher", {
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Gabi", nachname: "Global" },
+  });
   merkeBesucher(guid);
 
   // Über die Navigation hin; am Handy steht der Reiter im Menü.

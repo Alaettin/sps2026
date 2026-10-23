@@ -1,6 +1,8 @@
 import cookie from "@fastify/cookie";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Kontext } from "../kontext.js";
+import { besucher } from "../db/schema.js";
 import { forbidden, unauthorized } from "../errors.js";
 import { findeNutzerPerId } from "../services/nutzer.js";
 import type { Nutzer } from "../services/nutzer.js";
@@ -19,9 +21,15 @@ declare module "fastify" {
      * Betreuer bleibt draussen, denn die Rolle ist eng und nicht nur anders.
      */
     verlangeKiosk: (req: FastifyRequest) => Promise<void>;
+    /**
+     * Ein angemeldeter Besucher. Setzt `req.besucherGuid`; **nur** daraus nehmen die Routen
+     * des Besucherbereichs die GUID, nie aus Pfad oder Rumpf.
+     */
+    verlangeBesucher: (req: FastifyRequest) => Promise<void>;
   }
   interface FastifyRequest {
     nutzer: Nutzer | null;
+    besucherGuid: string | null;
   }
 }
 
@@ -34,6 +42,7 @@ declare module "fastify" {
 export async function installAuth(app: FastifyInstance, ctx: Kontext): Promise<void> {
   await app.register(cookie, { secret: ctx.env.sessionSecret });
   app.decorateRequest("nutzer", null);
+  app.decorateRequest("besucherGuid", null);
 
   /**
    * **Der Nutzer wird bei jeder Anfrage nachgeschlagen, nicht aus dem Cookie gelesen.**
@@ -48,7 +57,11 @@ export async function installAuth(app: FastifyInstance, ctx: Kontext): Promise<v
    */
   app.decorate("verlangeAnmeldung", async function (req: FastifyRequest) {
     const sitzung = readSession(req);
-    if (sitzung === null) throw unauthorized();
+    /*
+     * **Eine Besuchersitzung ist hier keine Anmeldung.** Alle Routen hinter dieser Pruefung
+     * gehoeren dem Personal; der Besucher hat seinen eigenen Bereich, siehe `verlangeBesucher`.
+     */
+    if (sitzung === null || sitzung.art !== "nutzer") throw unauthorized();
 
     const reihe = findeNutzerPerId(ctx.db, sitzung.sub);
     if (reihe === null || !reihe.aktiv) throw unauthorized();
@@ -70,6 +83,20 @@ export async function installAuth(app: FastifyInstance, ctx: Kontext): Promise<v
     if (req.nutzer?.rolle !== "admin") {
       throw forbidden("nur-admin", "This action requires the admin role.");
     }
+  });
+
+  app.decorate("verlangeBesucher", async function (req: FastifyRequest) {
+    const sitzung = readSession(req);
+    if (sitzung === null || sitzung.art !== "besucher") throw unauthorized();
+    // Nachgeschlagen wie beim Personal: ein geloeschter Besucher ist sofort abgemeldet.
+    const reihe = ctx.db
+      .select({ guid: besucher.guid })
+      .from(besucher)
+      .where(eq(besucher.guid, sitzung.sub))
+      .get();
+    if (reihe === undefined) throw unauthorized();
+    req.besucherGuid = reihe.guid;
+    return Promise.resolve();
   });
 
   app.decorate("verlangeKiosk", async function (this: FastifyInstance, req: FastifyRequest) {

@@ -1,6 +1,6 @@
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Sicherung und Wiederherstellung, seit dem 19.10.2026.
@@ -94,6 +94,7 @@ async function befuelle(s: Pruefstand, keks: string) {
     guid: "SI-1",
     vorname: "Anna",
     nachname: "Ahrens",
+    email: testEmail(),
     alias: "Anni",
   });
   await ruf("POST", "/api/scan/zuordnen", {
@@ -147,7 +148,7 @@ describe("Sicherung", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "SI-NEU", vorname: "Neu", nachname: "Dazu" },
+      payload: { guid: "SI-NEU", vorname: "Neu", nachname: "Dazu", email: testEmail() },
     });
 
     const geprueft = await sende(s, keks, "/api/sicherung/pruefen", zip);

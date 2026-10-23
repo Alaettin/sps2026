@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Ein Exponat loeschen, und was dabei mitgeht.
@@ -48,7 +48,7 @@ async function aufbau(s: Pruefstand, keks: string, name: string, guid: string) {
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Weg", nachname: "Damit" },
+    payload: { guid, vorname: "Weg", nachname: "Damit", email: testEmail() },
   });
 
   await s.app.inject({
@@ -107,7 +107,7 @@ describe("Exponat loeschen", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "LOESCH-LEER", vorname: "Ohne", nachname: "Zuordnung" },
+      payload: { guid: "LOESCH-LEER", vorname: "Ohne", nachname: "Zuordnung", email: testEmail() },
     });
     const nurStammdaten = await sichtbareElemente(s, "LOESCH-LEER");
 

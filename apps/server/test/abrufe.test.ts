@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { SCHLUESSEL_UNBEKANNT } from "../src/services/abrufe.js";
 import { ZIELFELDER } from "../src/services/csv.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Das Monitoring der Konnektor-Abrufe.
@@ -46,7 +46,7 @@ async function legeBesucherAn(s: Pruefstand, keks: string, guid: string) {
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Mess", nachname: "Besucher" },
+    payload: { guid, vorname: "Mess", nachname: "Besucher", email: testEmail() },
   });
 }
 
@@ -180,7 +180,9 @@ describe("Abrufzaehler", () => {
   });
 });
 
-describe("CSV-Vorlage", () => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login, die
+// Regeln fuer den Import stehen noch aus). Siehe `app.ts`; beim Einschalten wieder aktivieren.
+describe.skip("CSV-Vorlage", () => {
   /**
    * Geprueft gegen **`ZIELFELDER`**, nicht gegen eine abgetippte Liste: sonst beweist der
    * Test nur, dass zwei Stellen dasselbe behaupten, und beide koennen zugleich veralten.

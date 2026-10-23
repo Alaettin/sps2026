@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
 const BASIC = { CONNECTOR_BASIC_USER: "axon", CONNECTOR_BASIC_PASSWORT: "geheim-fuer-axon" };
@@ -238,7 +238,7 @@ describe("Ansprechpartner in der Konnektor-API", () => {
         method: "POST",
         url: "/api/besucher",
         headers: { cookie: keks },
-        payload: { guid: "AP-TEST-1", vorname: "Testa", nachname: "Pruefer" },
+        payload: { guid: "AP-TEST-1", vorname: "Testa", nachname: "Pruefer", email: testEmail() },
       })
     ).json<{ guid: string }>();
 

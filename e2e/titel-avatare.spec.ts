@@ -34,6 +34,7 @@ test("ein Titel lässt sich setzen und geht getrennt vom Vornamen hinaus", async
   await page.getByLabel("Titel", { exact: true }).fill("Dr.");
   await page.getByLabel("Vorname").fill("Anna");
   await page.getByLabel("Nachname").fill("Ahrens");
+  await page.getByLabel("E-Mail").fill(`${guid}@example.invalid`);
   await page.getByLabel(/GUID/).fill(guid);
   await page.getByRole("button", { name: "Speichern" }).click();
   merkeBesucher(guid);

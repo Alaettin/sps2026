@@ -14,6 +14,10 @@ import { useZeitsperre } from "./zeitsperre.js";
  *
  * Er trägt zwei Dinge, die jeder Bildschirm braucht: die Zeitsperre und den Weg hinaus für
  * das Standpersonal.
+ *
+ * Seit dem 23.10.2026 trägt er auch den Bereich des angemeldeten Besuchers (`besucher`): dort
+ * gibt es keine Zeitsperre, und Abmelden ist ein gewöhnlicher Knopf, denn das Gerät gehört
+ * dem Besucher selbst.
  */
 
 /** Wie lange der unbeschriftete Bereich gedrückt werden muss, bis das Abmelden greift. */
@@ -25,26 +29,31 @@ export function Kioskrahmen({
   /** Beim Ablauf der Zeitsperre. Auf dem Scanbildschirm bewusst ohne Wirkung. */
   aufAblauf,
   zeitsperre = true,
+  besucher = false,
 }: {
   children: ReactNode;
   aufAbmelden: () => void;
   aufAblauf?: () => void;
   zeitsperre?: boolean;
+  besucher?: boolean;
 }) {
   const navigate = useNavigate();
+  const mitSperre = zeitsperre && !besucher;
   const sperre = useZeitsperre(() => {
-    if (zeitsperre) aufAblauf?.();
+    if (mitSperre) aufAblauf?.();
   });
 
   const halten = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  function abmelden() {
+    void api("/api/auth/abmelden", { method: "POST" }).finally(() => {
+      aufAbmelden();
+      void navigate("/anmeldung");
+    });
+  }
+
   function beginneHalten() {
-    halten.current = setTimeout(() => {
-      void api("/api/auth/abmelden", { method: "POST" }).finally(() => {
-        aufAbmelden();
-        void navigate("/anmeldung");
-      });
-    }, ABMELDEN_MS);
+    halten.current = setTimeout(abmelden, ABMELDEN_MS);
   }
 
   function endeHalten() {
@@ -70,22 +79,28 @@ export function Kioskrahmen({
           auf eine unbeschriftete Fläche ist für das Standpersonal eine Sekunde Arbeit und
           für einen Besucher kein Versehen.
         */}
-        <span
-          aria-label="Gedrückt halten zum Abmelden"
-          role="button"
-          tabIndex={-1}
-          onPointerDown={beginneHalten}
-          onPointerUp={endeHalten}
-          onPointerLeave={endeHalten}
-          className="size-9 shrink-0 cursor-default"
-        />
+        {besucher ? (
+          <Knopf art="rand" className="h-[34px] shrink-0 px-3.5 text-[13px]" onClick={abmelden}>
+            Abmelden
+          </Knopf>
+        ) : (
+          <span
+            aria-label="Gedrückt halten zum Abmelden"
+            role="button"
+            tabIndex={-1}
+            onPointerDown={beginneHalten}
+            onPointerUp={endeHalten}
+            onPointerLeave={endeHalten}
+            className="size-9 shrink-0 cursor-default"
+          />
+        )}
       </header>
 
       <main className="mx-auto flex w-full max-w-[820px] flex-1 flex-col gap-6 px-6 py-8">
         {children}
       </main>
 
-      {sperre.restSekunden !== null && zeitsperre && (
+      {sperre.restSekunden !== null && mitSperre && (
         <div
           role="status"
           className="fixed inset-x-0 bottom-0 z-50 flex flex-wrap items-center justify-center gap-4 border-t border-linie bg-flaeche px-6 py-4 shadow-[0_-8px_24px_rgba(27,29,38,0.12)]"

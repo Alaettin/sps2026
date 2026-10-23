@@ -65,7 +65,9 @@ const GUT = Buffer.from(
   "utf8",
 );
 
-describe("CSV pruefen", () => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login, die
+// Regeln fuer den Import stehen noch aus). Siehe `app.ts`; beim Einschalten wieder aktivieren.
+describe.skip("CSV pruefen", () => {
   it("meldet Zeichensatz, Trennzeichen und die Zuordnung", async () => {
     const { s, keks } = await alsAdmin();
     const antwort = await ruf(s, keks, "/api/besucher/import/pruefen", GUT);
@@ -150,7 +152,9 @@ describe("CSV pruefen", () => {
   });
 });
 
-describe("CSV uebernehmen", () => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login, die
+// Regeln fuer den Import stehen noch aus). Siehe `app.ts`; beim Einschalten wieder aktivieren.
+describe.skip("CSV uebernehmen", () => {
   /**
    * Seit dem 08.10.2026 traegt jeder neue Besucher den Standard-Avatar, auch der aus dem
    * Massenimport: beide Wege laufen durch `legeBesucherAn`.

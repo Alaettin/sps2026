@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { dateien } from "../src/db/schema.js";
 import { STANDARD_AVATAR_ID } from "../src/services/standardavatar.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Das Selbstbedienungs-Tablet.
@@ -62,7 +62,7 @@ async function legeBesucher(s: Pruefstand, keks: string, guid: string) {
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Kiosk", nachname: "Probe", firma: "Alt GmbH" },
+    payload: { guid, vorname: "Kiosk", nachname: "Probe", firma: "Alt GmbH", email: testEmail() },
   });
 }
 
@@ -107,7 +107,7 @@ describe("Kiosk: was die Rolle nicht darf", () => {
             method: "POST" as const,
             url: "/api/besucher",
             headers: keks,
-            payload: { guid: "SCHLEICH-1", vorname: "A", nachname: "B" },
+            payload: { guid: "SCHLEICH-1", vorname: "A", nachname: "B", email: testEmail() },
           }),
       },
     ];

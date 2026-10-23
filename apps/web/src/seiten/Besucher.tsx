@@ -66,9 +66,7 @@ export function Besucher() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Ueberschrift>Besucher</Ueberschrift>
         <div className="flex flex-wrap gap-2.5">
-          <Link to="/besucher/import">
-            <Knopf art="rand">CSV importieren</Knopf>
-          </Link>
+          {/* Der CSV-Import ist seit dem 23.10.2026 abgeschaltet, siehe `app.ts` im Server. */}
           <Link to="/besucher/neu">
             <Knopf>Besucher anlegen</Knopf>
           </Link>
@@ -97,7 +95,7 @@ export function Besucher() {
         leer={daten !== null && daten.eintraege.length === 0}
         leerText={
           suche === ""
-            ? "Noch keine Besucher. Importiere eine CSV oder lege einen von Hand an."
+            ? "Noch keine Besucher. Lege einen von Hand an."
             : "Kein Besucher passt zu dieser Suche."
         }
       >

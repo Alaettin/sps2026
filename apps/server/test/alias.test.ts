@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FELDER_BESUCHER } from "../src/modell/modell.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Der Alias eines Besuchers, seit dem 19.10.2026.
@@ -40,7 +40,7 @@ async function legeBesucher(s: Pruefstand, keks: string, payload: Record<string,
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload,
+    payload: { email: testEmail(), ...payload },
   });
   expect(antwort.statusCode).toBe(201);
 }
@@ -209,7 +209,9 @@ async function besucher(s: Pruefstand, keks: string, guid: string) {
   return antwort.json<{ titel: string | null; alias: string | null; firma: string | null }>();
 }
 
-describe("Alias und Titel im CSV-Import", () => {
+// Der CSV-Import ist seit dem 23.10.2026 abgeschaltet (E-Mail ist Pflicht und Login, die
+// Regeln fuer den Import stehen noch aus). Siehe `app.ts`; beim Einschalten wieder aktivieren.
+describe.skip("Alias und Titel im CSV-Import", () => {
   /**
    * **Deckt auch den Titel.** Bis zum 19.10.2026 bot der Import die Spalte an und schrieb sie
    * nie; dieselbe Luecke haette den Alias getroffen.

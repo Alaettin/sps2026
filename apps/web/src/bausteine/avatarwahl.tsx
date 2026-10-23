@@ -10,12 +10,15 @@ export function Avatarwahl({
   gewaehlt,
   aufWahl,
   spalten = "grid-cols-3 sm:grid-cols-5",
+  bild = (id: string) => `/api/dateien/${id}`,
 }: {
   standard: string;
   avatare: string[];
   gewaehlt: string | null;
   aufWahl: (id: string) => void;
   spalten?: string;
+  /** Woher die Bilder kommen. Der Besucher hat eigene Wege, siehe `/api/mein/bild`. */
+  bild?: (id: string) => string;
 }) {
   return (
     <ul className={`grid gap-4 ${spalten}`}>
@@ -34,7 +37,7 @@ export function Avatarwahl({
                 : "outline outline-1 outline-linie"
             }`}
           >
-            <img src={`/api/dateien/${id}`} alt="" className="aspect-square w-full object-cover" />
+            <img src={bild(id)} alt="" className="aspect-square w-full object-cover" />
           </button>
         </li>
       ))}

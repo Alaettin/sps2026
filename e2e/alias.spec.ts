@@ -22,6 +22,7 @@ test("ein Alias lässt sich setzen und geht als Visitor_Alias hinaus", async ({ 
     .fill("Anni");
   await page.getByLabel("Vorname").fill("Anna");
   await page.getByLabel("Nachname").fill("Ahrens");
+  await page.getByLabel("E-Mail").fill(`${guid}@example.invalid`);
   await page.getByLabel(/GUID/).fill(guid);
   await page.getByRole("button", { name: "Speichern" }).click();
   merkeBesucher(guid);

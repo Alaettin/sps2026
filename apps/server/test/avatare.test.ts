@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { HOECHSTGROESSE } from "../src/services/avatare.js";
 import { STANDARD_AVATAR_ID } from "../src/services/standardavatar.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Die Avatargalerie, seit dem 09.10.2026 verwaltbar.
@@ -173,7 +173,7 @@ describe("Galerie verwalten", () => {
       method: "POST",
       url: "/api/besucher",
       headers: { cookie: keks },
-      payload: { guid: "AVA-0001", vorname: "Probe", nachname: "Person" },
+      payload: { guid: "AVA-0001", vorname: "Probe", nachname: "Person", email: testEmail() },
     });
     await s.app.inject({
       method: "PATCH",

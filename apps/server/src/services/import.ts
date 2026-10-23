@@ -102,7 +102,11 @@ function befundeJeZeile(db: Db, inhalt: CsvInhalt, zuordnung: (Zielfeld | null)[
     if (werte.vorname === undefined || werte.nachname === undefined) {
       eigene.push({ zeile: nummer, art: "pflicht-fehlt", text: "Vorname oder Nachname fehlt" });
     }
-    if (werte.email !== undefined && !EMAIL.test(werte.email)) {
+    // Seit dem 23.10.2026 Pflicht (Login der Besucher). Doppelte Adressen prueft der
+    // Import noch nicht; er ist deshalb in `app.ts` abgeschaltet.
+    if (werte.email === undefined) {
+      eigene.push({ zeile: nummer, art: "pflicht-fehlt", text: "E-Mail fehlt" });
+    } else if (!EMAIL.test(werte.email)) {
       eigene.push({ zeile: nummer, art: "email-ungueltig", text: werte.email });
     }
     if (werte.guid !== undefined) {
@@ -236,7 +240,8 @@ export function uebernehmeImport(
         alias: z.werte.alias ?? null,
         firma: z.werte.firma ?? null,
         position: z.werte.position ?? null,
-        email: z.werte.email ?? null,
+        // Ohne E-Mail steht die Zeile in `schlecht`, siehe `befundeJeZeile`.
+        email: z.werte.email ?? "",
         strasse: z.werte.strasse ?? null,
         plz: z.werte.plz ?? null,
         ort: z.werte.ort ?? null,

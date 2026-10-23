@@ -17,7 +17,13 @@ async function legeBesucher(request: APIRequestContext, guid: string): Promise<v
   expect(admin.status()).toBe(200);
 
   await request.post("/api/besucher", {
-    data: { guid, vorname: "Tablet", nachname: "Probe", firma: "Alt GmbH" },
+    data: {
+      guid,
+      email: `${guid}@example.invalid`,
+      vorname: "Tablet",
+      nachname: "Probe",
+      firma: "Alt GmbH",
+    },
   });
 }
 

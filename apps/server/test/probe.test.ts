@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ENDPUNKTE } from "../src/services/probe.js";
-import { melde, starte, verlangeAnmeldung, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, verlangeAnmeldung, type Pruefstand } from "./hilfe.js";
 
 /**
  * Der Pruefstand hinter der Seite API.
@@ -38,7 +38,7 @@ async function besucher(s: Pruefstand, keks: string, guid: string): Promise<stri
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Probe", nachname: "Besucher" },
+    payload: { guid, vorname: "Probe", nachname: "Besucher", email: testEmail() },
   });
   return guid;
 }

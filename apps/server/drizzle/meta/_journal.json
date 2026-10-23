@@ -8,6 +8,13 @@
       "when": 1792755256494,
       "tag": "0000_yielding_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792756677832,
+      "tag": "0001_wide_vector",
+      "breakpoints": true
     }
   ]
 }

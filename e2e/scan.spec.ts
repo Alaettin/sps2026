@@ -47,7 +47,7 @@ async function bestand(request: APIRequestContext) {
 
   const guid = `SCAN-${String(Date.now()).slice(-8)}`;
   await request.post("/api/besucher", {
-    data: { guid, vorname: "Testa", nachname: "Prüfer" },
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Testa", nachname: "Prüfer" },
   });
   merkeBesucher(guid);
 

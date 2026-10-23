@@ -1,11 +1,9 @@
-import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { besucher } from "../db/schema.js";
-import { badRequest, notFound, unauthorized } from "../errors.js";
+import { badRequest, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { inhalteVonExponat } from "../services/exponate.js";
 import { leseElemente, letzteZuordnungen, ordneZu } from "../services/zuordnungen.js";
-import { zuordnungenVonBesucher } from "../services/besucher.js";
+import { findeBesucher, zuordnungenVonBesucher } from "../services/besucher.js";
 import { verlangeExponatZugriff } from "../services/zugriff.js";
 
 /**
@@ -31,9 +29,8 @@ export function scanRoutes(app: FastifyInstance, ctx: Kontext): void {
       }
       verlangeExponatZugriff(ctx, req, exponatId);
 
-      const person = ctx.db.select().from(besucher).where(eq(besucher.guid, req.params.guid)).get();
-      // Dieselbe Meldung wie im Entwurf `ErrUnknown`: die GUID ist unbekannt.
-      if (person === undefined) throw notFound("besucher-unbekannt", "Unknown visitor.");
+      // Ohne Passworthash; unbekannt ergibt 404 `besucher-unbekannt` wie im Entwurf `ErrUnknown`.
+      const person = findeBesucher(ctx.db, req.params.guid);
 
       const inhalte = inhalteVonExponat(ctx.db, exponatId);
       const schon = new Set(

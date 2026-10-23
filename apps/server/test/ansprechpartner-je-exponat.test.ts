@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { appNutzer, zuordnungen } from "../src/db/schema.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Ansprechpartner kommen mit dem Exponat, seit dem 19.10.2026.
@@ -100,7 +100,7 @@ async function besucherMitLinks(a: Aufbau, guid: string, exponate: Aufbau["e1"][
   await a.ruf({
     method: "POST",
     url: "/api/besucher",
-    payload: { guid, vorname: "Gast", nachname: guid },
+    payload: { guid, vorname: "Gast", nachname: guid, email: testEmail() },
   });
   for (const e of exponate) {
     await a.ruf({
@@ -156,7 +156,7 @@ describe("Ansprechpartner je Exponat im Konnektor", () => {
     await a.ruf({
       method: "POST",
       url: "/api/besucher",
-      payload: { guid: "AP-KONTAKT", vorname: "Gast", nachname: "Kontakt" },
+      payload: { guid: "AP-KONTAKT", vorname: "Gast", nachname: "Kontakt", email: testEmail() },
     });
     const fehler = await a.ruf<{ code: string }>(
       {
@@ -178,7 +178,7 @@ describe("Ansprechpartner je Exponat im Konnektor", () => {
     await a.ruf({
       method: "POST",
       url: "/api/besucher",
-      payload: { guid: "AP-SCAN", vorname: "Gast", nachname: "Scan" },
+      payload: { guid: "AP-SCAN", vorname: "Gast", nachname: "Scan", email: testEmail() },
     });
     const treffer = await a.ruf<{
       kontakte: { id: string; bereitsZugeordnet?: boolean }[];

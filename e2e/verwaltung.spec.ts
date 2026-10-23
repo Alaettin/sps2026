@@ -159,7 +159,7 @@ test("der Kopierknopf meldet Erfolg", async ({ page, context }) => {
 
   const guid = `COPY-${String(Date.now()).slice(-8)}`;
   await page.request.post("/api/besucher", {
-    data: { guid, vorname: "Kopier", nachname: "Probe" },
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Kopier", nachname: "Probe" },
   });
   merkeBesucher(guid);
 
@@ -188,7 +188,7 @@ test("der Kopierknopf meldet Erfolg", async ({ page, context }) => {
 test("schlägt das Kopieren fehl, erscheint kein Erfolg", async ({ page }) => {
   const guid = `FAIL-${String(Date.now()).slice(-8)}`;
   await page.request.post("/api/besucher", {
-    data: { guid, vorname: "Ohne", nachname: "Ablage" },
+    data: { guid, email: `${guid}@example.invalid`, vorname: "Ohne", nachname: "Ablage" },
   });
   merkeBesucher(guid);
 

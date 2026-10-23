@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { appNutzer, zuordnungen } from "../src/db/schema.js";
-import { melde, starte, type Pruefstand } from "./hilfe.js";
+import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Das Besucherdetail nach Exponaten, seit dem 19.10.2026: die Sicht je Exponat und das
@@ -56,7 +56,12 @@ async function aufbau() {
     await ruf<{ id: string }>("POST", "/api/ansprechpartner", { vorname: "Ines", nachname: "Ap" })
   ).json;
   await ruf("POST", `/api/exponate/${e1.id}/ansprechpartner`, { ansprechpartnerId: person.id });
-  await ruf("POST", "/api/besucher", { guid: "BE-1", vorname: "Gast", nachname: "Eins" });
+  await ruf("POST", "/api/besucher", {
+    guid: "BE-1",
+    vorname: "Gast",
+    nachname: "Eins",
+    email: testEmail(),
+  });
 
   const sicht = async () => (await ruf<Sicht[]>("GET", "/api/besucher/BE-1/exponate")).json;
   const setze = (exponatId: string, links: string[]) =>
