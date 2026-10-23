@@ -12,7 +12,8 @@ import { BesucherDetail } from "./seiten/BesucherDetail.js";
 import { Dashboard } from "./seiten/Dashboard.js";
 import { Einstellungen } from "./seiten/Einstellungen.js";
 import { Monitoring } from "./seiten/Monitoring.js";
-import { KioskAvatar, KioskMenue, KioskScan, KioskStammdaten } from "./kiosk/Kiosk.js";
+import { KioskRegistrierung, KioskScan } from "./kiosk/Kiosk.js";
+import { MeinAvatar, MeinDatenschutz, MeinMenue, MeinStammdaten } from "./besucher/Mein.js";
 import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
@@ -86,30 +87,20 @@ export function App() {
         */
         <Routes>
           <Route path="/kiosk" element={<KioskScan ich={ich} aufAbmelden={abmelden} />} />
-          <Route path="/kiosk/:guid" element={<KioskMenue aufAbmelden={abmelden} />} />
-          <Route
-            path="/kiosk/:guid/stammdaten"
-            element={<KioskStammdaten aufAbmelden={abmelden} />}
-          />
-          <Route path="/kiosk/:guid/avatar" element={<KioskAvatar aufAbmelden={abmelden} />} />
+          {/* Seit dem 23.10.2026 registriert sich der Besucher hier; das Tablet liest nichts. */}
+          <Route path="/kiosk/:guid" element={<KioskRegistrierung aufAbmelden={abmelden} />} />
           <Route path="*" element={<Navigate to="/kiosk" replace />} />
         </Routes>
       ) : ich.rolle === "besucher" ? (
         /*
-          **Der angemeldete Besucher**, seit dem 23.10.2026: dieselben Bildschirme wie am
-          Terminal, nur ohne Scan. Die GUID steht nicht in der Adresse; der Server nimmt sie aus
-          der Sitzung. Jede andere Adresse landet in seinem Menü.
+          **Der angemeldete Besucher**, seit dem 23.10.2026. Die GUID steht nicht in der Adresse;
+          der Server nimmt sie aus der Sitzung. Jede andere Adresse landet in seinem Menü.
         */
         <Routes>
-          <Route path="/mein" element={<KioskMenue bereich="besucher" aufAbmelden={abmelden} />} />
-          <Route
-            path="/mein/stammdaten"
-            element={<KioskStammdaten bereich="besucher" aufAbmelden={abmelden} />}
-          />
-          <Route
-            path="/mein/avatar"
-            element={<KioskAvatar bereich="besucher" aufAbmelden={abmelden} />}
-          />
+          <Route path="/mein" element={<MeinMenue aufAbmelden={abmelden} />} />
+          <Route path="/mein/stammdaten" element={<MeinStammdaten aufAbmelden={abmelden} />} />
+          <Route path="/mein/avatar" element={<MeinAvatar aufAbmelden={abmelden} />} />
+          <Route path="/mein/datenschutz" element={<MeinDatenschutz aufAbmelden={abmelden} />} />
           <Route path="*" element={<Navigate to="/mein" replace />} />
         </Routes>
       ) : (

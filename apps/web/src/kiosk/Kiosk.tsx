@@ -4,82 +4,23 @@ import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { Feld, Fehlerhinweis, Flaeche, Knopf, Ueberschrift, Zustand } from "../bausteine/basis.js";
 import { Kamera, kameraMoeglich, type Kamerafehler } from "../scan/Kamera.js";
 import type { Ich } from "../lib/ich.js";
-import {
-  GRUPPEN,
-  PERSONENFELDER,
-  besucherFehlertext,
-  felderDerGruppe,
-  mitTitel,
-  pflichtBeimBesucher,
-} from "../lib/personenfelder.js";
-import { Kioskrahmen } from "./Kioskrahmen.js";
+import { PERSONENFELDER, besucherFehlertext } from "../lib/personenfelder.js";
+import { Kioskrahmen, Knopfleiste } from "./Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
+import { Personenformular } from "../bausteine/personenformular.js";
+import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
 
 /**
- * Das Selbstbedienungs-Tablet: Pass scannen, dann Stammdaten oder Avatar ändern.
+ * Das Tablet am Stand: **Besucher registrieren sich hier**, seit dem 23.10.2026.
  *
- * **Kein Eingabefeld für die GUID**, anders als im Betreuer-Scan. Die GUIDs sind
- * fortlaufend; mit einem Eingabefeld könnte am Tablet jeder die Daten eines beliebigen
- * anderen Besuchers öffnen, einfach durch Hochzählen. Der Schutz ist der physische Pass vor
- * der Kamera, und das Gerät gehört in den Kioskmodus des Browsers, ohne Adressleiste.
+ * Pass scannen, dann in Schritten: Daten, Passwort, Bild, Datenschutz, fertig. Alles bleibt
+ * im Zustand dieser Seite und geht erst am Ende in **einem** Aufruf an den Server; wer
+ * mittendrin weggeht, hinterlässt nichts, und die Zeitsperre wirft die Eingaben weg.
  *
- * Das ist eine Schranke der Bedienung, keine kryptografische; der Server kann nicht
- * unterscheiden, ob eine GUID von der Kamera kam oder erfunden wurde.
+ * **Kein Eingabefeld für die GUID.** Die GUIDs sind fortlaufend; mit einem Feld könnte am
+ * Tablet jeder einen fremden Pass registrieren, einfach durch Hochzählen. Der Schutz ist der
+ * physische Pass vor der Kamera, und das Gerät gehört in den Kioskmodus des Browsers.
  */
-
-type Feldname = string;
-
-interface Besucher extends Record<Feldname, string | null> {
-  guid: string;
-  avatarDateiId: string | null;
-}
-
-/**
- * Wo die Daten liegen und wohin die Bildschirme führen.
- *
- * Seit dem 23.10.2026 zeigen dieselben Bildschirme zwei Bereiche: das Terminal (GUID aus dem
- * gescannten Pass, in der Adresse) und den angemeldeten Besucher (GUID allein aus der
- * Sitzung, `/api/mein`). Die Bildschirme kennen nur die Quelle, nicht den Bereich.
- */
-export type Bereich = "terminal" | "besucher";
-
-interface Quelle {
-  besucher: boolean;
-  /** Stammdaten lesen und ändern. */
-  api: string;
-  avatarApi: string;
-  galerieApi: string;
-  bild: (id: string) => string;
-  /** Das Menü mit den beiden Kacheln. */
-  menue: string;
-  /** Wohin „Fertig“ und die Zeitsperre führen. */
-  start: string;
-}
-
-const BESUCHERQUELLE: Quelle = {
-  besucher: true,
-  api: "/api/mein",
-  avatarApi: "/api/mein/avatar",
-  galerieApi: "/api/mein/avatare",
-  bild: (id) => `/api/mein/bild/${id}`,
-  menue: "/mein",
-  start: "/mein",
-};
-
-function useQuelle(bereich: Bereich): Quelle {
-  const { guid } = useParams();
-  if (bereich === "besucher") return BESUCHERQUELLE;
-  const api = `/api/kiosk/besucher/${String(guid)}`;
-  return {
-    besucher: false,
-    api,
-    avatarApi: `${api}/avatar`,
-    galerieApi: "/api/kiosk/avatare",
-    bild: (id) => `/api/dateien/${id}`,
-    menue: `/kiosk/${String(guid)}`,
-    start: "/kiosk",
-  };
-}
 
 // --- Scannen --------------------------------------------------------------------------
 
@@ -90,12 +31,12 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
 
   const ausQr = useCallback(
     (inhalt: string) => {
-      // Dieselbe Prüfung wie im Betreuer-Scan: ohne sie liefe jeder Werbe-QR-Code in eine
-      // Serverabfrage.
+      // Ohne diese Prüfung liefe jeder Werbe-QR-Code in eine Serverabfrage.
       if (!inhalt.startsWith(ich.viewerBaseUrl)) {
         setzeFehler("Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.");
         return;
       }
+      // Der hintere Teil der Adresse ist die GUID: …/SPS2026-0001.
       const guid = inhalt.slice(ich.viewerBaseUrl.length).split(/[/?#]/)[0] ?? "";
       if (guid === "") {
         setzeFehler("Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.");
@@ -111,8 +52,8 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
     <Kioskrahmen aufAbmelden={aufAbmelden} zeitsperre={false}>
       <Ueberschrift>Pass scannen</Ueberschrift>
       <p className="text-[17px] leading-relaxed text-text-zweit">
-        Halte den QR-Code deines Konferenzpasses vor die Kamera. Danach kannst du deine Daten ändern
-        und dir ein Bild aussuchen.
+        Halte den QR-Code deines Konferenzpasses vor die Kamera. Danach registrierst du dich in
+        wenigen Schritten.
       </p>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
@@ -141,300 +82,348 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
   );
 }
 
-// --- Zwischenmenü ---------------------------------------------------------------------
+// --- Registrieren ---------------------------------------------------------------------
 
-export function KioskMenue({
-  aufAbmelden,
-  bereich = "terminal",
-}: {
-  aufAbmelden: () => void;
-  bereich?: Bereich;
-}) {
-  const q = useQuelle(bereich);
-  const navigate = useNavigate();
-  const abruf = useAbruf<Besucher>(q.api);
-  const b = abruf.daten;
+type Schritt = "daten" | "passwort" | "bild" | "datenschutz" | "fertig";
 
-  return (
-    <Kioskrahmen
-      aufAbmelden={aufAbmelden}
-      besucher={q.besucher}
-      aufAblauf={() => {
-        void navigate(q.start, { replace: true });
-      }}
-    >
-      <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
-        {b !== null && (
-          <>
-            <div className="flex flex-wrap items-center gap-5">
-              {b.avatarDateiId !== null && (
-                <img
-                  src={q.bild(b.avatarDateiId)}
-                  alt="Dein Bild"
-                  className="size-20 shrink-0 object-cover"
-                />
-              )}
-              <div className="flex min-w-0 flex-col">
-                <Ueberschrift>
-                  Hallo {mitTitel(b.titel, b.vorname ?? "")} {b.nachname}
-                </Ueberschrift>
-                <span className="text-[15px] text-text-hinweis">{b.firma ?? "ohne Firma"}</span>
-              </div>
-            </div>
+const SCHRITTE: { id: Exclude<Schritt, "fertig">; text: string }[] = [
+  { id: "daten", text: "Deine Daten" },
+  { id: "passwort", text: "Passwort" },
+  { id: "bild", text: "Bild" },
+  { id: "datenschutz", text: "Datenschutz" },
+];
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Kachel
-                titel="Daten ändern"
-                text="Name, Firma, Anschrift und Kontakt."
-                aufKlick={() => {
-                  void navigate(`${q.menue}/stammdaten`);
-                }}
-              />
-              <Kachel
-                titel="Bild aussuchen"
-                text="Wähle ein Bild, das im Viewer erscheint."
-                aufKlick={() => {
-                  void navigate(`${q.menue}/avatar`);
-                }}
-              />
-            </div>
-
-            {/* Am Terminal geht es zurück zum Scan. Der Besucher bleibt in seinem Bereich. */}
-            {!q.besucher && (
-              <Knopf
-                art="rand"
-                className="self-start"
-                onClick={() => {
-                  void navigate(q.start, { replace: true });
-                }}
-              >
-                Fertig
-              </Knopf>
-            )}
-          </>
-        )}
-      </Zustand>
-    </Kioskrahmen>
-  );
+interface Datenschutz {
+  fassung: string;
+  abschnitte: Datenschutzabschnitt[];
+  einwilligungstext: string;
+  entwurf: boolean;
+  minPasswort: number;
 }
-
-/**
- * Speichern und Abbrechen, am unteren Rand klebend.
- *
- * Die Avatargalerie ist hoeher als ein Tabletbildschirm; ohne das klebende Band muesste man
- * erst scrollen, um ueberhaupt speichern zu koennen, und genau das uebersieht jemand, der
- * im Stehen tippt.
- */
-function Knopfzeile({
-  laeuft,
-  aufSpeichern,
-  aufAbbrechen,
-}: {
-  laeuft: boolean;
-  aufSpeichern: () => void;
-  aufAbbrechen: () => void;
-}) {
-  return (
-    <div className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap gap-4 border-t border-linie bg-grund px-6 py-4">
-      <Knopf className="h-14 px-8 text-[17px]" disabled={laeuft} onClick={aufSpeichern}>
-        {laeuft ? "Speichert …" : "Speichern"}
-      </Knopf>
-      <Knopf art="rand" className="h-14 px-8 text-[17px]" disabled={laeuft} onClick={aufAbbrechen}>
-        Abbrechen
-      </Knopf>
-    </div>
-  );
-}
-
-function Kachel({ titel, text, aufKlick }: { titel: string; text: string; aufKlick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={aufKlick}
-      className="flex flex-col gap-2 bg-flaeche p-7 text-left shadow-flaeche hover:brightness-[0.98]"
-    >
-      <span className="text-xl font-bold tracking-[-0.01em]">{titel}</span>
-      <span className="text-[15px] text-text-zweit">{text}</span>
-    </button>
-  );
-}
-
-// --- Stammdaten -----------------------------------------------------------------------
-
-export function KioskStammdaten({
-  aufAbmelden,
-  bereich = "terminal",
-}: {
-  aufAbmelden: () => void;
-  bereich?: Bereich;
-}) {
-  const q = useQuelle(bereich);
-  const navigate = useNavigate();
-  const abruf = useAbruf<Besucher>(q.api);
-  const [entwurf, setzeEntwurf] = useState<Record<string, string> | null>(null);
-  const [fehler, setzeFehler] = useState<string | null>(null);
-  const [laeuft, setzeLaeuft] = useState(false);
-
-  const b = abruf.daten;
-  /*
-   * Der Entwurf entsteht beim ersten Rendern mit Daten, nicht in einem Effekt: ein Effekt,
-   * der auf `b` hört, überschriebe die Eingaben bei jedem erneuten Abruf.
-   */
-  const werte =
-    entwurf ??
-    (b === null ? null : Object.fromEntries(PERSONENFELDER.map((f) => [f.name, b[f.name] ?? ""])));
-
-  function setze(feld: string, wert: string) {
-    setzeEntwurf({ ...(werte ?? {}), [feld]: wert });
-  }
-
-  async function speichere() {
-    if (werte === null) return;
-    setzeLaeuft(true);
-    setzeFehler(null);
-    try {
-      await api(q.api, {
-        method: "PATCH",
-        body: JSON.stringify(werte),
-      });
-      void navigate(q.menue);
-    } catch (ursache) {
-      setzeFehler(
-        (ursache instanceof ApiFehler ? besucherFehlertext(ursache.code) : null) ??
-          "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
-      );
-    } finally {
-      setzeLaeuft(false);
-    }
-  }
-
-  return (
-    <Kioskrahmen
-      aufAbmelden={aufAbmelden}
-      besucher={q.besucher}
-      aufAblauf={() => {
-        void navigate(q.start, { replace: true });
-      }}
-    >
-      <Ueberschrift>Deine Daten</Ueberschrift>
-
-      <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
-        {werte !== null && (
-          <>
-            {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
-
-            {/*
-              Je Gruppe eine Fläche. Am Tablet steht jemand dabei und tippt im Stehen; elf
-              Felder am Stück sind dort mehr im Weg als am Schreibtisch.
-            */}
-            {GRUPPEN.map((gruppe) => (
-              <Flaeche key={gruppe} className="flex flex-col gap-5 p-7">
-                <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
-                  {gruppe}
-                </h2>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {felderDerGruppe(gruppe).map((f) => (
-                    <label key={f.name} className="flex flex-col gap-2 text-[14px] font-semibold">
-                      {f.text}
-                      {pflichtBeimBesucher(f) && <span className="sr-only">Pflichtfeld</span>}
-                      <Feld
-                        className="h-12 text-[16px] font-normal"
-                        value={werte[f.name] ?? ""}
-                        onChange={(ev) => {
-                          setze(f.name, ev.target.value);
-                        }}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </Flaeche>
-            ))}
-
-            <Knopfzeile
-              laeuft={laeuft}
-              aufSpeichern={() => void speichere()}
-              aufAbbrechen={() => {
-                void navigate(q.menue);
-              }}
-            />
-          </>
-        )}
-      </Zustand>
-    </Kioskrahmen>
-  );
-}
-
-// --- Avatar ---------------------------------------------------------------------------
 
 interface Galerie {
   standard: string;
   avatare: string[];
 }
 
-export function KioskAvatar({
-  aufAbmelden,
-  bereich = "terminal",
-}: {
-  aufAbmelden: () => void;
-  bereich?: Bereich;
-}) {
-  const q = useQuelle(bereich);
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { guid = "" } = useParams();
   const navigate = useNavigate();
-  const besucher = useAbruf<Besucher>(q.api);
-  const galerie = useAbruf<Galerie>(q.galerieApi);
-  const [gewaehlt, setzeGewaehlt] = useState<string | null>(null);
+  const pass = useAbruf<{ status: "frei" | "registriert" }>(
+    `/api/kiosk/pass/${encodeURIComponent(guid)}`,
+  );
+  const datenschutz = useAbruf<Datenschutz>("/api/kiosk/datenschutz");
+  const galerie = useAbruf<Galerie>("/api/kiosk/avatare");
+
+  const [schritt, setzeSchritt] = useState<Schritt>("daten");
+  const [werte, setzeWerte] = useState<Record<string, string>>(() =>
+    Object.fromEntries(PERSONENFELDER.map((f) => [f.name, ""])),
+  );
+  const [passwort, setzePasswort] = useState("");
+  const [wiederholung, setzeWiederholung] = useState("");
+  const [avatar, setzeAvatar] = useState<string | null>(null);
+  const [einverstanden, setzeEinverstanden] = useState(false);
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
+  const [schonRegistriert, setzeSchonRegistriert] = useState(false);
 
-  const g = galerie.daten;
-  const aktuell = gewaehlt ?? besucher.daten?.avatarDateiId ?? g?.standard ?? null;
+  const zumScan = () => {
+    void navigate("/kiosk", { replace: true });
+  };
 
-  async function speichere() {
+  function gehe(ziel: Schritt) {
+    setzeFehler(null);
+    setzeSchritt(ziel);
+  }
+
+  function weiterNachDaten() {
+    if ((werte["vorname"] ?? "").trim() === "" || (werte["nachname"] ?? "").trim() === "") {
+      setzeFehler("Bitte Vorname und Nachname eintragen.");
+      return;
+    }
+    if (!EMAIL.test((werte["email"] ?? "").trim())) {
+      setzeFehler(
+        "Bitte eine gültige E-Mail-Adresse eintragen. Mit ihr meldest du dich später an.",
+      );
+      return;
+    }
+    gehe("passwort");
+  }
+
+  function weiterNachPasswort() {
+    const min = datenschutz.daten?.minPasswort ?? 8;
+    if (passwort.length < min) {
+      setzeFehler(`Das Passwort braucht mindestens ${String(min)} Zeichen.`);
+      return;
+    }
+    if (passwort !== wiederholung) {
+      setzeFehler("Die beiden Passwörter stimmen nicht überein.");
+      return;
+    }
+    gehe("bild");
+  }
+
+  async function registriere() {
+    const d = datenschutz.daten;
+    if (d === null || !einverstanden) return;
     setzeLaeuft(true);
     setzeFehler(null);
     try {
-      await api(q.avatarApi, {
-        method: "PATCH",
-        body: JSON.stringify({ avatarDateiId: aktuell }),
+      await api("/api/kiosk/registrierung", {
+        method: "POST",
+        body: JSON.stringify({
+          guid,
+          ...werte,
+          passwort,
+          avatarDateiId: avatar,
+          einwilligung: { erteilt: true, fassung: d.fassung },
+        }),
       });
-      void navigate(q.menue);
-    } catch {
-      setzeFehler("Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.");
+      setzeSchritt("fertig");
+    } catch (ursache) {
+      const code = ursache instanceof ApiFehler ? ursache.code : undefined;
+      if (code === "bereits-registriert") {
+        setzeSchonRegistriert(true);
+      } else if (code === "datenschutz-veraltet") {
+        // Den aktuellen Text laden; die Einwilligung gilt nur für den, der gelesen wurde.
+        setzeEinverstanden(false);
+        datenschutz.neu();
+        setzeFehler("Der Datenschutzhinweis wurde geändert. Bitte lies ihn noch einmal.");
+      } else if (code === "passwort-zu-kurz") {
+        gehe("passwort");
+        setzeFehler("Das Passwort ist zu kurz.");
+      } else if (besucherFehlertext(code) !== null) {
+        gehe("daten");
+        setzeFehler(besucherFehlertext(code));
+      } else {
+        setzeFehler("Die Registrierung hat nicht geklappt. Bitte noch einmal versuchen.");
+      }
     } finally {
       setzeLaeuft(false);
     }
   }
 
-  return (
-    <Kioskrahmen
-      aufAbmelden={aufAbmelden}
-      besucher={q.besucher}
-      aufAblauf={() => {
-        void navigate(q.start, { replace: true });
-      }}
-    >
-      <Ueberschrift>Dein Bild</Ueberschrift>
+  const registriert = schonRegistriert || pass.daten?.status === "registriert";
+  const nummer = SCHRITTE.findIndex((s) => s.id === schritt) + 1;
 
-      <Zustand laedt={besucher.laedt || galerie.laedt} fehler={besucher.fehler ?? galerie.fehler}>
-        {g !== null && (
+  return (
+    <Kioskrahmen aufAbmelden={aufAbmelden} aufAblauf={zumScan}>
+      <Zustand
+        laedt={pass.laedt || datenschutz.laedt || galerie.laedt}
+        fehler={pass.fehler ?? datenschutz.fehler ?? galerie.fehler}
+      >
+        {registriert ? (
           <>
+            <Ueberschrift>Dieser Pass ist schon registriert</Ueberschrift>
+            <p className="text-[17px] leading-relaxed text-text-zweit">
+              Deine Angaben kannst du ändern, wenn du dich mit deiner E-Mail-Adresse und deinem
+              Passwort in der App anmeldest.
+            </p>
+            <Knopf className="h-14 self-start px-8 text-[17px]" onClick={zumScan}>
+              Zurück zum Scan
+            </Knopf>
+          </>
+        ) : schritt === "fertig" ? (
+          <>
+            <Ueberschrift>Registrierung abgeschlossen</Ueberschrift>
+            <p className="text-[17px] leading-relaxed text-text-zweit">
+              Danke, {werte["vorname"]}! Dein Pass ist jetzt aktiv. Melde dich unter{" "}
+              <b>{window.location.host}</b> mit <b>{werte["email"]}</b> und deinem Passwort an, um
+              deine Angaben zu ändern.
+            </p>
+            <Knopf className="h-14 self-start px-8 text-[17px]" onClick={zumScan}>
+              Fertig
+            </Knopf>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold tracking-[0.14em] text-text-hinweis uppercase">
+                Schritt {nummer} von {SCHRITTE.length}
+              </span>
+              <ol className="flex flex-wrap gap-2" aria-label="Schritte">
+                {SCHRITTE.map((s, i) => (
+                  <li
+                    key={s.id}
+                    aria-current={s.id === schritt ? "step" : undefined}
+                    className={`px-3 py-1 text-[13px] font-semibold ${
+                      s.id === schritt
+                        ? "bg-primaer text-white"
+                        : i + 1 < nummer
+                          ? "bg-flaeche text-primaer-dunkel"
+                          : "bg-flaeche text-text-hinweis"
+                    }`}
+                  >
+                    {s.text}
+                  </li>
+                ))}
+              </ol>
+            </div>
+
             {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-            <Avatarwahl
-              standard={g.standard}
-              avatare={g.avatare}
-              gewaehlt={aktuell}
-              aufWahl={setzeGewaehlt}
-              bild={q.bild}
-            />
+            {schritt === "daten" && (
+              <>
+                <Ueberschrift>Deine Daten</Ueberschrift>
+                <p className="text-[15px] text-text-zweit">
+                  Felder mit * sind Pflicht. Deine E-Mail-Adresse ist später deine Anmeldung.
+                </p>
+                <Personenformular
+                  werte={werte}
+                  aufAenderung={(feld, wert) => {
+                    setzeWerte((w) => ({ ...w, [feld]: wert }));
+                  }}
+                />
+                <Knopfleiste>
+                  <Knopf className="h-14 px-8 text-[17px]" onClick={weiterNachDaten}>
+                    Weiter
+                  </Knopf>
+                  <Knopf art="rand" className="h-14 px-8 text-[17px]" onClick={zumScan}>
+                    Abbrechen
+                  </Knopf>
+                </Knopfleiste>
+              </>
+            )}
 
-            <Knopfzeile
-              laeuft={laeuft}
-              aufSpeichern={() => void speichere()}
-              aufAbbrechen={() => {
-                void navigate(q.menue);
-              }}
-            />
+            {schritt === "passwort" && (
+              <>
+                <Ueberschrift>Passwort festlegen</Ueberschrift>
+                <Flaeche className="flex flex-col gap-5 p-7">
+                  <p className="text-[15px] text-text-zweit">
+                    Mit deiner E-Mail-Adresse <b>{werte["email"]}</b> und diesem Passwort meldest du
+                    dich später an. Mindestens {datenschutz.daten?.minPasswort ?? 8} Zeichen.
+                  </p>
+                  <label className="flex flex-col gap-2 text-[14px] font-semibold">
+                    Passwort
+                    <Feld
+                      type="password"
+                      autoComplete="new-password"
+                      className="h-12 text-[16px] font-normal"
+                      value={passwort}
+                      onChange={(ev) => {
+                        setzePasswort(ev.target.value);
+                      }}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-2 text-[14px] font-semibold">
+                    Passwort wiederholen
+                    <Feld
+                      type="password"
+                      autoComplete="new-password"
+                      className="h-12 text-[16px] font-normal"
+                      value={wiederholung}
+                      onChange={(ev) => {
+                        setzeWiederholung(ev.target.value);
+                      }}
+                    />
+                  </label>
+                </Flaeche>
+                <Knopfleiste>
+                  <Knopf className="h-14 px-8 text-[17px]" onClick={weiterNachPasswort}>
+                    Weiter
+                  </Knopf>
+                  <Knopf
+                    art="rand"
+                    className="h-14 px-8 text-[17px]"
+                    onClick={() => {
+                      gehe("daten");
+                    }}
+                  >
+                    Zurück
+                  </Knopf>
+                </Knopfleiste>
+              </>
+            )}
+
+            {schritt === "bild" && galerie.daten !== null && (
+              <>
+                <Ueberschrift>Dein Bild</Ueberschrift>
+                <p className="text-[15px] text-text-zweit">
+                  Wähle ein Bild, das im Viewer erscheint. Du kannst es später ändern.
+                </p>
+                <Avatarwahl
+                  standard={galerie.daten.standard}
+                  avatare={galerie.daten.avatare}
+                  gewaehlt={avatar ?? galerie.daten.standard}
+                  aufWahl={setzeAvatar}
+                />
+                <Knopfleiste>
+                  <Knopf
+                    className="h-14 px-8 text-[17px]"
+                    onClick={() => {
+                      gehe("datenschutz");
+                    }}
+                  >
+                    Weiter
+                  </Knopf>
+                  <Knopf
+                    art="rand"
+                    className="h-14 px-8 text-[17px]"
+                    onClick={() => {
+                      gehe("passwort");
+                    }}
+                  >
+                    Zurück
+                  </Knopf>
+                </Knopfleiste>
+              </>
+            )}
+
+            {schritt === "datenschutz" && datenschutz.daten !== null && (
+              <>
+                <Ueberschrift>Datenschutz</Ueberschrift>
+                {datenschutz.daten.entwurf && (
+                  <p
+                    role="note"
+                    className="border-l-4 border-akzent bg-flaeche px-4 py-3 text-[14px] font-semibold"
+                  >
+                    Entwurf: dieser Hinweis ist noch nicht freigegeben und enthält Platzhalter.
+                  </p>
+                )}
+                <Flaeche className="max-h-[50dvh] overflow-y-auto p-7">
+                  <Datenschutztext
+                    abschnitte={datenschutz.daten.abschnitte}
+                    fassung={datenschutz.daten.fassung}
+                  />
+                </Flaeche>
+                {/*
+                  Das Kästchen steht **im klebenden Band**, direkt über dem Knopf. Unter dem Text
+                  läge es am Tablet hinter dem Band und wäre erst nach dem Scrollen zu sehen.
+                */}
+                <Knopfleiste>
+                  <label className="flex w-full items-start gap-3 text-[15px] leading-relaxed">
+                    <input
+                      type="checkbox"
+                      className="mt-1 size-6 shrink-0 accent-primaer"
+                      checked={einverstanden}
+                      onChange={(ev) => {
+                        setzeEinverstanden(ev.target.checked);
+                      }}
+                    />
+                    <span>{datenschutz.daten.einwilligungstext}</span>
+                  </label>
+                  <Knopf
+                    className="h-14 px-8 text-[17px]"
+                    disabled={!einverstanden || laeuft}
+                    onClick={() => void registriere()}
+                  >
+                    {laeuft ? "Wird registriert …" : "Registrierung abschließen"}
+                  </Knopf>
+                  <Knopf
+                    art="rand"
+                    className="h-14 px-8 text-[17px]"
+                    disabled={laeuft}
+                    onClick={() => {
+                      gehe("bild");
+                    }}
+                  >
+                    Zurück
+                  </Knopf>
+                </Knopfleiste>
+              </>
+            )}
           </>
         )}
       </Zustand>

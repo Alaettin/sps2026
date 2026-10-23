@@ -5,12 +5,9 @@ import { galerieIds, pruefeAvatarWahl } from "./avatare.js";
 import { STANDARD_AVATAR_ID } from "./standardavatar.js";
 
 /**
- * Was ein Besucher an sich selbst sehen und aendern darf, an **einer** Stelle.
- *
- * Zwei Wege fuehren hierher: das Terminal am Stand (`routes/kiosk.ts`, GUID aus dem
- * gescannten Pass) und der angemeldete Besucher (`routes/mein.ts`, GUID aus der Sitzung).
- * Zwei Kopien derselben Feldauswahl liefen auseinander, und ausgerechnet hier faellt das
- * nicht auf, weil beide Wege weiter "irgendwie" funktionieren.
+ * Was ein angemeldeter Besucher an sich selbst sehen und aendern darf (`routes/mein.ts`, GUID
+ * aus der Sitzung). Das Tablet liest seit dem 23.10.2026 keine Besucherdaten mehr, es
+ * registriert nur noch; die Auswahl der Avatare teilt es sich mit diesem Bereich.
  */
 
 /**

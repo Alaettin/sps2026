@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { forbidden, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { findeDatei } from "../services/dateien.js";
+import { ABSCHNITTE, DATENSCHUTZ_FASSUNG } from "../services/datenschutz.js";
 import {
   aendereSelbst,
   avatarAuswahl,
@@ -32,6 +33,12 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
     { preHandler: app.verlangeBesucher },
     async (req) => aendereSelbst(ctx.db, guid(req), req.body ?? {}),
   );
+
+  // Derselbe Hinweis, dem der Besucher zugestimmt hat, zum Nachlesen und fuer den Widerruf.
+  app.get("/api/mein/datenschutz", { preHandler: app.verlangeBesucher }, () => ({
+    fassung: DATENSCHUTZ_FASSUNG,
+    abschnitte: ABSCHNITTE,
+  }));
 
   app.get("/api/mein/avatare", { preHandler: app.verlangeBesucher }, () => avatarAuswahl(ctx.db));
 

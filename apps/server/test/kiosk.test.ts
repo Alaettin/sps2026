@@ -1,14 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { dateien } from "../src/db/schema.js";
-import { STANDARD_AVATAR_ID } from "../src/services/standardavatar.js";
+import { DATENSCHUTZ_FASSUNG } from "../src/services/datenschutz.js";
 import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
- * Das Selbstbedienungs-Tablet.
+ * Das Tablet am Stand: Besucher registrieren sich dort selbst, seit dem 23.10.2026.
  *
  * **Der Kern dieser Pruefungen ist nicht, was die Rolle kann, sondern was sie nicht kann.**
  * Das Geraet steht unbeaufsichtigt im Publikum; jede Route, die es zusaetzlich erreicht,
- * ist eine Route zu viel.
+ * ist eine Route zu viel. Es legt Besucher an, liest aber keine.
  */
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
@@ -57,13 +56,44 @@ async function galerie(s: Pruefstand, keks: string): Promise<string[]> {
   return antwort.json<{ avatare: string[] }>().avatare;
 }
 
-async function legeBesucher(s: Pruefstand, keks: string, guid: string) {
+/** Ein Besucher, den das Personal angelegt hat; sein Pass ist damit schon registriert. */
+async function legeBesucher(s: Pruefstand, keks: string, guid: string): Promise<string> {
+  const email = testEmail();
   await s.app.inject({
     method: "POST",
     url: "/api/besucher",
     headers: { cookie: keks },
-    payload: { guid, vorname: "Kiosk", nachname: "Probe", firma: "Alt GmbH", email: testEmail() },
+    payload: { guid, vorname: "Schon", nachname: "Da", firma: "Alt GmbH", email },
   });
+  return email;
+}
+
+/** Ein vollstaendiger, gueltiger Rumpf; jeder Fall veraendert genau eine Stelle davon. */
+function rumpf(guid: string, aenderung: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    guid,
+    vorname: "Rita",
+    nachname: "Registriert",
+    firma: "Neu GmbH",
+    email: `${guid.toLowerCase()}@example.invalid`,
+    passwort: "geheim-123",
+    avatarDateiId: null,
+    einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG },
+    ...aenderung,
+  };
+}
+
+async function registriere(s: Pruefstand, keks: string, payload: Record<string, unknown>) {
+  return s.app.inject({
+    method: "POST",
+    url: "/api/kiosk/registrierung",
+    headers: { cookie: keks },
+    payload,
+  });
+}
+
+async function pass(s: Pruefstand, keks: string, guid: string) {
+  return (await s.app.inject({ url: `/api/kiosk/pass/${guid}`, headers: { cookie: keks } })).json();
 }
 
 describe("Kiosk: was die Rolle nicht darf", () => {
@@ -118,192 +148,165 @@ describe("Kiosk: was die Rolle nicht darf", () => {
   });
 
   /** Die Rolle ist **eng**, nicht nur anders: auch ein Betreuer bleibt draussen. */
-  it("laesst einen Betreuer nicht an die Kiosk-Routen", async () => {
+  it("laesst Betreuer, Besucher und Unangemeldete nicht an die Kiosk-Routen", async () => {
     const { s, admin, betreuer } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0001");
+    const email = await legeBesucher(s, admin, "KIOSK-0001");
+    const besucher = await melde(s, email, "password");
+
+    const wer: [string, Record<string, string>, number][] = [
+      ["Betreuer", { cookie: betreuer }, 403],
+      ["Besucher", { cookie: besucher }, 401],
+      ["niemand", {}, 401],
+    ];
+    for (const [name, kopf, erwartet] of wer) {
+      for (const url of [
+        "/api/kiosk/pass/KIOSK-0001",
+        "/api/kiosk/avatare",
+        "/api/kiosk/datenschutz",
+      ]) {
+        const antwort = await s.app.inject({ url, headers: kopf });
+        expect(antwort.statusCode, `${name} ${url}`).toBe(erwartet);
+      }
+      const reg = await s.app.inject({
+        method: "POST",
+        url: "/api/kiosk/registrierung",
+        headers: kopf,
+        payload: rumpf("KIOSK-FREMD"),
+      });
+      expect(reg.statusCode, `${name} registriert`).toBe(erwartet);
+    }
+  });
+
+  /** Das Tablet liest keine Besucherdaten mehr; die alten Lese- und Aenderungswege sind weg. */
+  it("kommt an keine Besucherdaten", async () => {
+    const { s, admin, kiosk } = await konten();
+    await legeBesucher(s, admin, "KIOSK-0002");
 
     const lesen = await s.app.inject({
-      url: "/api/kiosk/besucher/KIOSK-0001",
-      headers: { cookie: betreuer },
+      url: "/api/kiosk/besucher/KIOSK-0002",
+      headers: { cookie: kiosk },
     });
-    expect(lesen.statusCode).toBe(403);
-
-    const avatare = await s.app.inject({
-      url: "/api/kiosk/avatare",
-      headers: { cookie: betreuer },
+    expect(lesen.statusCode).toBe(404);
+    const aendern = await s.app.inject({
+      method: "PATCH",
+      url: "/api/kiosk/besucher/KIOSK-0002",
+      headers: { cookie: kiosk },
+      payload: { firma: "X" },
     });
-    expect(avatare.statusCode).toBe(403);
-  });
+    expect(aendern.statusCode).toBe(404);
+    const verwaltung = await s.app.inject({
+      url: "/api/besucher/KIOSK-0002",
+      headers: { cookie: kiosk },
+    });
+    expect(verwaltung.statusCode).toBe(403);
 
-  it("verlangt ueberhaupt eine Anmeldung", async () => {
-    const { s, admin } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0002");
-    const antwort = await s.app.inject({ url: "/api/kiosk/besucher/KIOSK-0002" });
-    expect(antwort.statusCode).toBe(401);
+    // Zu einer GUID erfaehrt das Tablet nur den Status, sonst nichts.
+    expect(await pass(s, kiosk, "KIOSK-0002")).toEqual({ status: "registriert" });
   });
 });
 
-describe("Kiosk: Stammdaten", () => {
-  it("aendert die Felder", async () => {
+describe("Kiosk: Registrierung", () => {
+  it("legt den Besucher an, mit eigenem Passwort und Einwilligung", async () => {
     const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0010");
+    expect(await pass(s, kiosk, "SPS2026-0042")).toEqual({ status: "frei" });
 
-    const antwort = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0010",
-      headers: { cookie: kiosk },
-      payload: { firma: "Neu GmbH", ort: "Mannheim" },
-    });
-    expect(antwort.statusCode).toBe(200);
-    expect(antwort.json<{ firma: string; ort: string }>()).toMatchObject({
+    const bild = (await galerie(s, kiosk))[0];
+    const antwort = await registriere(s, kiosk, rumpf("SPS2026-0042", { avatarDateiId: bild }));
+    expect(antwort.statusCode).toBe(201);
+    expect(antwort.json()).toEqual({ registriert: true });
+
+    const b = (
+      await s.app.inject({ url: "/api/besucher/SPS2026-0042", headers: { cookie: admin } })
+    ).json<Record<string, unknown>>();
+    expect(b).toMatchObject({
+      vorname: "Rita",
       firma: "Neu GmbH",
-      ort: "Mannheim",
+      avatarDateiId: bild,
+      einwilligungFassung: DATENSCHUTZ_FASSUNG,
     });
+    expect(typeof b["einwilligungAm"]).toBe("number");
+    expect(await pass(s, kiosk, "SPS2026-0042")).toEqual({ status: "registriert" });
+
+    // Das eigene Passwort gilt, das Standardpasswort nicht.
+    await expect(melde(s, "sps2026-0042@example.invalid", "geheim-123")).resolves.toBeTruthy();
+    await expect(melde(s, "sps2026-0042@example.invalid", "password")).rejects.toThrow();
+  });
+
+  it("ueberschreibt einen schon registrierten Pass nicht", async () => {
+    const { s, admin, kiosk } = await konten();
+    await legeBesucher(s, admin, "KIOSK-0003");
+
+    const antwort = await registriere(s, kiosk, rumpf("KIOSK-0003"));
+    expect(antwort.statusCode).toBe(409);
+    expect(antwort.json<{ code: string }>().code).toBe("bereits-registriert");
+
+    const b = (
+      await s.app.inject({ url: "/api/besucher/KIOSK-0003", headers: { cookie: admin } })
+    ).json<{ vorname: string; firma: string }>();
+    expect(b).toMatchObject({ vorname: "Schon", firma: "Alt GmbH" });
   });
 
   /**
-   * **Die GUID bleibt, auch wenn eine mitgeschickt wird.** Sie ist die `itemId` fuer Axon;
-   * liesse sie sich am Tablet aendern, zeigte der Pass eines Besuchers ins Leere.
+   * **Jeder abgelehnte Fall hinterlaesst nichts.** Geprueft wird danach, dass der Pass weiter
+   * frei ist; sonst koennte ein halber Datensatz die echte Registrierung blockieren.
    */
-  it("laesst die GUID unberuehrt", async () => {
+  it("lehnt Unvollstaendiges ab und legt dabei nichts an", async () => {
     const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0011");
+    const vergeben = await legeBesucher(s, admin, "KIOSK-0004");
 
-    const antwort = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0011",
-      headers: { cookie: kiosk },
-      payload: { guid: "ENTFUEHRT", vorname: "Neu" },
-    });
-    expect(antwort.statusCode).toBe(200);
-    expect(antwort.json<{ guid: string }>().guid).toBe("KIOSK-0011");
+    const faelle: [string, Record<string, unknown>, number, string][] = [
+      ["ohne Einwilligung", { einwilligung: undefined }, 400, "einwilligung-fehlt"],
+      [
+        "Einwilligung nicht erteilt",
+        { einwilligung: { erteilt: false, fassung: DATENSCHUTZ_FASSUNG } },
+        400,
+        "einwilligung-fehlt",
+      ],
+      [
+        "alte Fassung",
+        { einwilligung: { erteilt: true, fassung: "1999-01-01" } },
+        409,
+        "datenschutz-veraltet",
+      ],
+      ["Passwort zu kurz", { passwort: "kurz" }, 400, "passwort-zu-kurz"],
+      ["ohne E-Mail", { email: undefined }, 400, "pflicht-fehlt"],
+      ["E-Mail vergeben", { email: vergeben.toUpperCase() }, 409, "email-vergeben"],
+      ["ohne Nachname", { nachname: undefined }, 400, "pflicht-fehlt"],
+      ["fremde Datei als Bild", { avatarDateiId: "gibt-es-nicht" }, 400, "avatar-unbekannt"],
+    ];
+    for (const [was, aenderung, status, code] of faelle) {
+      const antwort = await registriere(s, kiosk, rumpf("KIOSK-NEU", aenderung));
+      expect(antwort.statusCode, was).toBe(status);
+      expect(antwort.json<{ code: string }>().code, was).toBe(code);
+      expect(await pass(s, kiosk, "KIOSK-NEU"), `${was}: Pass nicht mehr frei`).toEqual({
+        status: "frei",
+      });
+    }
 
-    // Und der alte Schluessel traegt den neuen Wert, es wurde also nichts nebenher angelegt.
-    const nachher = await s.app.inject({
-      url: "/api/kiosk/besucher/KIOSK-0011",
-      headers: { cookie: kiosk },
-    });
-    expect(nachher.json<{ vorname: string }>().vorname).toBe("Neu");
-    expect(
-      (await s.app.inject({ url: "/api/kiosk/besucher/ENTFUEHRT", headers: { cookie: kiosk } }))
-        .statusCode,
-    ).toBe(404);
+    const ungueltig = await registriere(s, kiosk, rumpf("mit leerzeichen"));
+    expect(ungueltig.json<{ code: string }>().code).toBe("guid-ungueltig");
   });
 
-  it("weist einen leeren Namen ab", async () => {
-    const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0012");
-    const antwort = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0012",
-      headers: { cookie: kiosk },
-      payload: { nachname: "   " },
-    });
-    expect(antwort.statusCode).toBe(400);
-  });
-
-  /** Der Weg ueber die Stammdaten darf nicht am Galerie-Filter vorbeifuehren. */
-  it("setzt ueber die Stammdatenroute keinen Avatar", async () => {
-    const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0013");
-
-    await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0013",
-      headers: { cookie: kiosk },
-      payload: { avatarDateiId: (await galerie(s, kiosk))[0], firma: "Egal" },
-    });
-
-    // Unveraendert: jeder neue Besucher traegt den Standard, und der steht noch da.
-    const nachher = await s.app.inject({
-      url: "/api/kiosk/besucher/KIOSK-0013",
-      headers: { cookie: kiosk },
-    });
-    expect(nachher.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(STANDARD_AVATAR_ID);
-  });
-});
-
-describe("Kiosk: Avatar", () => {
-  it("bietet die Galerie an", async () => {
+  it("liefert den Datenschutzhinweis mit Fassung und Einwilligungssatz", async () => {
     const { s, kiosk } = await konten();
-    const antwort = await s.app.inject({ url: "/api/kiosk/avatare", headers: { cookie: kiosk } });
-    expect(antwort.statusCode).toBe(200);
-    const { avatare } = antwort.json<{ avatare: string[] }>();
-    // Die Erstbefuellung legt 20 Bilder an; geprueft wird, dass sie vollstaendig da sind.
-    expect(avatare).toHaveLength(20);
-    expect(new Set(avatare).size, "Dubletten in der Galerie").toBe(20);
+    const d = (
+      await s.app.inject({ url: "/api/kiosk/datenschutz", headers: { cookie: kiosk } })
+    ).json<{ fassung: string; abschnitte: { titel: string }[]; einwilligungstext: string }>();
+    expect(d.fassung).toBe(DATENSCHUTZ_FASSUNG);
+    expect(d.einwilligungstext).toMatch(/widerrufen/);
+    // Die Pflichtangaben nach Art. 13 DSGVO, je als eigener Abschnitt.
+    expect(d.abschnitte.map((a) => a.titel)).toEqual(
+      expect.arrayContaining([
+        "Verantwortlicher",
+        "Welche Daten wir verarbeiten",
+        "Wofür",
+        "Rechtsgrundlage",
+        "Wer deine Daten sieht",
+        "Wie lange",
+        "Deine Rechte",
+      ]),
+    );
   });
 
-  it("setzt einen Avatar aus der Galerie und wieder zurueck auf Standard", async () => {
-    const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0020");
-
-    const gewaehlt = (await galerie(s, kiosk))[2] ?? "";
-    const gesetzt = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0020/avatar",
-      headers: { cookie: kiosk },
-      payload: { avatarDateiId: gewaehlt },
-    });
-    expect(gesetzt.statusCode).toBe(200);
-    expect(gesetzt.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(gewaehlt);
-
-    /*
-     * `null` im Rumpf heisst "Standard", und gespeichert wird dessen **echte Id**: so
-     * steht dort derselbe Wert wie bei einem frisch angelegten Besucher und nicht eine
-     * zweite Schreibweise fuer denselben Zustand.
-     */
-    const zurueck = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0020/avatar",
-      headers: { cookie: kiosk },
-      payload: { avatarDateiId: null },
-    });
-    expect(zurueck.statusCode).toBe(200);
-    expect(zurueck.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(STANDARD_AVATAR_ID);
-  });
-
-  /**
-   * **Die eigentliche Pruefung.** Ohne den Galerie-Filter koennte das Tablet den Avatar auf
-   * eine beliebige Datei zeigen lassen, etwa auf ein PDF von einem Exponat, und das ginge
-   * als Base64 in jede `values`-Antwort der Konnektor-API hinaus.
-   */
-  it("weist eine Datei ab, die nicht zur Galerie gehoert", async () => {
-    const { s, admin, kiosk } = await konten();
-    await legeBesucher(s, admin, "KIOSK-0021");
-
-    /*
-     * Eine echte, vorhandene Datei, die **nicht** zur Auswahl gehoert. Eine erfundene
-     * Id abzuweisen bewiese wenig; der gefaehrliche Fall ist die Datei, die es
-     * wirklich gibt, etwa ein Dokument an einem Exponat.
-     */
-    const fremd = "11111111-1111-4111-8111-111111111111";
-    s.ctx.db
-      .insert(dateien)
-      .values({
-        id: fremd,
-        pfad: "ab/cd/fremd",
-        mimeType: "application/pdf",
-        groesse: 10,
-        originalName: "geheim.pdf",
-        sha256: "a".repeat(64),
-        angelegt: Date.now(),
-      })
-      .run();
-
-    const antwort = await s.app.inject({
-      method: "PATCH",
-      url: "/api/kiosk/besucher/KIOSK-0021/avatar",
-      headers: { cookie: kiosk },
-      payload: { avatarDateiId: fremd },
-    });
-    expect(antwort.statusCode).toBe(400);
-    expect(antwort.json<{ code: string }>().code).toBe("avatar-unbekannt");
-
-    const nachher = await s.app.inject({
-      url: "/api/kiosk/besucher/KIOSK-0021",
-      headers: { cookie: kiosk },
-    });
-    expect(nachher.json<{ avatarDateiId: string | null }>().avatarDateiId).toBe(STANDARD_AVATAR_ID);
-  });
+  it.todo("Datenschutzhinweis ohne Platzhalter (wartet auf die Angaben der IDTA)");
 });

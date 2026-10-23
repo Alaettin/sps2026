@@ -111,6 +111,13 @@ export const besucher = sqliteTable(
      * siehe `services/besucherzugang.ts`. Verlaesst den Server nie.
      */
     passwortHash: text("passwort_hash"),
+    /**
+     * Die Einwilligung in die Datenverarbeitung, seit dem 23.10.2026: Zeitpunkt und Fassung des
+     * Datenschutztextes, dem der Besucher bei der Registrierung am Tablet zugestimmt hat.
+     * `null` bei Besuchern, die das Personal angelegt hat.
+     */
+    einwilligungAm: integer("einwilligung_am"),
+    einwilligungFassung: text("einwilligung_fassung"),
     angelegt: integer("angelegt").notNull().default(jetzt),
     geaendert: integer("geaendert").notNull().default(jetzt),
   },

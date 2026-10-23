@@ -1,51 +1,54 @@
 import type { FastifyInstance } from "fastify";
 import type { Kontext } from "../kontext.js";
+import { avatarAuswahl } from "../services/selbstbedienung.js";
 import {
-  aendereSelbst,
-  avatarAuswahl,
-  selbstAnsicht,
-  waehleAvatar,
-} from "../services/selbstbedienung.js";
+  ABSCHNITTE,
+  DATENSCHUTZ_FASSUNG,
+  EINWILLIGUNGSTEXT,
+  istEntwurf,
+} from "../services/datenschutz.js";
+import { MIN_BESUCHERPASSWORT, passstatus, registriere } from "../services/registrierung.js";
 
 /**
- * Das Selbstbedienungs-Tablet am Stand.
+ * Das Tablet am Stand: **Besucher registrieren sich hier**, seit dem 23.10.2026.
  *
- * Ein Besucher scannt seinen eigenen Pass und pflegt danach seine Stammdaten oder waehlt
- * einen Avatar. Mehr nicht. Was er sehen und aendern darf, steht in
- * `services/selbstbedienung.ts`, gemeinsam mit dem angemeldeten Besucher (`routes/mein.ts`).
+ * Pass scannen, Daten eintragen, Passwort setzen, Bild waehlen, einwilligen. Siehe
+ * `services/registrierung.ts`.
  *
- * **Eigene Routen statt geweiteter Rechte.** Die Verwaltungsrouten bleiben Admin-Sache;
- * haette man sie fuer `kiosk` geoeffnet, waere die enge Rolle eine Frage von Wachsamkeit
- * bei jeder kuenftigen Aenderung. Hier ist sie eine Frage des Routenbaums.
+ * **Das Tablet liest keine Besucherdaten.** Es erfaehrt zu einer GUID nur, ob sie frei oder
+ * schon registriert ist, und legt neu an. Aendern kann ein Besucher seine Daten nur nach der
+ * Anmeldung mit E-Mail und Passwort (`routes/mein.ts`). Vorher konnte jeder, der einen Pass in
+ * der Hand hatte, am Tablet dessen Anschrift lesen und aendern.
  *
- * **Es gibt bewusst keine Listenroute.** Ein Tablet im Publikum darf nie erfahren, welche
- * GUIDs es gibt.
- *
- * **Was diese Routen nicht leisten koennen:** Die GUIDs sind fortlaufend. Wer eine kennt,
- * kennt alle, und der Server kann nicht unterscheiden, ob eine GUID von der Kamera kam
- * oder erfunden wurde. Der Schutz ist der physische Pass und ein Geraet im Kioskmodus;
- * deshalb hat die Oberflaeche kein Eingabefeld fuer die GUID.
+ * **Eigene Routen statt geweiteter Rechte.** Die Verwaltungsrouten bleiben Admin-Sache; die
+ * enge Rolle ist eine Frage des Routenbaums, nicht der Wachsamkeit bei jeder Aenderung.
  */
 export function kioskRoutes(app: FastifyInstance, ctx: Kontext): void {
   app.get<{ Params: { guid: string } }>(
-    "/api/kiosk/besucher/:guid",
+    "/api/kiosk/pass/:guid",
     { preHandler: app.verlangeKiosk },
-    async (req) => selbstAnsicht(ctx.db, req.params.guid),
+    async (req) => ({ status: passstatus(ctx.db, req.params.guid) }),
   );
 
-  // Die GUID steht im Pfad und wird nie aus dem Rumpf gelesen.
-  app.patch<{ Params: { guid: string }; Body: Record<string, unknown> }>(
-    "/api/kiosk/besucher/:guid",
-    { preHandler: app.verlangeKiosk },
-    async (req) => aendereSelbst(ctx.db, req.params.guid, req.body ?? {}),
-  );
+  app.get("/api/kiosk/datenschutz", { preHandler: app.verlangeKiosk }, () => ({
+    fassung: DATENSCHUTZ_FASSUNG,
+    abschnitte: ABSCHNITTE,
+    einwilligungstext: EINWILLIGUNGSTEXT,
+    entwurf: istEntwurf(),
+    minPasswort: MIN_BESUCHERPASSWORT,
+  }));
 
-  // Nur Ids; die Bilder holt der Klient ueber `/api/dateien/:id`.
+  // Nur Ids; die Bilder holt das Tablet ueber `/api/dateien/:id`.
   app.get("/api/kiosk/avatare", { preHandler: app.verlangeKiosk }, () => avatarAuswahl(ctx.db));
 
-  app.patch<{ Params: { guid: string }; Body: { avatarDateiId?: unknown } }>(
-    "/api/kiosk/besucher/:guid/avatar",
+  app.post<{ Body: Record<string, unknown> }>(
+    "/api/kiosk/registrierung",
     { preHandler: app.verlangeKiosk },
-    async (req) => waehleAvatar(ctx.db, req.params.guid, req.body?.avatarDateiId ?? null),
+    async (req, reply) => {
+      await registriere(ctx.db, req.body ?? {});
+      void reply.code(201);
+      // Bewusst ohne Daten: das Tablet bekommt nichts zurueck, was es anzeigen koennte.
+      return { registriert: true };
+    },
   );
 }

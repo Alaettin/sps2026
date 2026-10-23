@@ -20,6 +20,21 @@ import { useZeitsperre } from "./zeitsperre.js";
  * dem Besucher selbst.
  */
 
+/**
+ * Die Knöpfe eines Schritts, am unteren Rand klebend.
+ *
+ * Die Avatargalerie ist höher als ein Tabletbildschirm; ohne das klebende Band müsste man
+ * erst scrollen, um überhaupt weiterzukommen, und genau das übersieht jemand, der im Stehen
+ * tippt.
+ */
+export function Knopfleiste({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-0 -mx-6 mt-auto flex flex-wrap gap-4 border-t border-linie bg-grund px-6 py-4">
+      {children}
+    </div>
+  );
+}
+
 /** Wie lange der unbeschriftete Bereich gedrückt werden muss, bis das Abmelden greift. */
 const ABMELDEN_MS = 3000;
 

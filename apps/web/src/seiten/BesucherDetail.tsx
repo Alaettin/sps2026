@@ -43,15 +43,22 @@ type BesucherDaten = Werte & {
   avatarDateiId: string | null;
 };
 
+/** Die Einwilligung aus der Registrierung am Tablet; `null`, wenn das Personal angelegt hat. */
+interface Einwilligung {
+  einwilligungAm: number | null;
+  einwilligungFassung: string | null;
+}
+
 export function BesucherDetail({ ich }: { ich: Ich }) {
   const { guid } = useParams();
   const navigate = useNavigate();
   const neu = guid === undefined;
 
   const abruf = useAbruf<
-    BesucherDaten & {
-      zuordnungen: { id: string }[];
-    }
+    BesucherDaten &
+      Einwilligung & {
+        zuordnungen: { id: string }[];
+      }
   >(neu ? null : `/api/besucher/${String(guid)}`);
 
   const [werte, setzeWerte] = useState<Werte>({});
@@ -266,7 +273,14 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               </div>
             </Flaeche>
 
-            <Zugangsbereich guid={aktuelleGuid} email={abruf.daten?.email ?? null} />
+            <Zugangsbereich
+              guid={aktuelleGuid}
+              email={abruf.daten?.email ?? null}
+              einwilligung={{
+                einwilligungAm: abruf.daten?.einwilligungAm ?? null,
+                einwilligungFassung: abruf.daten?.einwilligungFassung ?? null,
+              }}
+            />
 
             <BesucherExponate guid={aktuelleGuid} aufFehler={setzeFehler} />
           </>
@@ -307,7 +321,15 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
  * „Passwort zurücksetzen“ setzt vorerst auf das Standardpasswort zurück. Was hier später
  * genau passieren soll, ist noch offen; der Knopf steht schon, damit der Weg feststeht.
  */
-function Zugangsbereich({ guid, email }: { guid: string; email: string | null }) {
+function Zugangsbereich({
+  guid,
+  email,
+  einwilligung,
+}: {
+  guid: string;
+  email: string | null;
+  einwilligung: Einwilligung;
+}) {
   const [frage, setzeFrage] = useState(false);
   const [laeuft, setzeLaeuft] = useState(false);
   const [fehler, setzeFehler] = useState<string | null>(null);
@@ -343,6 +365,17 @@ function Zugangsbereich({ guid, email }: { guid: string; email: string | null })
           </>
         )}
         .
+      </p>
+      <p className="text-sm text-text-zweit">
+        Einwilligung Datenschutz:{" "}
+        {einwilligung.einwilligungAm === null ? (
+          <b>liegt nicht vor</b>
+        ) : (
+          <b>
+            erteilt am {new Date(einwilligung.einwilligungAm).toLocaleString("de-DE")} (Fassung{" "}
+            {einwilligung.einwilligungFassung})
+          </b>
+        )}
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <Knopf

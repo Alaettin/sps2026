@@ -94,7 +94,7 @@ describe("Die Besuchersitzung", () => {
       "/api/besucher",
       "/api/besucher/BZ-2",
       "/api/exponate",
-      "/api/kiosk/besucher/BZ-2",
+      "/api/kiosk/pass/BZ-2",
       "/api/kiosk/avatare",
       `/api/dateien/${STANDARD_AVATAR_ID}`,
       "/api/standard-avatar",

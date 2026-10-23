@@ -1,40 +1,58 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 /**
- * Das Selbstbedienungs-Tablet, angemeldet als Rolle `kiosk`.
+ * Das Tablet am Stand, angemeldet als Rolle `kiosk`: Besucher registrieren sich hier selbst,
+ * seit dem 23.10.2026.
  *
  * **Der Scanschritt bleibt hier aus.** Der Prüfstand hat keine Kamera, und ein gefälschtes
- * Videogerät liefert ein Testbild ohne QR-Code. Geprüft wird alles **nach** dem Scan, also
- * das, was ein Besucher danach tut, plus die Schranken der Rolle. Dass ein echter Pass vor
- * einer Tabletkamera erkannt wird, bleibt dem Feldtest.
+ * Videogerät liefert ein Testbild ohne QR-Code. Geprüft wird alles **nach** dem Scan: die
+ * Seite `/kiosk/<GUID>`, auf die der Scan führt. Dass ein echter Pass vor einer Tabletkamera
+ * erkannt wird, bleibt dem Feldtest.
  */
 
-/** Ein Besucher für diesen Lauf, angelegt über ein Adminkonto. */
-async function legeBesucher(request: APIRequestContext, guid: string): Promise<void> {
-  const email = process.env["ADMIN_EMAIL"];
-  const passwort = process.env["ADMIN_PASSWORT"];
-  const admin = await request.post("/api/auth/anmelden", { data: { email, passwort } });
-  expect(admin.status()).toBe(200);
-
-  await request.post("/api/besucher", {
-    data: {
-      guid,
-      email: `${guid}@example.invalid`,
-      vorname: "Tablet",
-      nachname: "Probe",
-      firma: "Alt GmbH",
-    },
-  });
+function neueGuid(): string {
+  return `REG-${String(Date.now()).slice(-8)}`;
 }
 
-/** Räumt den Besucher weg und meldet den Kontext wieder als Tablet an. */
+/** Meldet den API-Kontext als Admin an; die Seite bleibt das Tablet. */
+async function alsAdmin(request: APIRequestContext): Promise<void> {
+  const antwort = await request.post("/api/auth/anmelden", {
+    data: { email: process.env["ADMIN_EMAIL"], passwort: process.env["ADMIN_PASSWORT"] },
+  });
+  expect(antwort.status()).toBe(200);
+}
+
 async function raeumeAuf(request: APIRequestContext, guid: string): Promise<void> {
+  await alsAdmin(request);
   await request.delete(`/api/besucher/${guid}`);
   await request.post("/api/auth/abmelden");
 }
 
+/** Füllt die Schritte bis einschließlich Datenschutz aus, ohne abzuschließen. */
+async function bisZumDatenschutz(page: Page, guid: string, email: string): Promise<void> {
+  await page.goto(`/kiosk/${guid}`);
+  await expect(page.getByRole("heading", { name: "Deine Daten" })).toBeVisible();
+
+  await page.getByLabel("Vorname").fill("Rita");
+  await page.getByLabel("Nachname").fill("Registriert");
+  await page.getByLabel("Firma", { exact: true }).fill("Tablet GmbH");
+  await page.getByLabel("E-Mail").fill(email);
+  await page.getByRole("button", { name: "Weiter" }).click();
+
+  await expect(page.getByRole("heading", { name: "Passwort festlegen" })).toBeVisible();
+  await page.getByLabel("Passwort", { exact: true }).fill("geheim-123");
+  await page.getByLabel("Passwort wiederholen").fill("geheim-123");
+  await page.getByRole("button", { name: "Weiter" }).click();
+
+  await expect(page.getByRole("heading", { name: "Dein Bild" })).toBeVisible();
+  await page.getByRole("button", { name: "Bild auswählen" }).first().click();
+  await page.getByRole("button", { name: "Weiter" }).click();
+
+  await expect(page.getByRole("heading", { name: "Datenschutz" })).toBeVisible();
+}
+
 test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ page }) => {
-  for (const pfad of ["/nutzer", "/besucher", "/", "/monitoring"]) {
+  for (const pfad of ["/nutzer", "/besucher", "/", "/monitoring", "/mein"]) {
     await page.goto(pfad);
     await expect(page, `${pfad} war erreichbar`).toHaveURL(/\/kiosk$/);
   }
@@ -43,7 +61,7 @@ test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ 
 
 /**
  * **Kein Eingabefeld für die GUID.** Die GUIDs sind fortlaufend; mit einem Feld könnte am
- * Tablet jeder die Daten eines beliebigen anderen Besuchers öffnen.
+ * Tablet jeder einen fremden Pass registrieren.
  */
 test("auf dem Scanbildschirm lässt sich keine GUID eintippen", async ({ page }) => {
   await page.goto("/kiosk");
@@ -52,119 +70,136 @@ test("auf dem Scanbildschirm lässt sich keine GUID eintippen", async ({ page })
   await expect(page.getByRole("button", { name: /von Hand/i })).toHaveCount(0);
 });
 
-test("Stammdaten lassen sich ändern und das Abbrechen ändert nichts", async ({ page, request }) => {
-  const guid = `TAB-${String(Date.now()).slice(-8)}`;
-  await legeBesucher(request, guid);
+test("ein Besucher registriert sich und meldet sich danach selbst an", async ({
+  page,
+  request,
+  browser,
+}) => {
+  const guid = neueGuid();
+  const email = `${guid.toLowerCase()}@example.invalid`;
+  try {
+    await bisZumDatenschutz(page, guid, email);
 
-  await page.goto(`/kiosk/${guid}/stammdaten`);
-  const firma = page.getByLabel("Firma");
-  await expect(firma).toHaveValue("Alt GmbH");
+    // Ohne Haken geht es nicht weiter; der Haken ist nicht vorbelegt.
+    const abschliessen = page.getByRole("button", { name: "Registrierung abschließen" });
+    const haken = page.getByRole("checkbox");
+    await expect(haken).not.toBeChecked();
+    await expect(abschliessen).toBeDisabled();
+    await expect(page.getByText(/Verantwortlicher/)).toBeVisible();
 
-  // Erst abbrechen: danach muss der alte Wert stehen.
-  await firma.fill("Verworfen GmbH");
-  await page.getByRole("button", { name: "Abbrechen" }).click();
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
+    await haken.check();
+    await abschliessen.click();
+    await expect(page.getByRole("heading", { name: "Registrierung abgeschlossen" })).toBeVisible();
+    await expect(page.getByText(email)).toBeVisible();
 
-  const dazwischen = await (await request.get(`/api/besucher/${guid}`)).json();
-  expect(dazwischen.firma, "Abbrechen hat gespeichert").toBe("Alt GmbH");
+    // Danach führt der Pass zum Hinweis, nicht zurück ins Formular.
+    await page.goto(`/kiosk/${guid}`);
+    await expect(page.getByRole("heading", { name: /schon registriert/ })).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveCount(0);
 
-  // Jetzt wirklich speichern.
-  await page.goto(`/kiosk/${guid}/stammdaten`);
-  await page.getByLabel("Firma").fill("Neu GmbH");
-  await page.getByLabel("Ort").fill("Mannheim");
-  await page.getByLabel("Alias").fill("Tabi");
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
+    // Die Einwilligung steht beim Besucher, mit Fassung.
+    await alsAdmin(request);
+    const gespeichert = (await (await request.get(`/api/besucher/${guid}`)).json()) as {
+      firma: string;
+      einwilligungAm: number | null;
+      einwilligungFassung: string | null;
+    };
+    expect(gespeichert.firma).toBe("Tablet GmbH");
+    expect(gespeichert.einwilligungAm).not.toBeNull();
+    expect(gespeichert.einwilligungFassung).not.toBeNull();
 
-  // **Am Server nachgesehen**, nicht am Bildschirm: der zeigt auch den Entwurf.
-  const nachher = await (await request.get(`/api/besucher/${guid}`)).json();
-  expect(nachher.firma).toBe("Neu GmbH");
-  expect(nachher.ort).toBe("Mannheim");
-  expect(nachher.alias).toBe("Tabi");
-  expect(nachher.guid, "die GUID hat sich geändert").toBe(guid);
-
-  await raeumeAuf(request, guid);
+    /*
+     * Anmelden als Besucher, in einem eigenen Kontext. **Die leere Sitzung muss ausdrücklich
+     * dastehen**: `browser.newContext()` erbt im Testlauf die Projekteinstellungen, also die
+     * Sitzung des Tablets, und landete sonst wieder beim Scan.
+     */
+    const kontext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const besucher = await kontext.newPage();
+    await besucher.goto("/anmeldung");
+    await besucher.getByLabel("E-Mail").fill(email);
+    await besucher.getByLabel("Passwort").fill("geheim-123");
+    await besucher.getByRole("button", { name: "Anmelden" }).click();
+    await expect(besucher.getByRole("heading", { name: /Hallo Rita Registriert/ })).toBeVisible();
+    await besucher.getByRole("button", { name: /Datenschutzhinweis/ }).click();
+    await expect(besucher.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
+    await kontext.close();
+  } finally {
+    await raeumeAuf(request, guid);
+  }
 });
 
-test("ein Bild lässt sich aussuchen und wieder auf Standard setzen", async ({ page, request }) => {
-  const guid = `TAB-${String(Date.now()).slice(-8)}`;
-  await legeBesucher(request, guid);
-  const vorher = await (await request.get(`/api/besucher/${guid}`)).json();
+test("Pflichtangaben und Passwort werden vor dem Weitergehen geprüft", async ({ page }) => {
+  await page.goto(`/kiosk/${neueGuid()}`);
+  await page.getByLabel("Vorname").fill("Ohne");
+  await page.getByLabel("Nachname").fill("Mail");
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await expect(page.getByText(/gültige E-Mail-Adresse/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Deine Daten" })).toBeVisible();
 
-  await page.goto(`/kiosk/${guid}/avatar`);
-  const bilder = page.getByRole("button", { name: /Bild/ });
-  await expect(bilder.first()).toBeVisible();
+  await page.getByLabel("E-Mail").fill("ohne.mail@example.invalid");
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await page.getByLabel("Passwort", { exact: true }).fill("kurz");
+  await page.getByLabel("Passwort wiederholen").fill("kurz");
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await expect(page.getByText(/mindestens 8 Zeichen/)).toBeVisible();
 
-  // Das zweite Bild ist das erste der Galerie; das erste ist der Standard.
-  await bilder.nth(1).click();
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
+  await page.getByLabel("Passwort", { exact: true }).fill("lang-genug-1");
+  await page.getByLabel("Passwort wiederholen").fill("lang-genug-2");
+  await page.getByRole("button", { name: "Weiter" }).click();
+  await expect(page.getByText(/stimmen nicht überein/)).toBeVisible();
+});
 
-  const gewaehlt = await (await request.get(`/api/besucher/${guid}`)).json();
-  expect(gewaehlt.avatarDateiId, "es wurde kein anderes Bild gesetzt").not.toBe(
-    vorher.avatarDateiId,
-  );
-
-  // Und zurück auf Standard.
-  await page.goto(`/kiosk/${guid}/avatar`);
-  await page.getByRole("button", { name: "Standardbild" }).click();
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
-
-  const zurueck = await (await request.get(`/api/besucher/${guid}`)).json();
-  expect(zurueck.avatarDateiId).toBe(vorher.avatarDateiId);
-
-  await raeumeAuf(request, guid);
+test("ein vom Personal angelegter Pass zeigt nur den Hinweis", async ({ page, request }) => {
+  const guid = neueGuid();
+  await alsAdmin(request);
+  await request.post("/api/besucher", {
+    data: { guid, vorname: "Schon", nachname: "Da", email: `${guid}@example.invalid` },
+  });
+  try {
+    await page.goto(`/kiosk/${guid}`);
+    await expect(page.getByRole("heading", { name: /schon registriert/ })).toBeVisible();
+    // Keine Daten des Besuchers auf dem Bildschirm.
+    await expect(page.getByText("Schon", { exact: true })).toHaveCount(0);
+  } finally {
+    await raeumeAuf(request, guid);
+  }
 });
 
 /**
- * **Die Zeitsperre wird gemessen, nicht geglaubt.**
- *
- * Mit `page.clock` wird die Uhr vorgestellt statt gewartet; ein Test, der 90 Sekunden
- * stillsteht, wäre in der Prüfkette untragbar. Geprüft wird beides: dass die Warnung
- * erscheint und dass der Bildschirm danach wirklich zurückspringt.
+ * **Die Zeitsperre wird gemessen, nicht geglaubt.** Mit `page.clock` wird die Uhr vorgestellt
+ * statt gewartet. Geprüft wird, dass die Warnung erscheint, der Bildschirm danach zum Scan
+ * springt und die Eingaben dabei verloren sind.
  */
-test("nach 90 Sekunden Untätigkeit springt der Bildschirm zurück zum Scan", async ({
+test("nach 90 Sekunden Untätigkeit springt die Registrierung zurück und vergisst alles", async ({
   page,
-  request,
 }) => {
-  const guid = `TAB-${String(Date.now()).slice(-8)}`;
-  await legeBesucher(request, guid);
-
+  const guid = neueGuid();
   await page.clock.install();
   await page.goto(`/kiosk/${guid}`);
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
+  await page.getByLabel("Vorname").fill("Vergessen");
 
-  // 80 Sekunden: die Warnung steht, der Bildschirm noch.
   await page.clock.runFor(80_000);
   await expect(page.getByRole("status")).toContainText("Noch da?");
   await expect(page).toHaveURL(new RegExp(`/kiosk/${guid}$`));
 
-  // Weitere 15: die Frist ist um.
   await page.clock.runFor(15_000);
   await expect(page).toHaveURL(/\/kiosk$/);
   await expect(page.getByRole("heading", { name: "Pass scannen" })).toBeVisible();
 
-  await raeumeAuf(request, guid);
+  await page.goto(`/kiosk/${guid}`);
+  await expect(page.getByLabel("Vorname")).toHaveValue("");
 });
 
-test("der Hinweis 'Ich bin noch da' hält den Bildschirm", async ({ page, request }) => {
-  const guid = `TAB-${String(Date.now()).slice(-8)}`;
-  await legeBesucher(request, guid);
-
+test("der Hinweis 'Ich bin noch da' hält den Bildschirm", async ({ page }) => {
+  const guid = neueGuid();
   await page.clock.install();
   await page.goto(`/kiosk/${guid}`);
-  await expect(page.getByRole("heading", { name: /^Hallo/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Deine Daten" })).toBeVisible();
 
   await page.clock.runFor(80_000);
   await page.getByRole("button", { name: "Ich bin noch da" }).click();
 
-  /*
-   * Danach noch einmal 80 Sekunden: waere die Uhr nicht zurueckgesetzt, waere die Frist
-   * laengst abgelaufen. Der Bildschirm muss stehen.
-   */
+  // Wäre die Uhr nicht zurückgesetzt, wäre die Frist jetzt längst abgelaufen.
   await page.clock.runFor(80_000);
   await expect(page).toHaveURL(new RegExp(`/kiosk/${guid}$`));
-
-  await raeumeAuf(request, guid);
 });

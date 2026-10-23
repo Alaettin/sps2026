@@ -177,7 +177,7 @@ describe("Galerie verwalten", () => {
     });
     await s.app.inject({
       method: "PATCH",
-      url: "/api/kiosk/besucher/AVA-0001/avatar",
+      url: "/api/besucher/AVA-0001/avatar",
       headers: { cookie: keks },
       payload: { avatarDateiId: gewaehlt },
     });
@@ -189,7 +189,7 @@ describe("Galerie verwalten", () => {
     });
 
     const nachher = await s.app.inject({
-      url: "/api/kiosk/besucher/AVA-0001",
+      url: "/api/besucher/AVA-0001",
       headers: { cookie: keks },
     });
     expect(nachher.json<{ avatarDateiId: string | null }>().avatarDateiId).toBeNull();

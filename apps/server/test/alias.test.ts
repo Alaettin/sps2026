@@ -134,36 +134,27 @@ describe("Visitor_Alias in values", () => {
   });
 });
 
-describe("Alias am Tablet", () => {
-  it("laesst sich lesen und aendern", async () => {
+describe("Alias im Besucherbereich", () => {
+  it("laesst sich vom Besucher selbst lesen und aendern", async () => {
     const { s, keks } = await alsAdmin();
-    await legeBesucher(s, keks, { guid: "ALIAS-0010", vorname: "Eva", nachname: "Klein" });
-
-    const angelegt = await s.app.inject({
-      method: "POST",
-      url: "/api/nutzer",
-      headers: { cookie: keks },
-      payload: { name: "Tablet", email: "tablet@idta-passport.de", rolle: "kiosk" },
+    await legeBesucher(s, keks, {
+      guid: "ALIAS-0010",
+      vorname: "Eva",
+      nachname: "Klein",
+      email: "eva.klein@example.invalid",
     });
-    const kiosk = await melde(
-      s,
-      "tablet@idta-passport.de",
-      angelegt.json<{ startpasswort: string }>().startpasswort,
-    );
+    const besucher = await melde(s, "eva.klein@example.invalid", "password");
 
     const geaendert = await s.app.inject({
       method: "PATCH",
-      url: "/api/kiosk/besucher/ALIAS-0010",
-      headers: { cookie: kiosk },
+      url: "/api/mein",
+      headers: { cookie: besucher },
       payload: { alias: "Evi" },
     });
     expect(geaendert.statusCode).toBe(200);
     expect(geaendert.json<{ alias: string }>().alias).toBe("Evi");
 
-    const gelesen = await s.app.inject({
-      url: "/api/kiosk/besucher/ALIAS-0010",
-      headers: { cookie: kiosk },
-    });
+    const gelesen = await s.app.inject({ url: "/api/mein", headers: { cookie: besucher } });
     expect(gelesen.json<{ alias: string }>().alias).toBe("Evi");
   });
 });
