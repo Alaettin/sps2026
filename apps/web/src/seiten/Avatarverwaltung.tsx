@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { Fehlerhinweis, Flaeche, Knopf, Zustand, knopfKlassen } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
+import { alsJpeg } from "../lib/bild.js";
 
 /**
  * Die Avatare, die am Selbstbedienungs-Tablet zur Auswahl stehen.
@@ -101,17 +102,7 @@ async function verkleinere(datei: File): Promise<Blob> {
     KANTE,
   );
   bild.close();
-
-  return await new Promise<Blob>((loese, scheitere) => {
-    flaeche.toBlob(
-      (b) => {
-        if (b === null) scheitere(new Error("Das Bild ließ sich nicht umwandeln."));
-        else loese(b);
-      },
-      "image/jpeg",
-      GUETE,
-    );
-  });
+  return alsJpeg(flaeche, GUETE);
 }
 
 export function Avatarverwaltung() {

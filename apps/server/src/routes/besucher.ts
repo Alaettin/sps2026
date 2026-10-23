@@ -13,6 +13,11 @@ import {
 import { exponateFuerBesucher, leseElemente, setzeZuordnungen } from "../services/zuordnungen.js";
 import { pruefeAvatarWahl } from "../services/avatare.js";
 import { setzeBesucherPasswortZurueck } from "../services/besucherzugang.js";
+import {
+  loescheAlleNachrichten,
+  loescheNachricht,
+  nachrichtenVon,
+} from "../services/nachrichten.js";
 
 /**
  * Ein mitgeschicktes `avatarDateiId` geht durch dieselbe Pruefung wie am Tablet.
@@ -106,10 +111,32 @@ export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
     },
   );
 
+  /** Die Nachrichten eines Besuchers, zur Moderation. Sie gehen oeffentlich in den Viewer. */
+  app.get<{ Params: { guid: string } }>(
+    "/api/besucher/:guid/nachrichten",
+    { preHandler: app.verlangeAdmin },
+    async (req) => {
+      findeBesucher(ctx.db, req.params.guid);
+      return nachrichtenVon(ctx.db, req.params.guid);
+    },
+  );
+
+  app.delete<{ Params: { guid: string; id: string } }>(
+    "/api/besucher/:guid/nachrichten/:id",
+    { preHandler: app.verlangeAdmin },
+    async (req, reply) => {
+      await loescheNachricht(ctx.db, ctx.ablage, req.params.guid, req.params.id);
+      void reply.code(204);
+      return null;
+    },
+  );
+
   app.delete<{ Params: { guid: string } }>(
     "/api/besucher/:guid",
     { preHandler: app.verlangeAdmin },
     async (req, reply) => {
+      // Erst die Bilder der Nachrichten; die Zeilen nimmt die Kaskade mit, die Dateien nicht.
+      await loescheAlleNachrichten(ctx.db, ctx.ablage, req.params.guid);
       loescheBesucher(ctx.db, req.params.guid);
       void reply.code(204);
       return null;

@@ -7,6 +7,7 @@ import { Kioskrahmen, Knopfleiste } from "../kiosk/Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
+import { MAX_NACHRICHTEN, type Nachricht } from "./Nachrichten.js";
 
 /**
  * Der Bereich des angemeldeten Besuchers, seit dem 23.10.2026: Begrüßung, Daten ändern, Bild
@@ -34,6 +35,7 @@ function Rahmen({ aufAbmelden, children }: { aufAbmelden: () => void; children: 
 export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
   const navigate = useNavigate();
   const abruf = useAbruf<Besucher>("/api/mein");
+  const nachrichten = useAbruf<Nachricht[]>("/api/mein/nachrichten");
   const b = abruf.daten;
 
   return (
@@ -70,6 +72,13 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 text="Wähle ein Bild, das im Viewer erscheint."
                 aufKlick={() => {
                   void navigate("/mein/avatar");
+                }}
+              />
+              <Kachel
+                titel="Meine Nachrichten"
+                text={`Titel, Text und Bild für deinen Pass. ${String(nachrichten.daten?.length ?? 0)} von ${String(MAX_NACHRICHTEN)}.`}
+                aufKlick={() => {
+                  void navigate("/mein/nachrichten");
                 }}
               />
             </div>

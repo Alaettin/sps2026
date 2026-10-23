@@ -3,6 +3,7 @@ import { badRequest } from "../errors.js";
 import { aendereBesucher, findeBesucher, TEXTFELDER } from "./besucher.js";
 import { galerieIds, pruefeAvatarWahl } from "./avatare.js";
 import { STANDARD_AVATAR_ID } from "./standardavatar.js";
+import { istEigenesNachrichtenbild } from "./nachrichten.js";
 
 /**
  * Was ein angemeldeter Besucher an sich selbst sehen und aendern darf (`routes/mein.ts`, GUID
@@ -58,11 +59,13 @@ export function avatarAuswahl(db: Db) {
 }
 
 /**
- * Welche Bilder ein Besucher abrufen darf: Standard, Galerie und sein eigener Avatar.
+ * Welche Bilder ein Besucher abrufen darf: Standard, Galerie, sein eigener Avatar und die
+ * Bilder seiner Nachrichten.
  * Alles andere in der Ablage (Dokumente der Exponate, fremde Dateien) bleibt Personalsache.
  */
 export function darfBildSehen(db: Db, guid: string, dateiId: string): boolean {
   if (dateiId === STANDARD_AVATAR_ID) return true;
+  if (istEigenesNachrichtenbild(db, guid, dateiId)) return true;
   if (findeBesucher(db, guid).avatarDateiId === dateiId) return true;
   return galerieIds(db).includes(dateiId);
 }

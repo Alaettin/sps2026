@@ -359,3 +359,34 @@ export const globaleDaten = sqliteTable("globale_daten", {
   dateiId: text("datei_id").references(() => dateien.id, { onDelete: "set null" }),
   angelegt: integer("angelegt").notNull().default(jetzt),
 });
+
+// --- Nachrichten des Besuchers -------------------------------------------------------
+
+/**
+ * Nachrichten, die ein Besucher seinem Messepass selbst hinzufuegt, seit dem 23.10.2026:
+ * Titel, Text, optional ein Bild. Die Zeit ist die der Anlage und aendert sich beim Bearbeiten
+ * nicht.
+ *
+ * **`platz` ist die Bruecke zum Konnektor-Modell**, wie bei den Dokumenten eines Exponats: aus
+ * ihm entsteht `Visitor_Msg03_Title`, und das ist in Axon gemappt. Vergeben wird die kleinste
+ * freie Nummer; Loeschen gibt den Platz frei.
+ */
+export const nachrichten = sqliteTable(
+  "nachrichten",
+  {
+    id: text("id").primaryKey(),
+    besucherGuid: text("besucher_guid")
+      .notNull()
+      .references(() => besucher.guid, { onDelete: "cascade" }),
+    platz: integer("platz").notNull(),
+    titel: text("titel"),
+    text: text("text"),
+    bildDateiId: text("bild_datei_id").references(() => dateien.id, { onDelete: "set null" }),
+    angelegt: integer("angelegt").notNull().default(jetzt),
+    geaendert: integer("geaendert").notNull().default(jetzt),
+  },
+  (t) => [
+    unique("nachrichten_platz").on(t.besucherGuid, t.platz),
+    index("nachrichten_besucher_idx").on(t.besucherGuid),
+  ],
+);

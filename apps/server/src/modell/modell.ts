@@ -21,6 +21,10 @@ import {
   platzNr,
   globalId,
   visitorFeld,
+  MAX_NACHRICHTEN,
+  NACHRICHTENTEILE,
+  type Nachrichtenteil,
+  visitorNachricht,
 } from "./felder.js";
 
 /**
@@ -66,7 +70,7 @@ function eintrag(id: string, name: string, type: number): DataModelProperty {
 /**
  * Baut das vollstaendige Modell aus den angelegten Exponaten.
  *
- * Je Exponat 2 + 10*3 + 10*2 + 5*10 = 102 Datenpunkte, dazu 33 fuer den Besucher.
+ * Je Exponat 2 + 10*3 + 10*2 + 5*10 = 102 Datenpunkte, dazu `FELDER_BESUCHER` fuer den Besucher.
  */
 export function baueModell(db: Db): DataModelProperty[] {
   const felder: DataModelProperty[] = [];
@@ -80,6 +84,28 @@ export function baueModell(db: Db): DataModelProperty[] {
   }
   felder.push(eintrag(VISITOR_ALIAS, "Besucher Alias", PROPERTY_TYPE.property));
   felder.push(eintrag(VISITOR_AVATAR, "Besucher Foto", PROPERTY_TYPE.document));
+
+  /*
+   * **Die zehn Nachrichtenplaetze, immer alle.** Wie bei Dokumenten: der Content-Admin mappt
+   * vor der Messe, geschrieben wird waehrenddessen.
+   */
+  const teilname: Record<Nachrichtenteil, string> = {
+    Title: "Titel",
+    Text: "Text",
+    Time: "Zeit",
+    Image: "Bild",
+  };
+  for (let p = 1; p <= MAX_NACHRICHTEN; p++) {
+    for (const teil of NACHRICHTENTEILE) {
+      felder.push(
+        eintrag(
+          visitorNachricht(p, teil),
+          `Besucher Nachricht ${platzNr(p)} ${teilname[teil]}`,
+          teil === "Image" ? PROPERTY_TYPE.document : PROPERTY_TYPE.property,
+        ),
+      );
+    }
+  }
 
   /*
    * **Die globalen Daten**, fuer alle Besucher dieselben. Anders als die festen Plaetze nur die
@@ -156,5 +182,6 @@ export function baueModell(db: Db): DataModelProperty[] {
 export const FELDER_JE_EXPONAT =
   2 + MAX_DOKUMENTE * 3 + MAX_LINKS * 2 + MAX_KONTAKTE * AUSGEGEBENE_PERSONENFELDER;
 
-/** Zahl der Besucherdatenpunkte: Titel, Personenfelder, Alias und Foto. */
-export const FELDER_BESUCHER = 1 + AUSGEGEBENE_PERSONENFELDER + 1 + 1;
+/** Zahl der Besucherdatenpunkte: Titel, Personenfelder, Alias, Foto und die Nachrichtenplaetze. */
+export const FELDER_BESUCHER =
+  1 + AUSGEGEBENE_PERSONENFELDER + 1 + 1 + MAX_NACHRICHTEN * NACHRICHTENTEILE.length;

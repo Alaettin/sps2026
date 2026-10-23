@@ -18,6 +18,8 @@ interface Bestand {
   dateien: number;
   /** Fehlt in Sicherungen vor dem 20.10.2026. */
   globaleDaten?: number;
+  /** Fehlt in Sicherungen vor dem 23.10.2026. */
+  nachrichten?: number;
   appNutzer: number;
 }
 
@@ -32,6 +34,7 @@ const ZEILEN: [keyof Bestand, string][] = [
   ["zuordnungen", "Zuordnungen"],
   ["dateien", "Dateien"],
   ["globaleDaten", "Globale Daten"],
+  ["nachrichten", "Nachrichten"],
   ["appNutzer", "Anmeldungen"],
 ];
 

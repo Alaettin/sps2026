@@ -16,6 +16,13 @@ export const MAX_DOKUMENTE = 10;
 export const MAX_LINKS = 10;
 export const MAX_KONTAKTE = 5;
 
+/** Nachrichten je Besucher, entschieden am 23.10.2026. Je Platz vier Datenpunkte. */
+export const MAX_NACHRICHTEN = 10;
+
+/** Die Teile einer Nachricht, in der Reihenfolge des Modells. `Image` ist ein Dokument. */
+export const NACHRICHTENTEILE = ["Title", "Text", "Time", "Image"] as const;
+export type Nachrichtenteil = (typeof NACHRICHTENTEILE)[number];
+
 /** Der Typ laut Spec. Ausgegeben wird die Zahl, siehe `PROPERTY_TYPE`. */
 export const PROPERTY_TYPE = { property: 0, document: 1 } as const;
 
@@ -85,6 +92,11 @@ export function visitorFeld(id: string): string {
  * `Global01` bis `Global99`: Datenpunkte, die jeder Besucher gleich bekommt, seit dem
  * 20.10.2026. Siehe `services/globaldaten.ts`.
  */
+/** `Visitor_Msg01_Title` bis `Visitor_Msg10_Image`. */
+export function visitorNachricht(platz: number, teil: Nachrichtenteil): string {
+  return `Visitor_Msg${platzNr(platz)}_${teil}`;
+}
+
 export function globalId(nummer: number): string {
   return `Global${platzNr(nummer)}`;
 }

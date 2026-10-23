@@ -14,6 +14,7 @@ import { Einstellungen } from "./seiten/Einstellungen.js";
 import { Monitoring } from "./seiten/Monitoring.js";
 import { KioskRegistrierung, KioskScan } from "./kiosk/Kiosk.js";
 import { MeinAvatar, MeinDatenschutz, MeinMenue, MeinStammdaten } from "./besucher/Mein.js";
+import { MeinNachricht, MeinNachrichten } from "./besucher/Nachrichten.js";
 import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
@@ -101,6 +102,9 @@ export function App() {
           <Route path="/mein/stammdaten" element={<MeinStammdaten aufAbmelden={abmelden} />} />
           <Route path="/mein/avatar" element={<MeinAvatar aufAbmelden={abmelden} />} />
           <Route path="/mein/datenschutz" element={<MeinDatenschutz aufAbmelden={abmelden} />} />
+          <Route path="/mein/nachrichten" element={<MeinNachrichten aufAbmelden={abmelden} />} />
+          <Route path="/mein/nachrichten/neu" element={<MeinNachricht aufAbmelden={abmelden} />} />
+          <Route path="/mein/nachrichten/:id" element={<MeinNachricht aufAbmelden={abmelden} />} />
           <Route path="*" element={<Navigate to="/mein" replace />} />
         </Routes>
       ) : (

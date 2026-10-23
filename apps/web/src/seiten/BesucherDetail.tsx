@@ -21,6 +21,7 @@ import { Rueckfrage } from "../bausteine/dialog.js";
 import type { Ich } from "../lib/ich.js";
 import { BesucherExponate } from "./BesucherExponate.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
+import { type Nachricht, zeit } from "../besucher/Nachrichten.js";
 
 /**
  * Die zehn Textfelder, dieselben wie im Konnektor-Modell.
@@ -282,6 +283,8 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               }}
             />
 
+            <Nachrichtenbereich guid={aktuelleGuid} />
+
             <BesucherExponate guid={aktuelleGuid} aufFehler={setzeFehler} />
           </>
         )}
@@ -321,6 +324,96 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
  * „Passwort zurücksetzen“ setzt vorerst auf das Standardpasswort zurück. Was hier später
  * genau passieren soll, ist noch offen; der Knopf steht schon, damit der Weg feststeht.
  */
+/**
+ * Die Nachrichten, die der Besucher selbst angelegt hat, zur Moderation: sie gehen öffentlich in
+ * den Viewer, und wer etwas Unpassendes hochlädt, soll es nicht bis zum Ende der Messe dort
+ * stehen haben.
+ */
+function Nachrichtenbereich({ guid }: { guid: string }) {
+  const abruf = useAbruf<Nachricht[]>(`/api/besucher/${encodeURIComponent(guid)}/nachrichten`);
+  const [zuLoeschen, setzeZuLoeschen] = useState<Nachricht | null>(null);
+  const [laeuft, setzeLaeuft] = useState(false);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const alle = [...(abruf.daten ?? [])].sort((a, b) => b.angelegt - a.angelegt);
+
+  async function loesche() {
+    if (zuLoeschen === null) return;
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      await api(`/api/besucher/${encodeURIComponent(guid)}/nachrichten/${zuLoeschen.id}`, {
+        method: "DELETE",
+      });
+      setzeZuLoeschen(null);
+      abruf.neu();
+    } catch (ursache) {
+      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Löschen nicht möglich.");
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Flaeche className="flex flex-col gap-4 p-6">
+      <h2 className="text-lg font-semibold">Nachrichten ({alle.length})</h2>
+      <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
+        {alle.length === 0 ? (
+          <p className="text-sm text-text-hinweis">Der Besucher hat keine Nachrichten angelegt.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-linie">
+            {alle.map((n) => (
+              <li key={n.id} className="flex flex-wrap items-start gap-4 py-3">
+                {n.bildDateiId !== null && (
+                  <img
+                    src={`/api/dateien/${n.bildDateiId}`}
+                    alt=""
+                    className="size-20 shrink-0 object-cover"
+                  />
+                )}
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="text-xs text-text-hinweis">
+                    Platz {String(n.platz).padStart(2, "0")} · {zeit(n.angelegt)}
+                  </span>
+                  {n.titel !== null && <b className="break-words">{n.titel}</b>}
+                  {n.text !== null && (
+                    <p className="text-sm whitespace-pre-line text-text-zweit break-words">
+                      {n.text}
+                    </p>
+                  )}
+                </div>
+                <Knopf
+                  art="rand"
+                  onClick={() => {
+                    setzeFehler(null);
+                    setzeZuLoeschen(n);
+                  }}
+                >
+                  Löschen
+                </Knopf>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Zustand>
+      <Rueckfrage
+        offen={zuLoeschen !== null}
+        aufOffen={(offen) => {
+          if (!offen) setzeZuLoeschen(null);
+        }}
+        titel="Nachricht löschen?"
+        bestaetigenText="Löschen"
+        art="gefahr"
+        laeuft={laeuft}
+        fehler={fehler}
+        aufBestaetigen={() => void loesche()}
+      >
+        Die Nachricht wird mit Bild gelöscht und verschwindet aus dem Viewer. Der Besucher wird
+        nicht benachrichtigt.
+      </Rueckfrage>
+    </Flaeche>
+  );
+}
+
 function Zugangsbereich({
   guid,
   email,

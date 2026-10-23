@@ -11,7 +11,7 @@
  * der Server ab, damit niemand einem Text zustimmt, der nicht mehr gilt.
  */
 
-export const DATENSCHUTZ_FASSUNG = "2026-10-23";
+export const DATENSCHUTZ_FASSUNG = "2026-10-23.2";
 
 export interface Abschnitt {
   titel: string;
@@ -35,14 +35,14 @@ export const ABSCHNITTE: Abschnitt[] = [
   {
     titel: "Welche Daten wir verarbeiten",
     absaetze: [
-      "Die Kennung deines Besucherpasses; die Angaben, die du hier einträgst (Titel, Vorname, Nachname, Alias, Firma, Position, Anschrift, E-Mail-Adresse, Website); das Bild, das du aus unserer Auswahl wählst (kein Foto von dir); dein Passwort, gespeichert nur als nicht umkehrbarer Hashwert; die Inhalte, die dir an den Ständen zugeordnet werden, mit dem Zeitpunkt; Zeitpunkt und Fassung deiner Einwilligung.",
+      "Die Kennung deines Besucherpasses; die Angaben, die du hier einträgst (Titel, Vorname, Nachname, Alias, Firma, Position, Anschrift, E-Mail-Adresse, Website); das Bild, das du aus unserer Auswahl wählst (kein Foto von dir); dein Passwort, gespeichert nur als nicht umkehrbarer Hashwert; die Inhalte, die dir an den Ständen zugeordnet werden, mit dem Zeitpunkt; die Nachrichten, die du nach der Anmeldung selbst anlegst (Titel, Text, Bild, Zeitpunkt); Zeitpunkt und Fassung deiner Einwilligung.",
     ],
   },
   {
     titel: "Wofür",
     absaetze: [
       "Damit dein Pass funktioniert: Aussteller ordnen dir an ihrem Stand Inhalte zu (etwa Datenblätter, Links, Ansprechpartner), und du findest sie danach im Viewer, den du über den QR-Code deines Passes öffnest.",
-      "Damit du dich mit deiner E-Mail-Adresse und deinem Passwort anmelden und deine Angaben selbst ändern kannst.",
+      "Damit du dich mit deiner E-Mail-Adresse und deinem Passwort anmelden, deine Angaben selbst ändern und deinem Pass eigene Nachrichten mit Bildern hinzufügen kannst.",
       "Damit wir auswerten können, welche Stände besucht wurden.",
     ],
   },
@@ -56,7 +56,8 @@ export const ABSCHNITTE: Abschnitt[] = [
     titel: "Wer deine Daten sieht",
     absaetze: [
       "Das Standpersonal eines Ausstellers sieht deine Angaben, wenn es deinen Pass an seinem Stand scannt.",
-      "Der Viewer ist über die Adresse auf deinem Pass ohne Anmeldung erreichbar. Wer diese Adresse kennt, etwa durch ein Foto des QR-Codes, kann die dort angezeigten Angaben und Inhalte abrufen. Gib deinen Pass deshalb nicht aus der Hand.",
+      "Die Betreiber der Anwendung können deine Nachrichten einsehen und unangemessene Inhalte löschen.",
+      "Der Viewer ist über die Adresse auf deinem Pass ohne Anmeldung erreichbar. Wer diese Adresse kennt, etwa durch ein Foto des QR-Codes, kann die dort angezeigten Angaben und Inhalte abrufen, auch deine Nachrichten und Bilder. Gib deinen Pass deshalb nicht aus der Hand, und lade nichts hoch, was andere nicht sehen sollen.",
       "Neoception GmbH betreibt diese Anwendung und den Viewer im Auftrag der IDTA (Auftragsverarbeitung nach Art. 28 DSGVO). Gehostet wird bei [[HOSTING: Anbieter und Standort]].",
       "Eine Übermittlung in ein Land außerhalb der EU findet [[DRITTLAND: nicht statt / statt, mit Garantie]].",
     ],
