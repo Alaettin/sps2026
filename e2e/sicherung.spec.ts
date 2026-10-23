@@ -1,0 +1,177 @@
+import { readFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+import { legeExponatAn, merkeBesucher, raeumeBesucherAuf, raeumeExponateAuf } from "./exponate.js";
+
+/**
+ * Besucherdetail nach Exponaten, Sicherung und Auswertung, seit dem 19.10.2026.
+ *
+ * **Der Import spielt die eben heruntergeladene Sicherung wieder ein.** So prüft er den
+ * ganzen Weg durch die Oberfläche, ohne den Bestand der Instanz zu verändern: vorher und
+ * nachher müssen dieselben Zahlen stehen.
+ */
+
+test.afterEach(async ({ request }) => {
+  await raeumeBesucherAuf(request);
+  await raeumeExponateAuf(request);
+});
+
+test("im Besucherdetail lässt sich ein Exponat ganz und einzeln zuweisen", async ({
+  page,
+  request,
+}) => {
+  const exponat = await legeExponatAn(request, `Kästchen ${String(Date.now()).slice(-5)}`);
+  for (const titel of ["Erster Link", "Zweiter Link"]) {
+    await request.post(`/api/exponate/${exponat.id}/links`, {
+      data: { url: "https://industrialdigitaltwin.org/", titel },
+    });
+  }
+  const guid = `BXD-${String(Date.now()).slice(-8)}`;
+  await request.post("/api/besucher", { data: { guid, vorname: "Kai", nachname: "Kasten" } });
+  merkeBesucher(guid);
+
+  await page.goto(`/besucher/${guid}`);
+  const ganz = page.getByRole("checkbox", { name: new RegExp(`${exponat.kennung} .* besucht`) });
+  await expect(ganz).not.toBeChecked();
+  await ganz.click();
+  await expect(ganz).toBeChecked();
+
+  const zugeordnet = async () =>
+    (
+      (await (await request.get(`/api/besucher/${guid}/exponate`)).json()) as {
+        id: string;
+        links: { titel: string; zugeordnet: boolean }[];
+      }[]
+    ).find((e) => e.id === exponat.id)?.links;
+  expect((await zugeordnet())?.every((l) => l.zugeordnet)).toBe(true);
+
+  /*
+   * **Zu als Vorgabe**: die einzelnen Links sind unsichtbar, das ganze Exponat ließ sich
+   * trotzdem eben anhaken. Erst aufklappen, dann einzeln.
+   */
+  await expect(page.getByRole("checkbox", { name: /Zweiter Link/ })).toHaveCount(0);
+  const klappe = page.getByRole("button", { name: new RegExp(exponat.kennung) });
+  await expect(klappe).toHaveAttribute("aria-expanded", "false");
+  await klappe.click();
+  await expect(klappe).toHaveAttribute("aria-expanded", "true");
+  await expect(klappe).toContainText("2 von 2");
+
+  // Einen Link einzeln abwählen: das Exponat steht danach auf "teilweise".
+  await page.getByRole("checkbox", { name: /Zweiter Link/ }).click();
+  await expect(page.getByRole("checkbox", { name: /Zweiter Link/ })).not.toBeChecked();
+  expect((await zugeordnet())?.map((l) => l.zugeordnet)).toEqual([true, false]);
+  expect(await ganz.evaluate((e) => (e as HTMLInputElement).indeterminate)).toBe(true);
+  await expect(klappe).toContainText("1 von 2");
+});
+
+test("die Auswertung kommt als CSV mit BOM und einer Spalte je Exponat", async ({ page }) => {
+  await page.goto("/einstellungen");
+  const laden = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download CSV" }).click();
+  const datei = await laden;
+  expect(datei.suggestedFilename()).toMatch(/^idta-passport-besuche-\d{4}-\d{2}-\d{2}\.csv$/);
+  const inhalt = readFileSync(await datei.path(), "utf8");
+  expect(inhalt.startsWith("\uFEFFGUID;Titel;Vorname;Nachname;Alias;")).toBe(true);
+});
+
+test("Export und Import derselben Sicherung lassen den Bestand stehen", async ({
+  page,
+  request,
+}) => {
+  const vorher = await (await request.get("/api/entwickler/bestand")).json();
+
+  await page.goto("/einstellungen");
+  const laden = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Export" }).click();
+  const zip = await laden;
+  expect(zip.suggestedFilename()).toMatch(/^idta-passport-sicherung-.*\.zip$/);
+  const pfad = await zip.path();
+  const roh = readFileSync(pfad);
+  // Lokaler Dateikopf einer ZIP-Datei, und der Datenbankeintrag steht darin.
+  expect(roh.subarray(0, 4).toString("hex")).toBe("504b0304");
+  expect(roh.includes(Buffer.from("passport.db"))).toBe(true);
+
+  await page.getByLabel("Import").setInputFiles(pfad);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Sicherung einspielen?")).toBeVisible();
+  await expect(dialog.getByRole("cell", { name: "Besucher" })).toBeVisible();
+
+  const knopf = dialog.getByRole("button", { name: "Bestand ersetzen" });
+  await expect(knopf).toBeDisabled();
+  await dialog.getByLabel("Zum Bestätigen EINSPIELEN eintippen").fill("EINSPIELEN");
+  await knopf.click();
+
+  // Nach dem Neuladen wieder auf den Einstellungen, angemeldet: dasselbe Konto ist drin.
+  await expect(page.getByRole("heading", { name: "Einstellungen" })).toBeVisible();
+  expect(await (await request.get("/api/entwickler/bestand")).json()).toEqual(vorher);
+});
+
+/**
+ * **Speichern gibt Rückmeldung und lädt die Seite nicht neu.** Vorher setzte das Speichern die
+ * ganze Seite kurz auf „Wird geladen“: kein sichtbares Ergebnis, und aufgeklappte Exponate
+ * klappten wieder zu.
+ */
+test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen", async ({
+  page,
+  request,
+}) => {
+  const exponat = await legeExponatAn(request, `Speichern ${String(Date.now()).slice(-5)}`);
+  await request.post(`/api/exponate/${exponat.id}/links`, {
+    data: { url: "https://industrialdigitaltwin.org/", titel: "Ein Link" },
+  });
+  const guid = `SPE-${String(Date.now()).slice(-8)}`;
+  await request.post("/api/besucher", { data: { guid, vorname: "Sina", nachname: "Speicher" } });
+  merkeBesucher(guid);
+
+  await page.goto(`/besucher/${guid}`);
+  const klappe = page.getByRole("button", { name: new RegExp(exponat.kennung) });
+  await klappe.click();
+  await expect(klappe).toHaveAttribute("aria-expanded", "true");
+
+  const firma = page.getByLabel("Firma", { exact: true });
+  await firma.fill("  Neue Firma GmbH  ");
+  const status = page.getByRole("status").filter({ hasText: "Gespeichert" });
+  await expect(status).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(status).toBeVisible();
+  await expect(page.getByText("Wird geladen")).toHaveCount(0);
+  await expect(klappe).toHaveAttribute("aria-expanded", "true");
+  // So, wie der Server es abgelegt hat: getrimmt.
+  await expect(firma).toHaveValue("Neue Firma GmbH");
+  expect((await (await request.get(`/api/besucher/${guid}`)).json()).firma).toBe("Neue Firma GmbH");
+
+  // Eine neue Eingabe nimmt die Meldung zurück.
+  await firma.fill("Noch nicht gespeichert");
+  await expect(status).toHaveCount(0);
+});
+
+/** Das Foto lässt sich im Besucherdetail aus der Galerie wählen, seit dem 20.10.2026. */
+test("im Besucherdetail lässt sich das Bild aus der Galerie wählen", async ({ page, request }) => {
+  const guid = `AVB-${String(Date.now()).slice(-8)}`;
+  await request.post("/api/besucher", { data: { guid, vorname: "Bea", nachname: "Bild" } });
+  merkeBesucher(guid);
+  const galerie = (await (await request.get("/api/avatare")).json()) as {
+    avatare: { dateiId: string }[];
+  };
+  const ziel = galerie.avatare[1]?.dateiId;
+  expect(ziel, "Galerie leer").toBeTruthy();
+
+  await page.goto(`/besucher/${guid}`);
+  const foto = page.getByRole("img", { name: "Foto des Besuchers" });
+  await expect(foto).not.toHaveAttribute("src", `/api/dateien/${String(ziel)}`);
+
+  await page.getByRole("button", { name: "Bild ändern" }).click();
+  const dialog = page.getByRole("dialog");
+  // Das zweite Galeriebild: Standard steht vorn, dann die Galerie in ihrer Reihenfolge.
+  await dialog.getByRole("button", { name: "Bild auswählen" }).nth(1).click();
+  await dialog.getByRole("button", { name: "Übernehmen" }).click();
+
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "Bild übernommen" })).toBeVisible();
+  await expect(foto).toHaveAttribute("src", `/api/dateien/${String(ziel)}`);
+  // Sichtbar heißt nicht geladen; die Bildbreite schon.
+  await expect
+    .poll(() => foto.evaluate((b) => (b as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  expect((await (await request.get(`/api/besucher/${guid}`)).json()).avatarDateiId).toBe(ziel);
+});

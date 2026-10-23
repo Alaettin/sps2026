@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@import "@fontsource/raleway/400.css";
+@import "@fontsource/raleway/500.css";
+@import "@fontsource/raleway/600.css";
+@import "@fontsource/raleway/700.css";
+@import "@fontsource/raleway/800.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+/*
+ * Die Farben der IDTA, als Tokens an einer Stelle.
+ *
+ * Gelesen aus dem Theme-CSS von industrialdigitaltwin.org (`--wp--preset--color--blue-500`,
+ * `red-500` und die Grautoene). Helle Erscheinung wie bisher.
+ */
+@theme {
+  --color-grund: #f2f2f2;
+  --color-flaeche: #ffffff;
+
+  --color-text: #1b1d26;
+  --color-text-zweit: #3c3c3c;
+  --color-text-hinweis: #5e606c;
+
+  --color-linie: #e3e4e7;
+  --color-linie-feld: #c7c7c7;
+
+  /* IDTA-Blau. Weiss darauf erfuellt WCAG AA auch bei kleiner Knopfschrift. */
+  --color-primaer: #0028cd;
+  --color-primaer-dunkel: #001f9e;
+
+  /*
+   * IDTA-Orange, **nur als Akzent**: aktiver Reiter, Fokusring. Weisse Schrift darauf liegt
+   * unter WCAG AA, deshalb nie als Knopfflaeche.
+   */
+  --color-akzent: #ff500f;
+
+  /* Ein echtes Rot, damit ein Fehler nicht wie der orange Akzent aussieht. */
+  --color-fehler: #c8102e;
+  --color-fehler-grund: #fde3e6;
+
+  --color-kamera-dunkel: #101219;
+  --color-kamera-hell: #43454f;
+  --color-erfolg: #006353;
+
+  /* Fokus sichtbar, im Akzent: hebt sich vom blauen Primaer ab. */
+  --color-fokus: #ff500f;
+
+  --font-sans: "Raleway", "Helvetica Neue", system-ui, sans-serif;
+  /* GUIDs, Kennungen, Pfade, Uhrzeiten. */
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Inhaltsspalte, zentriert, 16 px Rand. */
+  --spacing-spalte: 992px;
+
+  --shadow-flaeche: 0 2px 6px rgb(27 29 38 / 0.07);
+}
+
+/*
+ * Flaechen, Tabellen und Eingabefelder haben 0 px Radius; rund sind nur Knoepfe,
+ * Segment-Umschalter und die Seitenumschaltung, und die tragen `rounded-full`.
+ */
+@layer base {
+  body {
+    background: var(--color-grund);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    margin: 0;
+  }
+
+  /* Fokus bleibt sichtbar. Kein `outline: none` irgendwo. */
+  :focus-visible {
+    outline: 2px solid var(--color-fokus);
+    outline-offset: 2px;
+  }
+}
