@@ -3,11 +3,12 @@ import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { ANSPRECHPARTNERFELDER, GRUPPEN, felderDerGruppe } from "../lib/personenfelder.js";
 import { Blaetterleiste, useBlaettern, useSprungZuEintrag } from "../bausteine/blaettern.js";
 import {
-  Feld,
   Fehlerhinweis,
+  Feld,
   Knopf,
   Kopfzelle,
   Reihe,
+  Seitenkopf,
   Tabellenflaeche,
   Ueberschrift,
   Zelle,
@@ -51,7 +52,7 @@ export function Ansprechpartner() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>Ansprechpartner</Ueberschrift>
         <Knopf
           onClick={() => {
@@ -61,7 +62,7 @@ export function Ansprechpartner() {
         >
           Ansprechpartner anlegen
         </Knopf>
-      </div>
+      </Seitenkopf>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 

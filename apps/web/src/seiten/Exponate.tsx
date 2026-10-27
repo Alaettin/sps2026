@@ -3,13 +3,14 @@ import { Link, useNavigate } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { Blaetterleiste, useBlaettern } from "../bausteine/blaettern.js";
 import {
-  Feld,
   Fehlerhinweis,
+  Feld,
   Flaeche,
   Knopf,
   Kopfzelle,
-  Reihe,
   Markierung,
+  Reihe,
+  Seitenkopf,
   Tabellenflaeche,
   Ueberschrift,
   Zaehlerreihe,
@@ -64,7 +65,7 @@ export function Exponate({ ich }: { ich: Ich }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>Exponate</Ueberschrift>
         {istAdmin && (
           <Knopf
@@ -75,7 +76,7 @@ export function Exponate({ ich }: { ich: Ich }) {
             Exponat anlegen
           </Knopf>
         )}
-      </div>
+      </Seitenkopf>
 
       {istAdmin && anlegen && (
         <Flaeche className="flex flex-col gap-4 p-6">

@@ -88,7 +88,9 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
             <span className="text-xs font-semibold tracking-[0.14em] text-primaer-dunkel uppercase">
               IDTA Passport
             </span>
-            <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em]">Anmelden</h1>
+            <h1 className="text-[32px] leading-tight font-medium tracking-[-0.01em] text-primaer">
+              Anmelden
+            </h1>
           </div>
         </div>
 

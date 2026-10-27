@@ -2,16 +2,18 @@ import { useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiFehler, api } from "../lib/api.js";
 import {
+  Abschnitt,
+  BROTKRUME,
+  Seitenkopf,
+  cn,
   Fehlerhinweis,
-  Flaeche,
   Knopf,
+  knopfKlassen,
   Kopfzelle,
   Reihe,
   Tabellenflaeche,
   Ueberschrift,
   Zelle,
-  cn,
-  knopfKlassen,
 } from "../bausteine/basis.js";
 import { bieteAlsDatei } from "../lib/download.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
@@ -187,10 +189,12 @@ export function CsvImport() {
 
   return (
     <>
-      <Link to="/besucher" className="self-start text-sm font-medium text-text-zweit">
-        ← Besucher
-      </Link>
-      <Ueberschrift>Besucher importieren</Ueberschrift>
+      <Seitenkopf>
+        <Link to="/besucher" className={cn(BROTKRUME, "basis-full")}>
+          ← Besucher
+        </Link>
+        <Ueberschrift>Besucher importieren</Ueberschrift>
+      </Seitenkopf>
 
       <ol aria-label="Schritte" className="grid gap-x-4 sm:grid-cols-3">
         {[
@@ -244,8 +248,7 @@ export function CsvImport() {
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
       {schritt === 1 && (
-        <Flaeche className="flex flex-col gap-4 p-6">
-          <h2 className="text-lg font-semibold">Datei wählen</h2>
+        <Abschnitt titel="Datei wählen">
           <div className="flex flex-wrap gap-3">
             {/*
               Das Feld ist `sr-only`, das Label traegt das Aussehen: neben ein sichtbares
@@ -265,7 +268,7 @@ export function CsvImport() {
               Vorlage herunterladen
             </Knopf>
           </div>
-        </Flaeche>
+        </Abschnitt>
       )}
 
       {schritt === 2 && befund !== null && (
@@ -409,8 +412,7 @@ export function CsvImport() {
             </Tabellenflaeche>
           </div>
 
-          <Flaeche className="flex flex-col gap-4 p-6">
-            <h2 className="text-lg font-bold">Übernehmen</h2>
+          <Abschnitt titel="Übernehmen">
             <p className="text-sm text-text-zweit">
               <b>{befund.neu}</b> neu, <b>{befund.aktualisiert}</b> werden aktualisiert,{" "}
               <b>{befund.uebersprungen}</b> übersprungen.
@@ -436,13 +438,12 @@ export function CsvImport() {
               <b>Ergänzen</b> legt neue Besucher an und aktualisiert bekannte. <b>Ersetzen</b>{" "}
               entfernt zusätzlich alle, die nicht in der Datei stehen, samt ihren Zuordnungen.
             </p>
-          </Flaeche>
+          </Abschnitt>
         </>
       )}
 
       {schritt === 3 && ergebnis !== null && (
-        <Flaeche className="flex flex-col gap-5 p-6">
-          <h2 className="text-lg font-bold">Import abgeschlossen</h2>
+        <Abschnitt titel="Import abgeschlossen" className="gap-5">
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
               ["Neu angelegt", ergebnis.neu],
@@ -454,7 +455,7 @@ export function CsvImport() {
                 <dt className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
                   {text}
                 </dt>
-                <dd className="text-3xl font-bold">{zahl}</dd>
+                <dd className="text-3xl font-medium text-primaer">{zahl}</dd>
               </div>
             ))}
           </dl>
@@ -478,7 +479,7 @@ export function CsvImport() {
               sie und spiele sie erneut ein.
             </p>
           )}
-        </Flaeche>
+        </Abschnitt>
       )}
 
       <Rueckfrage

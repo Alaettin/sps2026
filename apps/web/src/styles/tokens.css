@@ -55,11 +55,29 @@
   --spacing-spalte: 992px;
 
   --shadow-flaeche: 0 2px 6px rgb(27 29 38 / 0.07);
+  /* Wie die Kopfzeile von industrialdigitaltwin.org: kaum sichtbar, statt einer Linie. */
+  --shadow-kopf: 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 2px rgb(0 0 0 / 0.06);
+  /* Das weisse Feld, das ueber dem blauen Band liegt. */
+  --shadow-seitenkopf: 0 10px 30px rgb(0 0 0 / 0.1);
 }
 
 /*
- * Flaechen, Tabellen und Eingabefelder haben 0 px Radius; rund sind nur Knoepfe,
- * Segment-Umschalter und die Seitenumschaltung, und die tragen `rounded-full`.
+ * Die Punktmatrix der IDTA, als reine Zierde auf blauem Grund.
+ *
+ * Ein Verlauf statt einer Bilddatei: kein Bild der IDTA-Seite (fremde Rechte), und die Punkte
+ * skalieren mit. Die Maske blendet sie nach links aus, wie auf der Vorlage, wo die Matrix
+ * rechts dicht steht und zur Mitte hin ausfaellt.
+ */
+@utility punktmatrix {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.28) 2.5px, transparent 3px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to left, black 15%, transparent 75%);
+}
+
+/*
+ * Flaechen, Tabellen und Eingabefelder haben 0 px Radius. Knoepfe tragen 7 px wie auf
+ * industrialdigitaltwin.org; Pillen (`rounded-full`) sind nur Segment-Umschalter und die
+ * Seitenumschaltung, wie dort die Filter.
  */
 @layer base {
   body {

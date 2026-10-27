@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import { Blaetterleiste, useBlaettern, useSprungZuEintrag } from "../bausteine/blaettern.js";
 import {
+  Abschnitt,
+  cn,
   Fehlerhinweis,
   Feld,
   Flaeche,
   Knopf,
   Kopfzelle,
-  Reihe,
   Markierung,
   Monowert,
+  Reihe,
+  Seitenkopf,
   Tabellenflaeche,
   Ueberschrift,
   Zelle,
   Zustand,
-  cn,
 } from "../bausteine/basis.js";
 import { Rueckfrage, Schaufenster } from "../bausteine/dialog.js";
 import type { Ich } from "../lib/ich.js";
@@ -58,7 +60,9 @@ export function Nutzer({ ich }: { ich: Ich }) {
 
   return (
     <>
-      <Ueberschrift>Nutzer</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Nutzer</Ueberschrift>
+      </Seitenkopf>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
@@ -82,8 +86,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
         </Flaeche>
       )}
 
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">Nutzer anlegen</h2>
+      <Abschnitt titel="Nutzer anlegen">
         <form
           className="flex flex-wrap items-end gap-4"
           onSubmit={(ev) => {
@@ -150,7 +153,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
           </label>
           <Knopf type="submit">Anlegen</Knopf>
         </form>
-      </Flaeche>
+      </Abschnitt>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         <Tabellenflaeche>

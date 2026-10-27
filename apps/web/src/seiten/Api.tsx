@@ -1,13 +1,15 @@
 import { type ReactNode, useState } from "react";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
+  Abschnitt,
   Fehlerhinweis,
+  Feld,
   Flaeche,
   Knopf,
   Markierung,
   Monowert,
+  Seitenkopf,
   Ueberschrift,
-  Feld,
   Zustand,
 } from "../bausteine/basis.js";
 
@@ -82,7 +84,9 @@ export function Api() {
 
   return (
     <>
-      <Ueberschrift>API</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>API</Ueberschrift>
+      </Seitenkopf>
 
       <Zustand laedt={laedt} fehler={fehler}>
         {daten !== null && (
@@ -103,10 +107,9 @@ export function Api() {
               erreichbar, sonst meldete der Dienst sich selbst als krank.
             </Zugangsblock>
 
-            <Flaeche className="flex flex-col gap-3 p-6">
-              <h2 className="text-lg font-semibold">Endpunkte AXON Connector</h2>
+            <Abschnitt titel="Endpunkte AXON Connector" className="gap-3">
               <Endpunktliste endpunkte={daten.endpunkte} beispielGuid={daten.beispielGuid} />
-            </Flaeche>
+            </Abschnitt>
           </>
         )}
       </Zustand>

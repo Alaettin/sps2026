@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
-import { Flaeche } from "../bausteine/basis.js";
+import { Abschnitt } from "../bausteine/basis.js";
 
 /**
  * Die Exponate eines Besuchers, mit Kästchen zum Zuweisen.
@@ -61,10 +61,13 @@ export function BesucherExponate({
   const besucht = liste?.filter((e) => e.besucht).length ?? 0;
 
   return (
-    <Flaeche className="flex flex-col gap-4 p-6">
-      <h2 className="text-lg font-semibold">
-        Exponate ({besucht} von {liste?.length ?? 0} besucht)
-      </h2>
+    <Abschnitt
+      titel={
+        <>
+          Exponate ({besucht} von {liste?.length ?? 0} besucht)
+        </>
+      }
+    >
       {liste !== null && liste.length === 0 && (
         <p className="text-sm text-text-hinweis">Es gibt noch keine Exponate.</p>
       )}
@@ -78,7 +81,7 @@ export function BesucherExponate({
           />
         ))}
       </ul>
-    </Flaeche>
+    </Abschnitt>
   );
 }
 

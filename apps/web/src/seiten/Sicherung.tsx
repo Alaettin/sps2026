@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from "react";
 import { ApiFehler, api } from "../lib/api.js";
 import { bieteAlsDatei } from "../lib/download.js";
-import { Fehlerhinweis, Flaeche, Knopf, knopfKlassen } from "../bausteine/basis.js";
+import { Abschnitt, Fehlerhinweis, Knopf, knopfKlassen } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 
 /**
@@ -108,8 +108,7 @@ export function Sicherung() {
     <>
       {fehler !== null && pruefung === null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">Sicherung</h2>
+      <Abschnitt titel="Sicherung">
         <div className="flex flex-wrap gap-3">
           {/* Ein echter Link: der Browser lädt die Datei selbst und zeigt den Fortschritt. */}
           <a href="/api/sicherung" download className={knopfKlassen("primaer")}>
@@ -131,16 +130,15 @@ export function Sicherung() {
             />
           </label>
         </div>
-      </Flaeche>
+      </Abschnitt>
 
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">Auswertung</h2>
+      <Abschnitt titel="Auswertung">
         <div>
           <Knopf art="rand" onClick={() => void auswertung()}>
             Download CSV
           </Knopf>
         </div>
-      </Flaeche>
+      </Abschnitt>
 
       <Rueckfrage
         offen={pruefung !== null}

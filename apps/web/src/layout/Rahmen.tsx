@@ -3,6 +3,7 @@ import { DropdownMenu } from "radix-ui";
 import { meldeAb } from "../lib/api.js";
 import { Knopf, cn } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
+import { Band, Fusszeile } from "../bausteine/band.js";
 import type { Ich } from "../lib/ich.js";
 
 /**
@@ -73,8 +74,9 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
   };
 
   return (
-    <div className="min-h-screen bg-grund text-text">
-      <header className="bg-flaeche">
+    <div className="flex min-h-screen flex-col bg-grund text-text">
+      {/* Schatten statt Linie, wie bei industrialdigitaltwin.org; `z-10` hebt ihn ueber das Band. */}
+      <header className="relative z-10 bg-flaeche shadow-kopf">
         {/*
           **Zwei Fassungen derselben Logoreihe, umgeschaltet bei `lg` und nicht bei `sm`.**
           Zwischen 640 und 1024 px liefen die Logos in die rechte Gruppe aus Name und
@@ -119,7 +121,7 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
           </span>
         </div>
 
-        <nav aria-label="Hauptnavigation" className="hidden border-b border-linie lg:block">
+        <nav aria-label="Hauptnavigation" className="hidden lg:block">
           {/* Kein `overflow-x-auto` mehr: die Zeile passt, und ein Scrollbalken versteckt. */}
           <div className="mx-auto flex max-w-[992px] gap-1 px-4">
             {leiste.map((r) => (
@@ -131,7 +133,7 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
                   cn(
                     "flex h-[46px] shrink-0 items-center px-4 text-sm",
                     isActive
-                      ? "font-semibold text-text shadow-[inset_0_-2px_0_var(--color-akzent)]"
+                      ? "font-semibold text-primaer shadow-[inset_0_2px_0_var(--color-primaer)]"
                       : "font-medium text-text-hinweis hover:text-text",
                   )
                 }
@@ -144,9 +146,11 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
         </nav>
       </header>
 
-      <main className="mx-auto flex max-w-[992px] flex-col gap-6 px-4 pt-8 pb-16 sm:pt-10">
+      <Band />
+      <main className="relative mx-auto -mt-20 flex w-full max-w-[992px] flex-1 flex-col gap-6 px-4 pb-16 sm:-mt-24">
         <Outlet />
       </main>
+      <Fusszeile appName={ich.appName === "" ? "IDTA Passport" : ich.appName} />
     </div>
   );
 }
@@ -215,7 +219,7 @@ function Hauptmenue({
                 "flex h-11 cursor-pointer items-center px-4 text-sm outline-none select-none",
                 "data-[highlighted]:bg-grund",
                 istAktiv(pathname, r)
-                  ? "font-semibold text-text shadow-[inset_3px_0_0_var(--color-akzent)]"
+                  ? "font-semibold text-primaer shadow-[inset_3px_0_0_var(--color-primaer)]"
                   : "font-medium text-text-hinweis",
               )}
             >
@@ -263,7 +267,7 @@ function MehrMenue({ reiter }: { reiter: Reiter[] }) {
           className={cn(
             "flex h-[46px] shrink-0 items-center gap-1.5 px-4 text-sm",
             aktiv !== undefined
-              ? "font-semibold text-text shadow-[inset_0_-2px_0_var(--color-akzent)]"
+              ? "font-semibold text-primaer shadow-[inset_0_2px_0_var(--color-primaer)]"
               : "font-medium text-text-hinweis hover:text-text",
           )}
         >
@@ -290,7 +294,7 @@ function MehrMenue({ reiter }: { reiter: Reiter[] }) {
                 "flex h-11 cursor-pointer items-center px-4 text-sm outline-none select-none",
                 "data-[highlighted]:bg-grund",
                 istAktiv(pathname, r)
-                  ? "font-semibold text-text shadow-[inset_3px_0_0_var(--color-akzent)]"
+                  ? "font-semibold text-primaer shadow-[inset_3px_0_0_var(--color-primaer)]"
                   : "font-medium text-text-hinweis",
               )}
             >

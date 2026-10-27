@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { ApiFehler, api, leseSchalter, setzeSchalter, useAbruf } from "../lib/api.js";
-import { Flaeche, Knopf, Markierung, Ueberschrift, Zustand } from "../bausteine/basis.js";
+import {
+  Abschnitt,
+  Flaeche,
+  Knopf,
+  Markierung,
+  Seitenkopf,
+  Ueberschrift,
+  Zustand,
+} from "../bausteine/basis.js";
 import { Avatarverwaltung } from "./Avatarverwaltung.js";
 import { Sicherung } from "./Sicherung.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
@@ -91,7 +99,9 @@ export function Einstellungen({ ich }: { ich: Ich }) {
 
   return (
     <>
-      <Ueberschrift>Einstellungen</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Einstellungen</Ueberschrift>
+      </Seitenkopf>
 
       {meldung !== null && (
         <div
@@ -103,8 +113,7 @@ export function Einstellungen({ ich }: { ich: Ich }) {
         </div>
       )}
 
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">Diese Instanz</h2>
+      <Abschnitt titel="Diese Instanz">
         <Zustand laedt={info.laedt} fehler={info.fehler}>
           <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[14rem_1fr]">
             <dt className="font-semibold">Angezeigter Name</dt>
@@ -121,7 +130,7 @@ export function Einstellungen({ ich }: { ich: Ich }) {
             </dd>
           </dl>
         </Zustand>
-      </Flaeche>
+      </Abschnitt>
 
       <Avatarverwaltung />
 
@@ -168,7 +177,7 @@ export function Einstellungen({ ich }: { ich: Ich }) {
                     <dt className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
                       {text}
                     </dt>
-                    <dd className="text-2xl font-bold">{zahl ?? 0}</dd>
+                    <dd className="text-2xl font-medium text-primaer">{zahl ?? 0}</dd>
                   </div>
                 ))}
               </dl>

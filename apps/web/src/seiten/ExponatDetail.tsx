@@ -2,14 +2,15 @@ import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
-  Feld,
+  Abschnitt,
   Fehlerhinweis,
-  Flaeche,
+  Feld,
   Knopf,
+  knopfKlassen,
   Markierung,
+  Seitenkopf,
   Ueberschrift,
   Zustand,
-  knopfKlassen,
 } from "../bausteine/basis.js";
 import { Rueckfrage, Schaufenster } from "../bausteine/dialog.js";
 import type { Ich } from "../lib/ich.js";
@@ -250,7 +251,11 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
     );
   }
 
-  function Abschnitt({
+  /**
+   * Ein Abschnitt mit festen Plätzen. Die Markierung „voll“ steht unter der blauen Leiste,
+   * nicht darin: Rot auf Blau ist kaum zu lesen.
+   */
+  function Platzabschnitt({
     titel,
     anzahl,
     grenze,
@@ -265,13 +270,18 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
   }) {
     const voll = anzahl >= grenze;
     return (
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">
+      <Abschnitt
+        titel={
+          <>
             {titel} ({anzahl} von {grenze})
-          </h2>
-          {voll && <Markierung text="PLÄTZE VOLL" farbe="var(--color-fehler)" />}
-        </div>
+          </>
+        }
+      >
+        {voll && (
+          <span className="self-start">
+            <Markierung text="PLÄTZE VOLL" farbe="var(--color-fehler)" />
+          </span>
+        )}
         {anzahl === 0 ? (
           <p className="text-sm text-text-hinweis">Noch nichts hinterlegt.</p>
         ) : (
@@ -284,13 +294,13 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             hinzufügen. Die Obergrenze zu ändern verlangt ein neues Mapping in Axon.
           </p>
         )}
-      </Flaeche>
+      </Abschnitt>
     );
   }
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>{e === null ? "Exponat" : `${e.kennung} ${e.name}`}</Ueberschrift>
         <div className="flex flex-wrap items-center gap-4">
           {e !== null && e.scanbar && (
@@ -313,7 +323,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             ← Zurück zur Liste
           </Link>
         </div>
-      </div>
+      </Seitenkopf>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
@@ -321,17 +331,16 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         {e !== null && (
           <>
             {!e.scanbar && (
-              <Flaeche className="flex flex-col gap-2 p-6">
-                <h2 className="text-lg font-semibold">Noch nichts zum Zuordnen</h2>
+              <Abschnitt titel="Noch nichts zum Zuordnen" className="gap-2">
                 <p className="text-sm text-text-zweit">
                   Solange dieses Exponat keine Dokumente oder Links hat, bleibt das Scannen
                   gesperrt: ein Betreuer könnte einem Besucher nichts geben. Ansprechpartner kommen
                   nur mit, sobald etwas zugeordnet ist.
                 </p>
-              </Flaeche>
+              </Abschnitt>
             )}
 
-            <Abschnitt
+            <Platzabschnitt
               titel="Dokumente"
               anzahl={e.dokumente.length}
               grenze={MAX.dokumente}
@@ -376,9 +385,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   }
                 />
               ))}
-            </Abschnitt>
+            </Platzabschnitt>
 
-            <Abschnitt
+            <Platzabschnitt
               titel="Links"
               anzahl={e.links.length}
               grenze={MAX.links}
@@ -401,9 +410,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   werkzeug={<OeffnenLink ziel={l.url} titel="Link in neuem Tab öffnen" />}
                 />
               ))}
-            </Abschnitt>
+            </Platzabschnitt>
 
-            <Abschnitt
+            <Platzabschnitt
               titel="Ansprechpartner"
               anzahl={e.kontakte.length}
               grenze={MAX.kontakte}
@@ -438,7 +447,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   }
                 />
               ))}
-            </Abschnitt>
+            </Platzabschnitt>
           </>
         )}
       </Zustand>

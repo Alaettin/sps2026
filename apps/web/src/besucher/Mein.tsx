@@ -1,7 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
-import { Fehlerhinweis, Flaeche, Knopf, Ueberschrift, Zustand } from "../bausteine/basis.js";
+import {
+  Fehlerhinweis,
+  Flaeche,
+  Knopf,
+  Seitenkopf,
+  Ueberschrift,
+  Zustand,
+} from "../bausteine/basis.js";
 import { PERSONENFELDER, besucherFehlertext, mitTitel } from "../lib/personenfelder.js";
 import { Kioskrahmen, Knopfleiste } from "../kiosk/Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
@@ -43,7 +50,7 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {b !== null && (
           <>
-            <div className="flex flex-wrap items-center gap-5">
+            <Seitenkopf className="justify-start gap-5">
               {b.avatarDateiId !== null && (
                 <img
                   src={bild(b.avatarDateiId)}
@@ -57,7 +64,7 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 </Ueberschrift>
                 <span className="text-[15px] text-text-hinweis">{b.firma ?? "ohne Firma"}</span>
               </div>
-            </div>
+            </Seitenkopf>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Kachel
@@ -106,7 +113,7 @@ function Kachel({ titel, text, aufKlick }: { titel: string; text: string; aufKli
       onClick={aufKlick}
       className="flex flex-col gap-2 bg-flaeche p-7 text-left shadow-flaeche hover:brightness-[0.98]"
     >
-      <span className="text-xl font-bold tracking-[-0.01em]">{titel}</span>
+      <span className="text-xl font-medium tracking-[-0.01em] text-primaer">{titel}</span>
       <span className="text-[15px] text-text-zweit">{text}</span>
     </button>
   );
@@ -149,7 +156,9 @@ export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
-      <Ueberschrift>Deine Daten</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Deine Daten</Ueberschrift>
+      </Seitenkopf>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {werte !== null && (
           <>
@@ -222,7 +231,9 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
-      <Ueberschrift>Dein Bild</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Dein Bild</Ueberschrift>
+      </Seitenkopf>
       <Zustand laedt={besucher.laedt || galerie.laedt} fehler={besucher.fehler ?? galerie.fehler}>
         {g !== null && (
           <>
@@ -270,7 +281,9 @@ export function MeinDatenschutz({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
-      <Ueberschrift>Datenschutzhinweis</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Datenschutzhinweis</Ueberschrift>
+      </Seitenkopf>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {abruf.daten !== null && (
           <Flaeche className="p-7">

@@ -1,8 +1,9 @@
 import { useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../lib/api.js";
-import { Knopf } from "../bausteine/basis.js";
+import { Knopf, cn } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
+import { Band, Fusszeile } from "../bausteine/band.js";
 import { useZeitsperre } from "./zeitsperre.js";
 
 /**
@@ -86,7 +87,7 @@ export function Kioskrahmen({
       onPointerDownCapture={sperre.melden}
       onKeyDownCapture={sperre.melden}
     >
-      <header className="flex items-center justify-between gap-4 border-b border-linie bg-flaeche px-6 py-3">
+      <header className="relative z-10 flex items-center justify-between gap-4 bg-flaeche px-6 py-3 shadow-kopf">
         <Logoreihe art="kopf" className="justify-start gap-5" />
         {/*
           **Abmelden ist kein Knopf.** Ein beschrifteter Knopf wird am Stand aus Versehen
@@ -111,9 +112,21 @@ export function Kioskrahmen({
         )}
       </header>
 
-      <main className="mx-auto flex w-full max-w-[820px] flex-1 flex-col gap-6 px-6 py-8">
+      {/*
+        Band und Fusszeile nur im Bereich des Besuchers. Im Kiosk-Ablauf stehen die Titel mitten
+        in den Schritten, und unten klebt die Knopfleiste; ein Band darueber haette dort keinen
+        Seitenkopf, auf dem es enden koennte.
+      */}
+      {besucher && <Band />}
+      <main
+        className={cn(
+          "mx-auto flex w-full max-w-[820px] flex-1 flex-col gap-6 px-6 py-8",
+          besucher && "relative -mt-20 pt-0 sm:-mt-24",
+        )}
+      >
         {children}
       </main>
+      {besucher && <Fusszeile />}
 
       {sperre.restSekunden !== null && mitSperre && (
         <div

@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
-  Feld,
   Fehlerhinweis,
+  Feld,
   Flaeche,
   Knopf,
+  knopfKlassen,
+  Seitenkopf,
   Ueberschrift,
   Zustand,
-  knopfKlassen,
 } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 import { Kioskrahmen, Knopfleiste } from "../kiosk/Kioskrahmen.js";
@@ -93,12 +94,12 @@ export function MeinNachrichten({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>Meine Nachrichten</Ueberschrift>
         <span className="text-[15px] text-text-hinweis">
           {alle.length} von {MAX_NACHRICHTEN}
         </span>
-      </div>
+      </Seitenkopf>
       <Oeffentlich />
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
@@ -297,7 +298,9 @@ export function MeinNachricht({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
-      <Ueberschrift>{neu ? "Neue Nachricht" : "Nachricht bearbeiten"}</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>{neu ? "Neue Nachricht" : "Nachricht bearbeiten"}</Ueberschrift>
+      </Seitenkopf>
       <Oeffentlich />
 
       <Zustand laedt={!neu && abruf.laedt} fehler={neu ? null : abruf.fehler}>

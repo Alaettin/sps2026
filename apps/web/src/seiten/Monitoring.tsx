@@ -4,6 +4,7 @@ import {
   Knopf,
   Kopfzelle,
   Reihe,
+  Seitenkopf,
   Tabellenflaeche,
   Ueberschrift,
   Zelle,
@@ -59,7 +60,9 @@ function Kachel({ titel, wert, hinweis }: { titel: string; wert: string; hinweis
       <span className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
         {titel}
       </span>
-      <span className="text-3xl leading-none font-bold tracking-[-0.02em]">{wert}</span>
+      <span className="text-3xl leading-none font-medium tracking-[-0.01em] text-primaer">
+        {wert}
+      </span>
       {hinweis !== undefined && <span className="text-xs text-text-hinweis">{hinweis}</span>}
     </Flaeche>
   );
@@ -72,12 +75,12 @@ export function Monitoring() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>Monitoring</Ueberschrift>
         <Knopf art="rand" onClick={abruf.neu}>
           Aktualisieren
         </Knopf>
-      </div>
+      </Seitenkopf>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {daten !== null && (

@@ -11,18 +11,20 @@ export function cn(...werte: ClassValue[]): string {
 /**
  * Die Bauteile nach den Design-Werten.
  *
- * Flaechen, Tabellen und Eingabefelder haben **0 px Radius**; rund sind nur Knoepfe,
- * Segment-Umschalter und die Seitenumschaltung. Das ist die auffaelligste Eigenheit des
- * Entwurfs und steht deshalb hier an einer Stelle, nicht in jeder Seite neu.
+ * Flaechen, Tabellen und Eingabefelder haben **0 px Radius**. Knoepfe tragen seit dem
+ * 27.10.2026 die Form von industrialdigitaltwin.org: 7 px Radius, 2 px Rand, die Nebenaktion
+ * als blauer Umriss, der sich beim Darueberfahren fuellt. Vorher waren es Pillen aus dem
+ * NAMUR-Entwurf.
  */
 
 export type KnopfArt = "primaer" | "rand" | "still" | "gefahr";
 
 const KNOPF: Record<KnopfArt, string> = {
-  primaer: "bg-primaer text-white hover:bg-primaer-dunkel",
-  rand: "border border-text text-text hover:bg-black/5",
-  still: "text-text-hinweis hover:text-text hover:bg-black/5",
-  gefahr: "bg-fehler text-white hover:brightness-110",
+  primaer:
+    "border-primaer bg-primaer text-white hover:border-primaer-dunkel hover:bg-primaer-dunkel",
+  rand: "border-primaer bg-flaeche text-primaer hover:bg-primaer hover:text-white",
+  still: "border-transparent text-text-hinweis hover:text-text hover:bg-black/5",
+  gefahr: "border-fehler bg-fehler text-white hover:brightness-110",
 };
 
 /**
@@ -35,7 +37,7 @@ const KNOPF: Record<KnopfArt, string> = {
  */
 export function knopfKlassen(art: KnopfArt = "primaer", className?: string): string {
   return cn(
-    "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-semibold",
+    "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[7px] border-2 px-6 text-[15px] font-medium",
     "transition-colors disabled:cursor-not-allowed disabled:opacity-45",
     KNOPF[art],
     className,
@@ -94,8 +96,65 @@ export function Tabellenflaeche({ children }: { children: ReactNode }) {
   return <div className="bg-flaeche shadow-flaeche sm:overflow-x-auto">{children}</div>;
 }
 
+/** Seitentitel wie auf industrialdigitaltwin.org: blau, mittleres Gewicht, nicht fett. */
 export function Ueberschrift({ children }: { children: ReactNode }) {
-  return <h1 className="text-4xl leading-tight font-bold tracking-[-0.02em]">{children}</h1>;
+  return (
+    <h1 className="text-4xl leading-tight font-medium tracking-[-0.01em] text-primaer sm:text-[40px]">
+      {children}
+    </h1>
+  );
+}
+
+/**
+ * Das weisse Feld oben auf der Seite, das ueber dem blauen Band liegt (siehe `Rahmen`).
+ *
+ * Es traegt die Titelzeile: Ueberschrift, Knoepfe daneben, darueber ein Rueckweg als
+ * Brotkrume. Die Vorlage ist der Kopf der Seite „Use Cases“ der IDTA.
+ */
+export function Seitenkopf({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-4 bg-flaeche p-6 shadow-seitenkopf sm:px-10 sm:py-9",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Der Rueckweg im Seitenkopf, klein und grau wie die Brotkrumen der Vorlage. */
+export const BROTKRUME = "text-[13px] font-medium text-text-hinweis hover:text-primaer";
+
+/**
+ * Eine Flaeche mit Titel, der Titel als blaue Leiste mit Punktmatrix.
+ *
+ * Die Vorlage sind die Karten der Use Cases auf industrialdigitaltwin.org. Die Leiste ist das
+ * volle Blau und nicht das hellere der Vorlage: weisse Schrift auf dem helleren Blau liegt
+ * unter WCAG AA.
+ *
+ * Der Titel bleibt ein `h2`, damit Bildschirmleser und die Abnahme den Abschnitt ueber
+ * seine Ueberschrift finden.
+ */
+export function Abschnitt({
+  titel,
+  className,
+  children,
+}: {
+  titel: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="bg-flaeche shadow-flaeche">
+      <h2 className="relative overflow-hidden bg-primaer px-6 py-3.5 text-[17px] font-medium text-white">
+        <span className="relative z-10">{titel}</span>
+        <span aria-hidden="true" className="punktmatrix absolute inset-y-0 right-0 w-1/2" />
+      </h2>
+      <div className={cn("flex flex-col gap-4 p-6", className)}>{children}</div>
+    </section>
+  );
 }
 
 /**

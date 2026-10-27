@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useAbruf } from "../lib/api.js";
-import { Flaeche, Ueberschrift, Zustand } from "../bausteine/basis.js";
+import { Abschnitt, Flaeche, Seitenkopf, Ueberschrift, Zustand } from "../bausteine/basis.js";
 
 interface Dashboarddaten {
   kennzahlen: {
@@ -22,7 +22,7 @@ function Kennzahl({ text, wert }: { text: string; wert: number }) {
       <span className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
         {text}
       </span>
-      <span className="text-4xl font-bold tracking-[-0.02em]">{wert}</span>
+      <span className="text-4xl font-medium tracking-[-0.01em] text-primaer">{wert}</span>
     </Flaeche>
   );
 }
@@ -33,7 +33,9 @@ export function Dashboard() {
 
   return (
     <>
-      <Ueberschrift>Dashboard</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Dashboard</Ueberschrift>
+      </Seitenkopf>
       <Zustand laedt={laedt} fehler={fehler}>
         {daten !== null && (
           <>
@@ -56,8 +58,7 @@ export function Dashboard() {
               <Kennzahl text="Ansprechpartner" wert={daten.kennzahlen.ansprechpartnerGesamt} />
             </section>
 
-            <Flaeche className="flex flex-col gap-4 p-6">
-              <h2 className="text-lg font-semibold">Zuordnungen je Exponat</h2>
+            <Abschnitt titel="Zuordnungen je Exponat">
               {daten.jeExponat.length === 0 ? (
                 <p className="text-sm text-text-hinweis">Noch keine Exponate angelegt.</p>
               ) : (
@@ -86,7 +87,7 @@ export function Dashboard() {
                   ))}
                 </ul>
               )}
-            </Flaeche>
+            </Abschnitt>
           </>
         )}
       </Zustand>

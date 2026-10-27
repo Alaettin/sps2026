@@ -1,15 +1,17 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
-  Feld,
+  Abschnitt,
   Fehlerhinweis,
+  Feld,
   Flaeche,
   Knopf,
+  knopfKlassen,
   Markierung,
   Monowert,
+  Seitenkopf,
   Ueberschrift,
   Zustand,
-  knopfKlassen,
 } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 
@@ -60,15 +62,16 @@ export function GlobaleDaten() {
 
   return (
     <>
-      <Ueberschrift>Globale Daten</Ueberschrift>
+      <Seitenkopf>
+        <Ueberschrift>Globale Daten</Ueberschrift>
+      </Seitenkopf>
       <p className="text-sm text-text-zweit">
         Gelten für jeden Besucher gleich. Neue Datenpunkte müssen in Axon gemappt werden.
       </p>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-      <Flaeche className="flex flex-col gap-4 p-6">
-        <h2 className="text-lg font-semibold">Datenpunkt anlegen</h2>
+      <Abschnitt titel="Datenpunkt anlegen">
         <form
           className="flex flex-wrap items-end gap-4"
           onSubmit={(e) => {
@@ -105,7 +108,7 @@ export function GlobaleDaten() {
           </fieldset>
           <Knopf type="submit">Anlegen</Knopf>
         </form>
-      </Flaeche>
+      </Abschnitt>
 
       <Zustand
         laedt={abruf.laedt && liste === null}

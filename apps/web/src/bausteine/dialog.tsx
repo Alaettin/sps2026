@@ -75,7 +75,7 @@ export function Rueckfrage({
           className={`${LAGE} gap-5 overflow-y-auto p-6 sm:w-[min(32rem,calc(100vw-2rem))] sm:p-7`}
           aria-describedby={undefined}
         >
-          <RadixDialog.Title className="text-2xl font-bold tracking-[-0.01em]">
+          <RadixDialog.Title className="text-2xl font-medium tracking-[-0.01em] text-primaer">
             {titel}
           </RadixDialog.Title>
 
@@ -158,7 +158,7 @@ export function Schaufenster({
           aria-describedby={undefined}
         >
           <div className="flex items-start justify-between gap-4">
-            <RadixDialog.Title className="text-xl font-bold tracking-[-0.01em]">
+            <RadixDialog.Title className="text-xl font-medium tracking-[-0.01em] text-primaer">
               {titel}
             </RadixDialog.Title>
             <RadixDialog.Close asChild>

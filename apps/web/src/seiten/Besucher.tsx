@@ -6,8 +6,9 @@ import {
   Feld,
   Knopf,
   Kopfzelle,
-  Reihe,
   Monowert,
+  Reihe,
+  Seitenkopf,
   Tabellenflaeche,
   Ueberschrift,
   Zelle,
@@ -63,7 +64,7 @@ export function Besucher() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
         <Ueberschrift>Besucher</Ueberschrift>
         <div className="flex flex-wrap gap-2.5">
           {/* Der CSV-Import ist seit dem 23.10.2026 abgeschaltet, siehe `app.ts` im Server. */}
@@ -71,7 +72,7 @@ export function Besucher() {
             <Knopf>Besucher anlegen</Knopf>
           </Link>
         </div>
-      </div>
+      </Seitenkopf>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Feld

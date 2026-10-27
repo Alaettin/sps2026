@@ -9,11 +9,14 @@ import {
   pflichtBeimBesucher,
 } from "../lib/personenfelder.js";
 import {
-  Feld,
+  Abschnitt,
+  BROTKRUME,
+  cn,
   Fehlerhinweis,
-  Flaeche,
+  Feld,
   Knopf,
   Monowert,
+  Seitenkopf,
   Ueberschrift,
   Zustand,
 } from "../bausteine/basis.js";
@@ -134,21 +137,20 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <Seitenkopf>
+        {/* Der Rueckweg als Brotkrume ueber dem Titel, `basis-full` gibt ihm die eigene Zeile. */}
+        <Link to="/besucher" className={cn(BROTKRUME, "basis-full")}>
+          ← Zurück zur Liste
+        </Link>
         <Ueberschrift>
           {neu ? "Besucher anlegen" : `${werte["vorname"] ?? ""} ${werte["nachname"] ?? ""}`}
         </Ueberschrift>
-        <Link to="/besucher" className="text-[13px] font-semibold text-primaer-dunkel">
-          ← Zurück zur Liste
-        </Link>
-      </div>
+      </Seitenkopf>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-        <Flaeche className="flex flex-col gap-5 p-6">
-          <h2 className="text-lg font-semibold">Stammdaten</h2>
-
+        <Abschnitt titel="Stammdaten" className="gap-5">
           <form
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
@@ -249,7 +251,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               )}
             </div>
           </form>
-        </Flaeche>
+        </Abschnitt>
 
         {!neu && (
           <>
@@ -259,8 +261,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               aufFehler={setzeFehler}
             />
 
-            <Flaeche className="flex flex-col gap-4 p-6">
-              <h2 className="text-lg font-semibold">Pass</h2>
+            <Abschnitt titel="Pass">
               <div className="flex flex-wrap items-center gap-4">
                 <Monowert wert={aktuelleGuid} />
                 <a
@@ -272,7 +273,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                   Im Viewer öffnen ↗
                 </a>
               </div>
-            </Flaeche>
+            </Abschnitt>
 
             <Zugangsbereich
               guid={aktuelleGuid}
@@ -354,8 +355,7 @@ function Nachrichtenbereich({ guid }: { guid: string }) {
   }
 
   return (
-    <Flaeche className="flex flex-col gap-4 p-6">
-      <h2 className="text-lg font-semibold">Nachrichten ({alle.length})</h2>
+    <Abschnitt titel={<>Nachrichten ({alle.length})</>}>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {alle.length === 0 ? (
           <p className="text-sm text-text-hinweis">Der Besucher hat keine Nachrichten angelegt.</p>
@@ -410,7 +410,7 @@ function Nachrichtenbereich({ guid }: { guid: string }) {
         Die Nachricht wird mit Bild gelöscht und verschwindet aus dem Viewer. Der Besucher wird
         nicht benachrichtigt.
       </Rueckfrage>
-    </Flaeche>
+    </Abschnitt>
   );
 }
 
@@ -445,8 +445,7 @@ function Zugangsbereich({
   }
 
   return (
-    <Flaeche className="flex flex-col gap-4 p-6">
-      <h2 className="text-lg font-semibold">Anmeldung</h2>
+    <Abschnitt titel="Anmeldung">
       <p className="text-sm text-text-zweit">
         Der Besucher meldet sich mit seiner E-Mail an
         {email === null ? (
@@ -496,7 +495,7 @@ function Zugangsbereich({
       >
         Das Passwort dieses Besuchers wird auf das Standardpasswort zurückgesetzt.
       </Rueckfrage>
-    </Flaeche>
+    </Abschnitt>
   );
 }
 
@@ -555,8 +554,7 @@ function Fotobereich({
 
   const g = galerie.daten;
   return (
-    <Flaeche className="flex flex-col gap-4 p-6">
-      <h2 className="text-lg font-semibold">Foto</h2>
+    <Abschnitt titel="Foto">
       <Avatarbild dateiId={bild} />
       <div className="flex flex-wrap items-center gap-3">
         <Knopf
@@ -593,7 +591,7 @@ function Fotobereich({
           />
         )}
       </Rueckfrage>
-    </Flaeche>
+    </Abschnitt>
   );
 }
 

@@ -144,7 +144,7 @@ function OhneInhalt({ exponatId }: { exponatId: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 text-center">
       <Markierung text="OHNE INHALT" farbe="var(--color-fehler)" />
-      <h1 className="text-2xl font-bold">Noch nichts zum Zuordnen</h1>
+      <h1 className="text-2xl font-medium text-primaer">Noch nichts zum Zuordnen</h1>
       <p className="max-w-prose text-text-zweit">
         Dieses Exponat hat weder Dokumente noch Links oder Ansprechpartner. Solange das so ist,
         bekäme ein Besucher beim Scannen nichts.
@@ -631,7 +631,7 @@ function Fehler({
         >
           !
         </span>
-        <h1 className="text-2xl font-bold">{titel}</h1>
+        <h1 className="text-2xl font-medium text-primaer">{titel}</h1>
         <p className="max-w-prose text-text-zweit">{text}</p>
         {schritt.grund === "offline" && auswahl.size > 0 && (
           <p className="text-sm text-text-hinweis">
