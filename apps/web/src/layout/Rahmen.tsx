@@ -12,9 +12,9 @@ import type { Ich } from "../lib/ich.js";
  * **Ein Layout, eine Kopfzeile.** In den Entwuerfen ist sie in jede Datei kopiert; das ist
  * ein Artefakt des Werkzeugs und keine Vorgabe.
  *
- * **Zwei Formen derselben Navigation.** Ab `lg` die Reiterzeile, darunter ein Menue hinter
- * drei Strichen (bis zum 20.10.2026 ab `sm`; zwischen 640 und 1024 px passten die Reiter
- * aber nicht mehr in eine Zeile). Sieben Reiter passen bei 390 px nicht nebeneinander, und eine waagerecht
+ * **Zwei Formen derselben Navigation.** Ab `kopf` (1280 px) die Reiter in der Kopfzeile,
+ * darunter ein Menue hinter drei Strichen. Seit dem 27.10.2026 stehen die Reiter in derselben
+ * Zeile wie Logos und Abmelden und brauchen deshalb mehr Breite als frueher ab `lg`. Sieben Reiter passen bei 390 px nicht nebeneinander, und eine waagerecht
  * scrollbare Zeile versteckt genau das, was rechts steht: niemand sucht dort. Die Eintraege
  * kommen in beiden Formen aus derselben Liste, damit keine Form einen Punkt verliert.
  */
@@ -43,6 +43,18 @@ const REITER_ADMIN = [...REITER_HAUPT, ...REITER_MEHR];
 
 /** Ein Betreuer sieht nur seine Exponate. Von dort geht es in den Scan-Ablauf. */
 const REITER_BETREUER = [{ pfad: "/exponate", text: "Exponate", genau: true }];
+
+/**
+ * Ein Reiter in der Kopfzeile, wie die Navigation von industrialdigitaltwin.org: grau, aktiv
+ * blau, die Linie an der Unterkante der Kopfzeile. Fuer die Links und fuer „Mehr“.
+ */
+const REITER_KLASSEN = "flex h-full shrink-0 items-center px-2.5 text-[15px]";
+
+function reiterZustand(aktiv: boolean): string {
+  return aktiv
+    ? "font-medium text-primaer shadow-[inset_0_-2px_0_var(--color-primaer)]"
+    : "text-text-zweit hover:text-primaer";
+}
 
 interface Reiter {
   pfad: string;
@@ -75,37 +87,46 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
 
   return (
     <div className="flex min-h-screen flex-col bg-grund text-text">
-      {/* Schatten statt Linie, wie bei industrialdigitaltwin.org; `z-10` hebt ihn ueber das Band. */}
+      {/*
+        **Eine Zeile wie bei industrialdigitaltwin.org:** Logos, Name, Reiter, rechts Name und
+        Abmelden, alles in derselben Spalte wie Seitenkopf und Fusszeile. Bis zum 27.10.2026
+        waren es zwei Zeilen mit verschiedenen Kanten (Logos am Fensterrand, Reiter auf 992 px
+        zentriert), und nichts stand untereinander.
+
+        Schatten statt Linie; `z-10` hebt ihn ueber das Band. Die Kopfzeile klebt nicht.
+      */}
       <header className="relative z-10 bg-flaeche shadow-kopf">
-        {/*
-          **Zwei Fassungen derselben Logoreihe, umgeschaltet bei `lg` und nicht bei `sm`.**
-          Zwischen 640 und 1024 px liefen die Logos in die rechte Gruppe aus Name und
-          "Abmelden". Unterhalb bekommen sie deshalb eine eigene Zeile, oberhalb stehen sie
-          links in der Kopfzeile.
-
-          Die Kopfzeile klebt nicht, die Logozeile wandert beim Scrollen also weg und kostet
-          nur oben Platz. Das ist auf einem Telefon der Unterschied zwischen laestig und egal.
-        */}
-        <div className="border-b border-linie px-4 py-2.5 lg:hidden">
-          <Logoreihe art="kopf" zurStartseite />
-        </div>
-
-        <div className="flex min-h-14 items-center gap-3 border-b border-linie px-4 sm:gap-4 sm:px-6">
+        <div className="mx-auto flex h-[72px] max-w-spalte items-center gap-3 px-4 sm:gap-4 sm:px-8">
           {/*
-            Ab `lg` stehen die Logos hier, links gruppiert; darunter deckt sie die
-            Logozeile oben ab. Dieselbe `Logoreihe`, nur ohne das voreingestellte
-            `justify-between`: `cn` arbeitet mit twMerge, `justify-start` setzt sich durch.
+            **Nur eine `Logoreihe`** fuer alle Breiten. Bei 390 px passen beide Logos und die
+            drei Striche in eine Zeile; die eigene Logozeile fuer schmale Fenster entfiel.
           */}
-          <Logoreihe art="kopf" zurStartseite className="hidden shrink-0 justify-start lg:flex" />
-          <span aria-hidden="true" className="hidden h-7 w-px shrink-0 bg-linie lg:block" />
+          <Logoreihe art="kopf" zurStartseite className="shrink-0 justify-start" />
+          <span aria-hidden="true" className="hidden h-7 w-px shrink-0 bg-linie sm:block" />
           {/*
-            Nur **einmal** der Name, blau und gesperrt. Der Entwurf zeigt daneben noch
-            "Event Manager"; das ist bei Neoception ein anderes Produkt, und seit der Name
-            feststeht saegte ein zweiter Text ohnehin dasselbe.
+            Nur **einmal** der Name, blau und gesperrt. Unter `sm` ausgeblendet, damit Logos
+            und Menue Platz haben; er bleibt ein Element, die Abnahme zaehlt ihn.
           */}
-          <span className="min-w-0 truncate text-xs font-semibold tracking-[0.14em] text-primaer-dunkel">
+          <span className="hidden shrink-0 text-xs font-semibold tracking-[0.14em] text-primaer-dunkel sm:inline">
             {ich.appName === "" ? "IDTA Passport" : ich.appName}
           </span>
+
+          <nav aria-label="Hauptnavigation" className="hidden h-full kopf:block">
+            {/* Kein `overflow-x-auto`: die Zeile passt, und ein Scrollbalken versteckt. */}
+            <div className="flex h-full">
+              {leiste.map((r) => (
+                <NavLink
+                  key={r.pfad}
+                  to={r.pfad}
+                  end={r.genau === true}
+                  className={({ isActive }) => cn(REITER_KLASSEN, reiterZustand(isActive))}
+                >
+                  {r.text}
+                </NavLink>
+              ))}
+              {mehr.length > 0 && <MehrMenue reiter={mehr} />}
+            </div>
+          </nav>
 
           {/* Ab `sm`: Name und Abmelden stehen offen in der Kopfzeile. */}
           <span className="ml-auto hidden min-w-0 items-center gap-3 sm:flex">
@@ -115,42 +136,18 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
             </Knopf>
           </span>
 
-          {/* Unter `lg`: alles im Menue. Ab `sm` steht davor schon Name und Abmelden. */}
-          <span className="ml-auto flex sm:ml-0 lg:hidden">
+          {/* Unter `kopf`: alles im Menue. Ab `sm` steht davor schon Name und Abmelden. */}
+          <span className="ml-auto flex sm:ml-0 kopf:hidden">
             <Hauptmenue reiter={reiter} ich={ich} aufAbmelden={abmelden} />
           </span>
         </div>
-
-        <nav aria-label="Hauptnavigation" className="hidden lg:block">
-          {/* Kein `overflow-x-auto` mehr: die Zeile passt, und ein Scrollbalken versteckt. */}
-          <div className="mx-auto flex max-w-[992px] gap-1 px-4">
-            {leiste.map((r) => (
-              <NavLink
-                key={r.pfad}
-                to={r.pfad}
-                end={r.genau === true}
-                className={({ isActive }) =>
-                  cn(
-                    "flex h-[46px] shrink-0 items-center px-4 text-sm",
-                    isActive
-                      ? "font-semibold text-primaer shadow-[inset_0_2px_0_var(--color-primaer)]"
-                      : "font-medium text-text-hinweis hover:text-text",
-                  )
-                }
-              >
-                {r.text}
-              </NavLink>
-            ))}
-            {mehr.length > 0 && <MehrMenue reiter={mehr} />}
-          </div>
-        </nav>
       </header>
 
       <Band />
-      <main className="relative mx-auto -mt-20 flex w-full max-w-[992px] flex-1 flex-col gap-6 px-4 pb-16 sm:-mt-24">
+      <main className="relative mx-auto -mt-20 flex w-full max-w-spalte flex-1 flex-col gap-6 px-4 pb-16 sm:-mt-24 sm:px-8">
         <Outlet />
       </main>
-      <Fusszeile appName={ich.appName === "" ? "IDTA Passport" : ich.appName} />
+      <Fusszeile />
     </div>
   );
 }
@@ -264,12 +261,7 @@ function MehrMenue({ reiter }: { reiter: Reiter[] }) {
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className={cn(
-            "flex h-[46px] shrink-0 items-center gap-1.5 px-4 text-sm",
-            aktiv !== undefined
-              ? "font-semibold text-primaer shadow-[inset_0_2px_0_var(--color-primaer)]"
-              : "font-medium text-text-hinweis hover:text-text",
-          )}
+          className={cn(REITER_KLASSEN, "gap-1.5", reiterZustand(aktiv !== undefined))}
         >
           {aktiv?.text ?? "Mehr"}
           <span aria-hidden="true" className="text-xs">

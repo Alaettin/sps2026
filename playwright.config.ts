@@ -42,7 +42,15 @@ export default defineConfig({
      * verbraucht einen der 10 Versuche je Viertelstunde; acht Tests in zwei
      * Geraeteprojekten sperren die Abnahme sonst selbst aus.
      */
-    { name: "einrichtung", testMatch: /einrichtung\.setup\.ts/ },
+    /*
+     * Mit fester Breite: die Einrichtung prueft die Reiterzeile, und die gibt es erst ab
+     * 1280 px. Ohne Angabe gilt Playwrights Standard, und der ist kein Vertrag.
+     */
+    {
+      name: "einrichtung",
+      testMatch: /einrichtung\.setup\.ts/,
+      use: { viewport: { width: 1440, height: 900 } },
+    },
 
     // Die Anmeldung selbst muss ohne abgelegte Sitzung geprueft werden.
     {

@@ -36,6 +36,12 @@ export function Knopfleiste({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Die Spalte des Kiosks und des Besucherbereichs: schmaler als die Verwaltung, weil hier
+ * Formulare und der Datenschutztext stehen, die in 1360 px Zeilenlaenge niemand liest.
+ */
+const SPALTE = "mx-auto w-full max-w-[820px] px-6";
+
 /** Wie lange der unbeschriftete Bereich gedrückt werden muss, bis das Abmelden greift. */
 const ABMELDEN_MS = 3000;
 
@@ -87,29 +93,35 @@ export function Kioskrahmen({
       onPointerDownCapture={sperre.melden}
       onKeyDownCapture={sperre.melden}
     >
-      <header className="relative z-10 flex items-center justify-between gap-4 bg-flaeche px-6 py-3 shadow-kopf">
-        <Logoreihe art="kopf" className="justify-start gap-5" />
-        {/*
+      {/*
+        Kopfzeile, Inhalt und Fusszeile in **einer** Spalte (`SPALTE`), wie im Verwaltungsrahmen.
+        Bis zum 27.10.2026 standen die Logos am Fensterrand und der Inhalt zentriert daneben.
+      */}
+      <header className="relative z-10 bg-flaeche shadow-kopf">
+        <div className={cn("flex h-[72px] items-center justify-between gap-4", SPALTE)}>
+          <Logoreihe art="kopf" className="justify-start gap-5" />
+          {/*
           **Abmelden ist kein Knopf.** Ein beschrifteter Knopf wird am Stand aus Versehen
           getroffen, und dann steht das Tablet bis jemand das Passwort kennt. Drei Sekunden
           auf eine unbeschriftete Fläche ist für das Standpersonal eine Sekunde Arbeit und
           für einen Besucher kein Versehen.
         */}
-        {besucher ? (
-          <Knopf art="rand" className="h-[34px] shrink-0 px-3.5 text-[13px]" onClick={abmelden}>
-            Abmelden
-          </Knopf>
-        ) : (
-          <span
-            aria-label="Gedrückt halten zum Abmelden"
-            role="button"
-            tabIndex={-1}
-            onPointerDown={beginneHalten}
-            onPointerUp={endeHalten}
-            onPointerLeave={endeHalten}
-            className="size-9 shrink-0 cursor-default"
-          />
-        )}
+          {besucher ? (
+            <Knopf art="rand" className="h-[34px] shrink-0 px-3.5 text-[13px]" onClick={abmelden}>
+              Abmelden
+            </Knopf>
+          ) : (
+            <span
+              aria-label="Gedrückt halten zum Abmelden"
+              role="button"
+              tabIndex={-1}
+              onPointerDown={beginneHalten}
+              onPointerUp={endeHalten}
+              onPointerLeave={endeHalten}
+              className="size-9 shrink-0 cursor-default"
+            />
+          )}
+        </div>
       </header>
 
       {/*
@@ -120,13 +132,14 @@ export function Kioskrahmen({
       {besucher && <Band />}
       <main
         className={cn(
-          "mx-auto flex w-full max-w-[820px] flex-1 flex-col gap-6 px-6 py-8",
+          "flex w-full flex-1 flex-col gap-6 py-8",
+          SPALTE,
           besucher && "relative -mt-20 pt-0 sm:-mt-24",
         )}
       >
         {children}
       </main>
-      {besucher && <Fusszeile />}
+      {besucher && <Fusszeile spalte={SPALTE} />}
 
       {sperre.restSekunden !== null && mitSperre && (
         <div

@@ -15,10 +15,10 @@ test("die Kopfzeile zeigt beide Logos in der richtigen Folge", async ({ page }) 
 });
 
 /**
- * Die Umschaltung zwischen den beiden Kopfzeilenfassungen liegt bei `lg`, nicht bei `sm`:
- * dazwischen liefen die Logos in die rechte Gruppe aus Name und „Abmelden".
- * Geprüft wird deshalb ausdrücklich eine Breite **in** diesem Bereich, die sonst kein
- * Projekt ansteuert.
+ * Die Kopfzeile hat seit dem 27.10.2026 nur noch eine Logoreihe; die Navigation wechselt bei
+ * 1280 px zwischen Reitern und Menü. Geprüft wird ausdrücklich auch eine Breite **unter**
+ * diesem Wechsel und über `sm` (820 px), die sonst kein Projekt ansteuert: dort stehen
+ * Logos, Name, „Abmelden“ und Menü zugleich in der Zeile.
  */
 test("die Kopfzeile trägt die Logos in jeder Breite genau einmal", async ({ page }) => {
   await page.goto("/exponate");

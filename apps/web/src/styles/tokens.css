@@ -51,8 +51,20 @@
   /* GUIDs, Kennungen, Pfade, Uhrzeiten. */
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Inhaltsspalte, zentriert, 16 px Rand. */
-  --spacing-spalte: 992px;
+  /*
+   * Eine Spalte fuer Kopfzeile, Inhalt und Fusszeile, damit alles auf einer Kante steht.
+   * 1360 px wie das Inhaltsfeld von industrialdigitaltwin.org bei 1440; die Kopfzeile aus
+   * Logos, Name, sieben Reitern und Abmelden braucht rund 1170 px und passt in 992 nicht.
+   */
+  --spacing-spalte: 1360px;
+
+  /*
+   * Ab hier steht die Navigation in der Kopfzeile, darunter hinter den drei Strichen.
+   * 1280 px, damit ein gewoehnlicher Laptop die Reiter sieht; gemessen bleiben dort 43 px Luft
+   * beim Namen „Administrator“ (27.10.2026). Laengere Namen kuerzt `truncate`. Wer Reiter
+   * hinzufuegt, misst bei 1280 neu.
+   */
+  --breakpoint-kopf: 80rem;
 
   --shadow-flaeche: 0 2px 6px rgb(27 29 38 / 0.07);
   /* Wie die Kopfzeile von industrialdigitaltwin.org: kaum sichtbar, statt einer Linie. */
