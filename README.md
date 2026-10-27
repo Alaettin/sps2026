@@ -24,7 +24,7 @@ verlangt ein neues Mapping in Axon.**
 ```
 apps/server      Fastify, TypeScript, Node 22. Eine SQLite-Datei (better-sqlite3, WAL, Drizzle)
 apps/web         React 19, Vite, Tailwind 4
-Connector Guide/ connector-1.0.0.json und der DTI Connector Guide, für die Vertragstests
+Connector Guide/ connector-1.0.0.json für die Vertragstests (der PDF-Guide liegt nur lokal)
 docker/          Dockerfile für den späteren Rollout
 ```
 

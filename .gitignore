@@ -26,3 +26,8 @@ e2e/.sitzung*.json
 # zusammen 758 KB). Die Rohdaten bleiben lokal; 43 MB Schmuckbilder gehoeren nicht in ein
 # oeffentliches Repo, und gebraucht werden sie nur, wenn jemand die Groesse neu waehlt.
 avatar/
+
+# Der DTI Connector Guide ist ein Neoception-Dokument und bleibt lokal; das Repo auf GitHub ist
+# oeffentlich (seit 27.10.2026, Historie ohne die Datei neu geschrieben). Die Vertragstests
+# brauchen nur `connector-1.0.0.json` daneben.
+Connector Guide/*.pdf
