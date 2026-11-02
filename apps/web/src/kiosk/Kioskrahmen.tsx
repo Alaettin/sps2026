@@ -126,7 +126,7 @@ export function Kioskrahmen({
       >
         {children}
       </main>
-      {besucher && <Fusszeile spalte={SPALTE} />}
+      {besucher && <Fusszeile />}
 
       <Rueckfrage
         offen={frage}

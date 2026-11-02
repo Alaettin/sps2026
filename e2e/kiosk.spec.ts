@@ -52,11 +52,13 @@ async function bisZumDatenschutz(page: Page, guid: string, email: string): Promi
 }
 
 test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ page }) => {
-  for (const pfad of ["/nutzer", "/besucher", "/", "/monitoring", "/mein"]) {
+  for (const pfad of ["/nutzer", "/besucher", "/", "/monitoring", "/mein", "/impressum"]) {
     await page.goto(pfad);
     await expect(page, `${pfad} war erreichbar`).toHaveURL(/\/kiosk$/);
   }
   await expect(page.getByRole("heading", { name: "Pass scannen" })).toBeVisible();
+  // Keine Fusszeile am Terminal: von dort soll kein Link nach aussen fuehren.
+  await expect(page.locator("footer")).toHaveCount(0);
 });
 
 /**

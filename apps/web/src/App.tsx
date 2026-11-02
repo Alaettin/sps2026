@@ -23,6 +23,19 @@ import { MeinExponatScan } from "./besucher/ExponatScan.js";
 import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
+import { Cookies, Datenschutz, Impressum } from "./seiten/Rechtliches.js";
+
+/**
+ * Die Seiten hinter der Fusszeile, seit dem 02.11.2026. **In jedem Baum ausser dem des
+ * Terminals**, damit dieselbe Adresse abgemeldet wie angemeldet gilt.
+ */
+const RECHTSSEITEN = (
+  <>
+    <Route path="/impressum" element={<Impressum />} />
+    <Route path="/datenschutz" element={<Datenschutz />} />
+    <Route path="/cookies" element={<Cookies />} />
+  </>
+);
 
 /**
  * Der Anmeldezustand kommt aus `GET /api/auth/ich`, bei jedem Start.
@@ -78,6 +91,7 @@ export function App() {
       {ich === null ? (
         <Routes>
           <Route path="/anmeldung" element={<Anmeldung aufAngemeldet={pruefe} />} />
+          {RECHTSSEITEN}
           {/*
             Die Anmeldemaske haengt an **keiner** anderen Route. Ein direkter Aufruf von
             /anmeldung aus einem Lesezeichen muss genauso gehen wie der Weg ueber /.
@@ -109,11 +123,13 @@ export function App() {
           <Route path="/mein/exponate" element={<MeinExponate aufAbmelden={abmelden} />} />
           <Route path="/mein/scan" element={<MeinExponatScan aufAbmelden={abmelden} />} />
           <Route path="/mein/scan/:code" element={<MeinExponatScan aufAbmelden={abmelden} />} />
+          {RECHTSSEITEN}
           <Route path="*" element={<ZumZiel />} />
         </Routes>
       ) : (
         <Routes>
           <Route path="/anmeldung" element={<Navigate to="/" replace />} />
+          {RECHTSSEITEN}
           <Route
             element={
               <Rahmen

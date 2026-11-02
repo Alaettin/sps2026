@@ -18,6 +18,7 @@ import { dashboardRoutes } from "./routes/dashboard.js";
 import { monitoringRoutes } from "./routes/monitoring.js";
 import { kioskRoutes } from "./routes/kiosk.js";
 import { meinRoutes } from "./routes/mein.js";
+import { rechtlichesRoutes } from "./routes/rechtliches.js";
 import { avatarRoutes } from "./routes/avatare.js";
 import { dateiRoutes } from "./routes/dateien.js";
 import { entwicklerRoutes } from "./routes/entwickler.js";
@@ -143,6 +144,7 @@ export async function buildServer(
   monitoringRoutes(app, ctx);
   kioskRoutes(app, ctx);
   meinRoutes(app, ctx);
+  rechtlichesRoutes(app);
   avatarRoutes(app, ctx);
   entwicklerRoutes(app, ctx);
   sicherungRoutes(app, ctx);

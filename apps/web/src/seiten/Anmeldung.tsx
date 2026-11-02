@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ApiFehler, api } from "../lib/api.js";
 import { Feld, Fehlerhinweis, Knopf } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
+import { Fusszeile } from "../bausteine/band.js";
 
 /**
  * Anmeldung mit E-Mail und Passwort.
@@ -49,72 +50,81 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
   }
 
   return (
-    <div
-      data-hintergrund
-      className="relative min-h-screen overflow-hidden bg-primaer bg-linear-to-br from-primaer to-primaer-dunkel"
-    >
-      {/*
+    <>
+      <div
+        data-hintergrund
+        className="relative min-h-screen overflow-hidden bg-primaer bg-linear-to-br from-primaer to-primaer-dunkel"
+      >
+        {/*
         **Im Stil des Heros auf industrialdigitaltwin.org**, seit dem 02.11.2026: Blau mit
         Punktraster, links die Überschrift in Weiß, rechts die helle Karte. Ohne Foto, damit
         keine fremden Bildrechte im Spiel sind. Das AXON-Keyvisual, das hier bis dahin stand,
         ist entfallen; die Logos stehen in der Karte.
       */}
-      <span aria-hidden="true" className="punktmatrix absolute inset-0" />
-      <div className="relative mx-auto flex min-h-screen max-w-spalte flex-col items-center justify-center gap-8 px-4 py-12 sm:px-8 lg:flex-row lg:justify-between lg:gap-16">
-        <div className="flex w-full max-w-[420px] flex-col gap-3 text-white lg:max-w-xl lg:gap-5">
-          <p className="text-[32px] leading-tight font-medium tracking-[-0.01em] lg:text-[56px]">
-            IDTA Passport
-          </p>
-          <p className="text-[15px] leading-relaxed text-white/85 lg:text-lg">
-            Der digitale Messepass der SPS 2026. Exponate scannen, Infos sammeln und alles später im
-            Viewer wiederfinden.
-          </p>
-        </div>
-        <main className="relative flex w-full max-w-[420px] flex-col gap-7 bg-flaeche p-6 shadow-[0_18px_48px_rgba(27,29,38,0.13)] sm:p-10">
-          <div className="flex flex-col gap-5">
-            {/*
+        <span aria-hidden="true" className="punktmatrix absolute inset-0" />
+        <div className="relative mx-auto flex min-h-screen max-w-spalte flex-col items-center justify-center gap-8 px-4 py-12 sm:px-8 lg:flex-row lg:justify-between lg:gap-16">
+          {/*
+          Zwei Ebenen statt eines Absatzes, seit dem 02.11.2026: der eine Satz lief bei 640 px
+          in drei Zeilen mit einem einzelnen Wort am Ende aus.
+        */}
+          <div className="flex w-full max-w-[420px] flex-col gap-3 text-white lg:max-w-xl lg:gap-4">
+            <p className="text-[36px] leading-none font-semibold tracking-[-0.02em] lg:text-[64px]">
+              IDTA Passport
+            </p>
+            <p className="text-xl leading-snug font-medium text-balance lg:text-[28px]">
+              Dein digitaler Messepass für die SPS 2026
+            </p>
+            <p className="text-[15px] leading-relaxed text-balance text-white/80 lg:text-lg">
+              QR-Code am Exponat scannen, alle Infos später im Viewer.
+            </p>
+          </div>
+          <main className="relative flex w-full max-w-[420px] flex-col gap-7 bg-flaeche p-6 shadow-[0_18px_48px_rgba(27,29,38,0.13)] sm:p-10">
+            <div className="flex flex-col gap-5">
+              {/*
             AXON und IDTA. Die Karte ist bei 390 px innen rund 310 px breit; die Masse im
             Baustein sind darauf abgestimmt.
           */}
-            <Logoreihe art="anmeldung" />
-            <h1 className="text-[32px] leading-tight font-medium tracking-[-0.01em] text-primaer">
-              Anmelden
-            </h1>
-          </div>
+              <Logoreihe art="anmeldung" />
+              <h1 className="text-[32px] leading-tight font-medium tracking-[-0.01em] text-primaer">
+                Anmelden
+              </h1>
+            </div>
 
-          {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
+            {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-          <form className="flex flex-col gap-4.5" onSubmit={(e) => void absenden(e)}>
-            <label className="flex flex-col gap-2 text-[13px] font-semibold">
-              E-Mail
-              <Feld
-                type="email"
-                autoComplete="username"
-                required
-                value={email}
-                onChange={(e) => {
-                  setzeEmail(e.target.value);
-                }}
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-[13px] font-semibold">
-              Passwort
-              <Feld
-                type="password"
-                autoComplete="current-password"
-                required
-                value={passwort}
-                onChange={(e) => {
-                  setzePasswort(e.target.value);
-                }}
-              />
-            </label>
-            <Knopf type="submit" className="mt-1.5 h-12 text-base" disabled={laeuft}>
-              {laeuft ? "Wird geprüft …" : "Anmelden"}
-            </Knopf>
-          </form>
-        </main>
+            <form className="flex flex-col gap-4.5" onSubmit={(e) => void absenden(e)}>
+              <label className="flex flex-col gap-2 text-[13px] font-semibold">
+                E-Mail
+                <Feld
+                  type="email"
+                  autoComplete="username"
+                  required
+                  value={email}
+                  onChange={(e) => {
+                    setzeEmail(e.target.value);
+                  }}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-[13px] font-semibold">
+                Passwort
+                <Feld
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={passwort}
+                  onChange={(e) => {
+                    setzePasswort(e.target.value);
+                  }}
+                />
+              </label>
+              <Knopf type="submit" className="mt-1.5 h-12 text-base" disabled={laeuft}>
+                {laeuft ? "Wird geprüft …" : "Anmelden"}
+              </Knopf>
+            </form>
+          </main>
+        </div>
       </div>
-    </div>
+      <Fusszeile />
+    </>
   );
 }

@@ -1,0 +1,32 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { DATENSCHUTZ_FASSUNG } from "../src/services/datenschutz.js";
+import { alsBesucher, melde, starte, type Pruefstand } from "./hilfe.js";
+
+/** Die Seite `/datenschutz` hinter der Fusszeile liest ohne Anmeldung, seit dem 02.11.2026. */
+
+const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
+
+let stand: Pruefstand | null = null;
+afterEach(async () => {
+  await stand?.ende();
+  stand = null;
+});
+
+describe("Oeffentlicher Datenschutzhinweis", () => {
+  it("antwortet ohne Sitzung mit demselben Text wie im Besucherbereich", async () => {
+    stand = await starte(ADMIN);
+    const s = stand;
+    const offen = await s.app.inject({ url: "/api/datenschutz" });
+    expect(offen.statusCode).toBe(200);
+    expect(offen.headers["set-cookie"]).toBeUndefined();
+
+    const keks = await melde(s, "admin@idta-passport.de", "startpasswort-123");
+    const besucher = await alsBesucher(s, keks);
+    const mein = await s.app.inject({
+      url: "/api/mein/datenschutz",
+      headers: { cookie: besucher.keks },
+    });
+    expect(offen.json()).toEqual(mein.json());
+    expect(offen.json<{ fassung: string }>().fassung).toBe(DATENSCHUTZ_FASSUNG);
+  });
+});
