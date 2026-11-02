@@ -1,13 +1,13 @@
 import { asc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
+  besuche,
   besucher,
   dateien,
   exponate,
   exponatDokumente,
   exponatLinks,
   globaleDaten,
-  zuordnungen,
 } from "../db/schema.js";
 import type { Dateiablage } from "../ablage/dateien.js";
 import { leseInhalt } from "../services/dateien.js";
@@ -46,7 +46,7 @@ export function zeitAlsText(ms: number): string {
     minute: "2-digit",
   }).format(new Date(ms));
 }
-import { ansprechpartnerVonExponat } from "../services/ansprechpartner.js";
+import { kontakteVonExponat } from "../services/kontakte.js";
 
 /**
  * Was ein Besucher an Werten hat, in der Form der Konnektor-Spezifikation.
@@ -215,13 +215,19 @@ export function sammleWerte(db: Db, guid: string): RohWert[] {
     }
   }
 
-  const meine = db.select().from(zuordnungen).where(eq(zuordnungen.besucherGuid, guid)).all();
+  /*
+   * **Live seit dem 02.11.2026**: je aufgenommenem Exponat alles, was es gerade hat. Was der
+   * Betreuer nach dem Scan ergaenzt, kommt an; was er loescht, verschwindet. Vorher galten nur
+   * die Elemente, die ein Betreuer dem Besucher einzeln zugeordnet hatte.
+   */
+  const meine = db
+    .select({ exponatId: besuche.exponatId })
+    .from(besuche)
+    .where(eq(besuche.besucherGuid, guid))
+    .all();
   if (meine.length === 0) return werte;
 
-  // Je Exponat einmal, auch wenn dort mehrere Elemente zugeordnet sind.
-  const exponatIds = [...new Set(meine.map((z) => z.exponatId))];
-
-  for (const exponatId of exponatIds) {
+  for (const { exponatId } of meine) {
     const e = db.select().from(exponate).where(eq(exponate.id, exponatId)).get();
     if (e === undefined) continue;
     const k = e.kennung;
@@ -231,56 +237,37 @@ export function sammleWerte(db: Db, guid: string): RohWert[] {
       werte.push({ propertyId: exponatBeschreibung(k), text: e.beschreibung, dateiId: null });
     }
 
-    const zielIds = (art: "dokument" | "link" | "kontakt") =>
-      new Set(meine.filter((z) => z.exponatId === exponatId && z.art === art).map((z) => z.zielId));
-
-    const dokIds = zielIds("dokument");
-    if (dokIds.size > 0) {
-      const dokumente = db
-        .select()
-        .from(exponatDokumente)
-        .where(eq(exponatDokumente.exponatId, exponatId))
-        .orderBy(asc(exponatDokumente.platz))
-        .all();
-      for (const d of dokumente) {
-        if (!dokIds.has(d.id)) continue;
-        werte.push({ propertyId: dokumentDatei(k, d.platz), text: null, dateiId: d.dateiId });
-        werte.push({ propertyId: dokumentTitel(k, d.platz), text: d.titel, dateiId: null });
-        if (d.beschreibung !== null && d.beschreibung.trim() !== "") {
-          werte.push({
-            propertyId: dokumentBeschreibung(k, d.platz),
-            text: d.beschreibung,
-            dateiId: null,
-          });
-        }
+    const dokumente = db
+      .select()
+      .from(exponatDokumente)
+      .where(eq(exponatDokumente.exponatId, exponatId))
+      .orderBy(asc(exponatDokumente.platz))
+      .all();
+    for (const d of dokumente) {
+      werte.push({ propertyId: dokumentDatei(k, d.platz), text: null, dateiId: d.dateiId });
+      werte.push({ propertyId: dokumentTitel(k, d.platz), text: d.titel, dateiId: null });
+      if (d.beschreibung !== null && d.beschreibung.trim() !== "") {
+        werte.push({
+          propertyId: dokumentBeschreibung(k, d.platz),
+          text: d.beschreibung,
+          dateiId: null,
+        });
       }
     }
 
-    const linkIds = zielIds("link");
-    if (linkIds.size > 0) {
-      const links = db
-        .select()
-        .from(exponatLinks)
-        .where(eq(exponatLinks.exponatId, exponatId))
-        .orderBy(asc(exponatLinks.platz))
-        .all();
-      for (const l of links) {
-        if (!linkIds.has(l.id)) continue;
-        werte.push({ propertyId: linkUrl(k, l.platz), text: l.url, dateiId: null });
-        werte.push({ propertyId: linkTitel(k, l.platz), text: l.titel, dateiId: null });
-      }
+    const links = db
+      .select()
+      .from(exponatLinks)
+      .where(eq(exponatLinks.exponatId, exponatId))
+      .orderBy(asc(exponatLinks.platz))
+      .all();
+    for (const l of links) {
+      werte.push({ propertyId: linkUrl(k, l.platz), text: l.url, dateiId: null });
+      werte.push({ propertyId: linkTitel(k, l.platz), text: l.titel, dateiId: null });
     }
 
-    /*
-     * **Alle Ansprechpartner des Exponats, nicht nur zugeordnete.** Entscheidung vom
-     * 19.10.2026: Ansprechpartner gehoeren zum Exponat und kommen mit, sobald der Besucher
-     * dort irgendetwas bekommen hat. Steht derselbe Mensch an zwei Exponaten, geht er
-     * deshalb zweimal hinaus, je unter dem Platz, den er an diesem Exponat hat: an E01 als
-     * `Contact01`, an E04 als `Contact03`.
-     *
-     * Kein Foto: `{K}_Contact{NN}_Image` gibt es nicht.
-     */
-    for (const c of ansprechpartnerVonExponat(db, exponatId)) {
+    // Die Ansprechpartner des Exponats, je unter ihrem Platz. Kein Foto: `{K}_Contact{NN}_Image` gibt es nicht.
+    for (const c of kontakteVonExponat(db, exponatId)) {
       for (const { feld, id } of PERSONENFELDER) {
         const wert = personenwert(c, feld, id, true);
         if (wert !== null && id !== null) {

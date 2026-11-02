@@ -29,6 +29,20 @@
       "when": 1792787040555,
       "tag": "0003_ancient_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793626392220,
+      "tag": "0004_regular_hemingway",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793626416123,
+      "tag": "0005_amusing_surge",
+      "breakpoints": true
     }
   ]
 }

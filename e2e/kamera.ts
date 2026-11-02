@@ -1,5 +1,5 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
-import { legeExponatAn } from "./exponate.js";
+import { merkeBesucher } from "./exponate.js";
 
 /**
  * Hilfen für die Kamerafälle.
@@ -20,14 +20,29 @@ export function kameraOptionen(anzahl: number) {
   };
 }
 
-/** Legt ein scanbares Exponat an, öffnet den Scan und wartet, bis ein Bild läuft. */
+/**
+ * Meldet einen frischen Besucher an, öffnet „Exponat scannen“ und wartet, bis ein Bild läuft.
+ *
+ * Seit dem 02.11.2026 scannt der Besucher, nicht mehr der Betreuer; die Kamera steht deshalb
+ * unter `/mein/scan`. Die Anmeldung ersetzt im Kontext dieses Falls die Admin-Sitzung.
+ */
 export async function oeffneKamera(page: Page, request: APIRequestContext): Promise<void> {
-  const exponat = await legeExponatAn(request, `Kamera ${String(Date.now()).slice(-5)}`);
-  await request.post(`/api/exponate/${exponat.id}/links`, {
-    data: { url: "https://industrialdigitaltwin.org/", titel: "IDTA" },
-  });
-  await page.goto(`/exponate/${exponat.id}/scan`);
-  await page.getByRole("button", { name: "Pass scannen" }).first().click();
+  const guid = `KAM-${String(Date.now()).slice(-8)}`;
+  const email = `${guid.toLowerCase()}@example.invalid`;
+  expect(
+    (
+      await request.post("/api/besucher", {
+        data: { guid, vorname: "Kai", nachname: "Kamera", email },
+      })
+    ).status(),
+  ).toBe(201);
+  merkeBesucher(guid);
+  expect(
+    (
+      await page.request.post("/api/auth/anmelden", { data: { email, passwort: "password" } })
+    ).status(),
+  ).toBe(200);
+  await page.goto("/mein/scan");
   await expect
     .poll(() => page.evaluate(() => document.querySelector("video")?.videoWidth ?? 0))
     .toBeGreaterThan(0);

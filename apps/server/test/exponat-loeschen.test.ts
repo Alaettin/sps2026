@@ -35,14 +35,12 @@ async function aufbau(s: Pruefstand, keks: string, name: string, guid: string) {
     })
   ).json<{ id: string }>();
 
-  const link = (
-    await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${exponat.id}/links`,
-      headers: { cookie: keks },
-      payload: { url: "https://industrialdigitaltwin.org/", titel: "IDTA" },
-    })
-  ).json<{ id: string }>();
+  await s.app.inject({
+    method: "POST",
+    url: `/api/exponate/${exponat.id}/links`,
+    headers: { cookie: keks },
+    payload: { url: "https://industrialdigitaltwin.org/", titel: "IDTA" },
+  });
 
   await s.app.inject({
     method: "POST",
@@ -52,10 +50,9 @@ async function aufbau(s: Pruefstand, keks: string, name: string, guid: string) {
   });
 
   await s.app.inject({
-    method: "POST",
-    url: "/api/scan/zuordnen",
+    method: "PUT",
+    url: `/api/besucher/${guid}/besuche/${exponat.id}`,
     headers: { cookie: keks },
-    payload: { guid, exponatId: exponat.id, elemente: [{ art: "link", zielId: link.id }] },
   });
 
   return exponat.id;

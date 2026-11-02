@@ -67,6 +67,14 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
             </Seitenkopf>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Seit dem 02.11.2026 die Haupthandlung am Stand, deshalb vorn. */}
+              <Kachel
+                titel="Exponat scannen"
+                text="QR-Code am Exponat scannen und alle Infos in deinen Pass übernehmen."
+                aufKlick={() => {
+                  void navigate("/mein/scan");
+                }}
+              />
               <Kachel
                 titel="Daten ändern"
                 text="Name, Firma, Anschrift und Kontakt."

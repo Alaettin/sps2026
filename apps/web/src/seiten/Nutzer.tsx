@@ -314,8 +314,8 @@ export function Nutzer({ ich }: { ich: Ich }) {
           bei der nächsten Anfrage.
         </p>
         <p>
-          Der Zugang bleibt bestehen und lässt sich jederzeit wieder aktivieren. Bereits
-          vorgenommene Zuordnungen bleiben ihm zugeschrieben.
+          Der Zugang bleibt bestehen und lässt sich jederzeit wieder aktivieren. Was er an seinen
+          Exponaten gepflegt hat, bleibt.
         </p>
       </Rueckfrage>
 
@@ -345,7 +345,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
           nicht mehr anmelden. Das lässt sich nicht rückgängig machen.
         </p>
         <p>
-          Was dieser Zugang an Besucher vergeben hat, bleibt bei den Besuchern. Soll der Zugang nur
+          Was dieser Zugang an seinen Exponaten gepflegt hat, bleibt. Soll der Zugang nur
           vorübergehend ruhen, ist Deaktivieren der umkehrbare Weg.
         </p>
       </Rueckfrage>
@@ -444,7 +444,8 @@ function ExponatZuweisung({
       </Zustand>
 
       <p className="text-[13px] text-text-hinweis">
-        Ein Betreuer sieht nur die hier gewählten Exponate und kann nur dort scannen.
+        Ein Betreuer sieht nur die hier gewählten Exponate und pflegt dort Dokumente, Links und
+        Ansprechpartner.
       </p>
 
       <div className="flex flex-wrap justify-end gap-3">

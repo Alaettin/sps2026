@@ -1,6 +1,6 @@
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
+import { melde, multipart as mehrteilig, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Sicherung und Wiederherstellung, seit dem 19.10.2026.
@@ -57,39 +57,24 @@ async function exportiere(s: Pruefstand, keks: string): Promise<Uint8Array> {
 
 const PDF = Buffer.from("%PDF-1.4\nInhalt, der genau so zurueckkommen muss\n%%EOF\n");
 
-/** Ein Bestand mit Besucher, Exponat, Dokument samt Datei, Zuordnung und Betreuer. */
+/** Ein Bestand mit Besucher, Exponat, Dokument samt Datei, Besuch und Betreuer. */
 async function befuelle(s: Pruefstand, keks: string) {
   const ruf = async <T>(method: "POST" | "GET", url: string, payload?: object) =>
     (await s.app.inject({ method, url, headers: { cookie: keks }, payload })).json<T>();
 
-  const { body, grenze } = (() => {
-    const g = "----passportdatei";
-    return {
-      grenze: g,
-      body: Buffer.concat([
-        Buffer.from(
-          `--${g}\r\nContent-Disposition: form-data; name="datei"; filename="blatt.pdf"\r\n` +
-            "Content-Type: application/pdf\r\n\r\n",
-        ),
-        PDF,
-        Buffer.from(`\r\n--${g}--\r\n`),
-      ]),
-    };
-  })();
-  const datei = (
+  const e = await ruf<{ id: string }>("POST", "/api/exponate", { name: "Gesichert" });
+  const { payload, headers } = mehrteilig(
+    { titel: "Datenblatt" },
+    { name: "blatt.pdf", inhalt: PDF },
+  );
+  const dok = (
     await s.app.inject({
       method: "POST",
-      url: "/api/dateien",
-      headers: { cookie: keks, "content-type": `multipart/form-data; boundary=${grenze}` },
-      payload: body,
+      url: `/api/exponate/${e.id}/dokumente`,
+      headers: { ...headers, cookie: keks },
+      payload,
     })
-  ).json<{ id: string }>();
-
-  const e = await ruf<{ id: string }>("POST", "/api/exponate", { name: "Gesichert" });
-  const dok = await ruf<{ id: string }>("POST", `/api/exponate/${e.id}/dokumente`, {
-    dateiId: datei.id,
-    titel: "Datenblatt",
-  });
+  ).json<{ dateiId: string }>();
   await ruf("POST", "/api/besucher", {
     guid: "SI-1",
     vorname: "Anna",
@@ -97,12 +82,12 @@ async function befuelle(s: Pruefstand, keks: string) {
     email: testEmail(),
     alias: "Anni",
   });
-  await ruf("POST", "/api/scan/zuordnen", {
-    guid: "SI-1",
-    exponatId: e.id,
-    elemente: [{ art: "dokument", zielId: dok.id }],
+  await s.app.inject({
+    method: "PUT",
+    url: `/api/besucher/SI-1/besuche/${e.id}`,
+    headers: { cookie: keks },
   });
-  return { dateiId: datei.id, exponatId: e.id };
+  return { dateiId: dok.dateiId, exponatId: e.id };
 }
 
 async function bestand(s: Pruefstand, keks: string) {
@@ -279,7 +264,7 @@ describe("Sicherung", () => {
     writeFileSync(tmp, echt["passport.db"]!);
     const d = new Database(tmp);
     d.pragma("foreign_keys = OFF");
-    d.prepare("update zuordnungen set besucher_guid = 'GIBT-ES-NICHT'").run();
+    d.prepare("update besuche set besucher_guid = 'GIBT-ES-NICHT'").run();
     d.close();
     const haengend = zipSync({ ...echt, "passport.db": readFileSync(tmp) });
     rmSync(tmp, { force: true });

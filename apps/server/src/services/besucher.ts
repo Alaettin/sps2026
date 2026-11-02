@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, getTableColumns, like, ne, or, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { besucher, zuordnungen } from "../db/schema.js";
+import { besucher } from "../db/schema.js";
 import { badRequest, conflict, notFound } from "../errors.js";
 import { avatarFuer } from "./standardavatar.js";
 
@@ -216,24 +216,6 @@ export function listeBesucher(db: Db, suche: string, seite: Seite) {
     .all();
 
   return { eintraege, gesamt: gesamt?.anzahl ?? 0, seite };
-}
-
-/** Die Zuordnungen eines Besuchers, nach Exponat gruppiert. Fuer die Detailansicht. */
-export function zuordnungenVonBesucher(db: Db, guid: string) {
-  return db
-    .select()
-    .from(zuordnungen)
-    .where(eq(zuordnungen.besucherGuid, guid))
-    .orderBy(asc(zuordnungen.zeitpunkt))
-    .all();
-}
-
-export function zaehleZuordnungen(db: Db, guid: string, exponatId: string): number {
-  return db
-    .select({ id: zuordnungen.id })
-    .from(zuordnungen)
-    .where(and(eq(zuordnungen.besucherGuid, guid), eq(zuordnungen.exponatId, exponatId)))
-    .all().length;
 }
 
 /**

@@ -1,11 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  legeExponatAn,
-  merkeAnsprechpartner,
-  merkeExponat,
-  raeumeAnsprechpartnerAuf,
-  raeumeExponateAuf,
-} from "./exponate.js";
+import { legeExponatAn, merkeExponat, raeumeExponateAuf } from "./exponate.js";
 
 /**
  * Die Runde vom 08.10.2026, Abendteil: Löschen, Vorlage, Monitoring, Scrollbalken.
@@ -13,7 +7,6 @@ import {
 
 test.afterEach(async ({ request }) => {
   await raeumeExponateAuf(request);
-  await raeumeAnsprechpartnerAuf(request);
 });
 
 test("ein Exponat lässt sich löschen, aber erst nach der Kennung", async ({ page, request }) => {
@@ -70,63 +63,6 @@ test("nirgends steht 'Keine Datei ausgewählt'", async ({ page }) => {
     await page.goto(pfad);
     await expect(page.getByText(/Keine Datei ausgewählt/i)).toHaveCount(0);
   }
-});
-
-/**
- * **Im Fenster scrollt die Liste, nicht das Fenster.**
- *
- * Vorher war beides scrollbar, ineinander verschachtelt: die Liste auf `max-h-[50dvh]` und
- * das Fenster auf `max-h-[90dvh]`. Sichtbare Folge war eine Liste, die mitten in einer
- * Zeile abbrach und die Fensterhöhe nicht ausschöpfte.
- *
- * **Die Zahl der laufenden Bereiche allein taugt als Kriterium nicht**: sie war in beiden
- * Fassungen 1, weil das Fenster je nach Inhalt gar nicht überlief. Geprüft wird deshalb
- * zusätzlich, dass das Fenster selbst **nicht scrollbar angelegt** ist; genau das war die
- * Ursache, und genau daran scheitert die Gegenprobe.
- */
-test("im Auswahlfenster scrollt genau ein Element", async ({ page, request, viewport }) => {
-  const exponat = await legeExponatAn(request, `Scrollprobe ${String(Date.now()).slice(-5)}`);
-  merkeExponat(exponat.id);
-
-  /*
-   * **Erst genug Einträge, damit überhaupt etwas scrollt.** Mit drei Ansprechpartnern
-   * läuft nichts über, und "höchstens ein Scrollbereich" wäre trivial erfüllt: der Fall
-   * ginge auch mit dem alten, kaputten Aufbau durch und bewiese nichts.
-   */
-  const marke = String(Date.now()).slice(-6);
-  for (let i = 0; i < 30; i++) {
-    const angelegt = await (
-      await request.post("/api/ansprechpartner", {
-        data: { vorname: "Scroll", nachname: `Probe${marke}-${String(i).padStart(2, "0")}` },
-      })
-    ).json();
-    merkeAnsprechpartner(angelegt.id as string);
-  }
-
-  await page.goto(`/exponate/${exponat.id}`);
-  await page.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
-
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByLabel("Ansprechpartner suchen")).toBeVisible();
-
-  const befund = await dialog.evaluate((wurzel) => {
-    const scrollbar = (e: Element) => {
-      const o = getComputedStyle(e).overflowY;
-      return o === "auto" || o === "scroll";
-    };
-    const alle = [wurzel, ...wurzel.querySelectorAll("*")];
-    return {
-      // Laeuft wirklich etwas? Sonst misst der Fall nichts.
-      laufend: alle.filter((e) => scrollbar(e) && e.scrollHeight > e.clientHeight).length,
-      // Ist das Fenster selbst scrollbar angelegt? Das war die Ursache.
-      fensterScrollbar: scrollbar(wurzel),
-    };
-  });
-
-  const wo = `${String(viewport?.width ?? 0)} px`;
-  expect(befund.laufend, `${wo}: es soll genau ein Bereich laufen`).toBe(1);
-  expect(befund.fensterScrollbar, `${wo}: das Fenster selbst darf nicht scrollen`).toBe(false);
 });
 
 test("das Monitoring zeigt einen Abruf über die Konnektor-API", async ({ page, request }) => {

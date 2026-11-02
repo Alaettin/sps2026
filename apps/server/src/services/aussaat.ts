@@ -4,9 +4,8 @@ import { exponate } from "../db/schema.js";
 import { conflict } from "../errors.js";
 import { legeBesucherAn } from "./besucher.js";
 import { legeDokumentAn, legeExponatAn, legeLinkAn } from "./exponate.js";
-import { legeAnsprechpartnerAn, weiseZu } from "./ansprechpartner.js";
-import { speichereDatei } from "./dateien.js";
-import { ordneZu } from "./zuordnungen.js";
+import { legeKontaktAn } from "./kontakte.js";
+import { setzeBesuch } from "./besuche.js";
 
 /**
  * Beispieldaten fuer Entwicklung und Abnahme.
@@ -206,14 +205,10 @@ export interface AussaatErgebnis {
   dokumente: number;
   links: number;
   kontakte: number;
-  zuordnungen: number;
+  besuche: number;
 }
 
-export async function saeAus(
-  db: Db,
-  ablage: Dateiablage,
-  nutzerId: string,
-): Promise<AussaatErgebnis> {
+export async function saeAus(db: Db, ablage: Dateiablage): Promise<AussaatErgebnis> {
   if (db.select({ id: exponate.id }).from(exponate).all().length > 0) {
     throw conflict(
       "aussaat-nicht-leer",
@@ -227,86 +222,46 @@ export async function saeAus(
     dokumente: 0,
     links: 0,
     kontakte: 0,
-    zuordnungen: 0,
+    besuche: 0,
   };
 
-  const angelegteExponate: {
-    id: string;
-    dokumente: string[];
-    links: string[];
-    kontakte: string[];
-  }[] = [];
-
-  /**
-   * Einer fuer alle Exponate.
-   *
-   * Frueher war ein Ansprechpartner an genau ein Exponat gebunden; seit dem 08.10.2026 sind
-   * sie Stammdaten. Dieser hier steht an **jedem** Exponat und deckt damit den Fall ab, der
-   * den Umbau ausgeloest hat.
-   */
-  const gemeinsamer = legeAnsprechpartnerAn(db, {
-    vorname: "Hendrik",
-    nachname: "Sassenberg",
-    firma: "IDTA Geschaeftsstelle",
-    position: "Organisation",
-    email: "orga@example.invalid",
-    ort: "Leverkusen",
-    plz: "51373",
-    land: "Deutschland",
-  });
-  ergebnis.kontakte++;
+  const angelegteExponate: string[] = [];
 
   for (const e of EXPONATE) {
     // Die Kennung vergibt der Server; `e.kennung` dient nur noch der Benennung der Dateien.
     const exponat = legeExponatAn(db, { name: e.name, beschreibung: e.beschreibung });
     ergebnis.exponate++;
-    const dokumente: string[] = [];
-    const links: string[] = [];
-    const kontakte: string[] = [];
 
     /*
      * Zwei Dokumente je Exponat, und zwar **ein Bild und ein PDF**. Das ist Absicht: nur
      * so laeuft in jeder Abnahme beides durch, der Wertweg und der Ticketweg.
      */
-    const pdf = await speichereDatei(
-      db,
-      ablage,
-      `Datenblatt ${e.kennung} (DE).pdf`,
-      Buffer.from(`%PDF-1.4\nDatenblatt zum Exponat ${e.kennung}.\n%%EOF\n`, "utf8"),
-    );
-    dokumente.push(
-      legeDokumentAn(db, exponat.id, {
-        dateiId: pdf.id,
-        titel: `Datenblatt ${e.kennung}`,
-        beschreibung: "Technische Daten",
-      }).id,
-    );
+    await legeDokumentAn(db, ablage, exponat.id, {
+      datei: {
+        name: `Datenblatt ${e.kennung} (DE).pdf`,
+        inhalt: Buffer.from(`%PDF-1.4\nDatenblatt zum Exponat ${e.kennung}.\n%%EOF\n`, "utf8"),
+      },
+      titel: `Datenblatt ${e.kennung}`,
+      beschreibung: "Technische Daten",
+    });
     ergebnis.dokumente++;
 
-    const bild = await speichereDatei(db, ablage, `vorschau-${e.kennung}.png`, EIN_PIXEL_PNG);
-    dokumente.push(
-      legeDokumentAn(db, exponat.id, {
-        dateiId: bild.id,
-        titel: `Vorschau ${e.kennung}`,
-        beschreibung: null,
-      }).id,
-    );
+    await legeDokumentAn(db, ablage, exponat.id, {
+      datei: { name: `vorschau-${e.kennung}.png`, inhalt: EIN_PIXEL_PNG },
+      titel: `Vorschau ${e.kennung}`,
+      beschreibung: null,
+    });
     ergebnis.dokumente++;
 
-    links.push(
-      legeLinkAn(db, exponat.id, { url: "https://industrialdigitaltwin.org/", titel: "IDTA" }).id,
-    );
-    links.push(
-      legeLinkAn(db, exponat.id, { url: "https://www.neoception.com/", titel: "Neoception" }).id,
-    );
+    legeLinkAn(db, exponat.id, { url: "https://industrialdigitaltwin.org/", titel: "IDTA" });
+    legeLinkAn(db, exponat.id, { url: "https://www.neoception.com/", titel: "Neoception" });
     ergebnis.links += 2;
 
     /*
-     * Jedes Exponat bekommt seinen eigenen Ansprechpartner **und zusaetzlich den
-     * gemeinsamen**. Damit steht derselbe Mensch an allen zehn Exponaten, und der neue Fall
-     * (eine Person, mehrere Exponate, je eigener Platz) kommt in den Testdaten vor.
+     * Zwei Ansprechpartner je Exponat. Der zweite steht an jedem Exponat, seit dem 02.11.2026
+     * als eigener Datensatz je Exponat: Ansprechpartner gehoeren wieder dem Exponat.
      */
-    const eigener = legeAnsprechpartnerAn(db, {
+    legeKontaktAn(db, exponat.id, {
       vorname: VORNAMEN[ergebnis.exponate % VORNAMEN.length] ?? "Anna",
       nachname: NACHNAMEN[(ergebnis.exponate * 3) % NACHNAMEN.length] ?? "Ahrens",
       firma: "Neoception GmbH",
@@ -316,14 +271,19 @@ export async function saeAus(
       plz: "68163",
       land: "Deutschland",
     });
-    weiseZu(db, exponat.id, eigener.id);
-    kontakte.push(eigener.id);
-    ergebnis.kontakte++;
+    legeKontaktAn(db, exponat.id, {
+      vorname: "Hendrik",
+      nachname: "Sassenberg",
+      firma: "IDTA Geschaeftsstelle",
+      position: "Organisation",
+      email: "orga@example.invalid",
+      ort: "Leverkusen",
+      plz: "51373",
+      land: "Deutschland",
+    });
+    ergebnis.kontakte += 2;
 
-    weiseZu(db, exponat.id, gemeinsamer.id);
-    kontakte.push(gemeinsamer.id);
-
-    angelegteExponate.push({ id: exponat.id, dokumente, links, kontakte });
+    angelegteExponate.push(exponat.id);
   }
 
   for (let i = 0; i < BESUCHER_ANZAHL; i++) {
@@ -360,21 +320,12 @@ export async function saeAus(
      */
 
     /*
-     * Jeder dritte Besucher bekommt Zuordnungen an einem Exponat. Die uebrigen bleiben
-     * ohne: `values` muss fuer sie **nur** die Stammdaten liefern, und genau das ist eine
-     * der vier Gegenproben.
+     * Jeder dritte Besucher hat ein Exponat aufgenommen. Die uebrigen bleiben ohne: `values`
+     * muss fuer sie **nur** die Stammdaten liefern, und genau das ist eine der Gegenproben.
      */
     if (i % 3 === 0) {
       const ziel = angelegteExponate[i % angelegteExponate.length];
-      if (ziel !== undefined) {
-        const elemente = [
-          { art: "dokument" as const, zielId: ziel.dokumente[0] ?? "" },
-          { art: "dokument" as const, zielId: ziel.dokumente[1] ?? "" },
-          { art: "link" as const, zielId: ziel.links[0] ?? "" },
-        ].filter((el) => el.zielId !== "");
-        const { neu } = ordneZu(db, { guid: person.guid, exponatId: ziel.id, elemente, nutzerId });
-        ergebnis.zuordnungen += neu;
-      }
+      if (ziel !== undefined && setzeBesuch(db, person.guid, ziel).neu) ergebnis.besuche++;
     }
   }
 

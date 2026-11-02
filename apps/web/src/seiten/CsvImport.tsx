@@ -436,7 +436,8 @@ export function CsvImport() {
             </div>
             <p className="text-[13px] leading-relaxed text-text-hinweis">
               <b>Ergänzen</b> legt neue Besucher an und aktualisiert bekannte. <b>Ersetzen</b>{" "}
-              entfernt zusätzlich alle, die nicht in der Datei stehen, samt ihren Zuordnungen.
+              entfernt zusätzlich alle, die nicht in der Datei stehen, samt ihren aufgenommenen
+              Exponaten.
             </p>
           </Abschnitt>
         </>
@@ -493,8 +494,8 @@ export function CsvImport() {
         aufBestaetigen={() => void uebernimm("ersetzen")}
       >
         <p>
-          Alle Besucher, die <b>nicht</b> in dieser Datei stehen, werden samt ihren Zuordnungen
-          gelöscht. Ihre Pässe zeigen danach nichts mehr an.
+          Alle Besucher, die <b>nicht</b> in dieser Datei stehen, werden samt ihren aufgenommenen
+          Exponaten gelöscht. Ihre Pässe zeigen danach nichts mehr an.
         </p>
         <p>
           Die Datei enthält <b>{befund?.uebernehmbar ?? 0}</b> übernehmbare Zeilen. Was darüber

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { raeumeExponateAuf } from "./exponate.js";
+import { raeumeBesucherAuf } from "./exponate.js";
 import { geraet, kameraOptionen, oeffneKamera } from "./kamera.js";
 
 /**
@@ -13,7 +13,7 @@ import { geraet, kameraOptionen, oeffneKamera } from "./kamera.js";
 test.use(kameraOptionen(2));
 
 test.afterEach(async ({ request }) => {
-  await raeumeExponateAuf(request);
+  await raeumeBesucherAuf(request);
 });
 
 test("der Knopf schaltet auf das andere Gerät und wieder zurück", async ({ page, request }) => {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { merkeBesucher, raeumeBesucherAuf } from "./exponate.js";
+import { legeExponatAn, merkeBesucher, raeumeBesucherAuf, raeumeExponateAuf } from "./exponate.js";
 
 /**
  * Der Alias, seit dem 19.10.2026: in der Besuchermaske ja, bei den Ansprechpartnern nein.
@@ -9,6 +9,7 @@ import { merkeBesucher, raeumeBesucherAuf } from "./exponate.js";
 
 test.afterEach(async ({ request }) => {
   await raeumeBesucherAuf(request);
+  await raeumeExponateAuf(request);
 });
 
 test("ein Alias lässt sich setzen und geht als Visitor_Alias hinaus", async ({ page, request }) => {
@@ -40,9 +41,11 @@ test("ein Alias lässt sich setzen und geht als Visitor_Alias hinaus", async ({ 
   expect(alias?.value).toBe("Anni");
 });
 
-test("die Maske der Ansprechpartner hat kein Alias-Feld", async ({ page }) => {
-  await page.goto("/ansprechpartner");
-  await page.getByRole("button", { name: "Ansprechpartner anlegen" }).click();
+test("die Maske der Ansprechpartner hat kein Alias-Feld", async ({ page, request }) => {
+  // Seit dem 02.11.2026 am Exponat, nicht mehr auf einer eigenen Seite.
+  const exponat = await legeExponatAn(request, `Aliasprobe ${String(Date.now()).slice(-5)}`);
+  await page.goto(`/exponate/${exponat.id}`);
+  await page.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
   const formular = page.getByRole("dialog");
   // Gegenprobe im selben Formular: die übrigen Felder sind da, die Suche greift also.
   await expect(formular.getByLabel("Nachname")).toBeVisible();

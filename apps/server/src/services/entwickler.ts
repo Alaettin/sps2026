@@ -11,14 +11,13 @@ import {
   exponate,
   exponatBetreuer,
   exponatDokumente,
-  ansprechpartner,
-  exponatAnsprechpartner,
+  besuche,
+  exponatKontakte,
   einstellungen,
   exponatLinks,
   globaleDaten,
   konnektorAbrufe,
   nachrichten,
-  zuordnungen,
 } from "../db/schema.js";
 
 /**
@@ -35,7 +34,8 @@ export interface Bestand {
   dokumente: number;
   links: number;
   kontakte: number;
-  zuordnungen: number;
+  /** Aufgenommene Exponate, seit dem 02.11.2026; vorher `zuordnungen`. */
+  besuche: number;
   dateien: number;
   /** GUIDs mit mindestens einem Konnektor-Abruf, siehe `services/abrufe.ts`. */
   abrufe: number;
@@ -61,8 +61,8 @@ export function leseBestand(db: Db): Bestand {
     exponate: n(db.select({ n: sql<number>`count(*)` }).from(exponate)),
     dokumente: n(db.select({ n: sql<number>`count(*)` }).from(exponatDokumente)),
     links: n(db.select({ n: sql<number>`count(*)` }).from(exponatLinks)),
-    kontakte: n(db.select({ n: sql<number>`count(*)` }).from(ansprechpartner)),
-    zuordnungen: n(db.select({ n: sql<number>`count(*)` }).from(zuordnungen)),
+    kontakte: n(db.select({ n: sql<number>`count(*)` }).from(exponatKontakte)),
+    besuche: n(db.select({ n: sql<number>`count(*)` }).from(besuche)),
     dateien: n(db.select({ n: sql<number>`count(*)` }).from(dateien)),
     abrufe: n(db.select({ n: sql<number>`count(*)` }).from(konnektorAbrufe)),
     globaleDaten: n(db.select({ n: sql<number>`count(*)` }).from(globaleDaten)),
@@ -111,13 +111,12 @@ export async function setzeZurueck(db: Db, ablage: Dateiablage): Promise<Bestand
      * Betreibers, kein Fachbestand.
      */
     tx.delete(einstellungen).where(eq(einstellungen.schluessel, SCHLUESSEL_UNBEKANNT)).run();
-    tx.delete(zuordnungen).run();
+    tx.delete(besuche).run();
     // Die Bilder liegen in `dateien` und gehen unten mit der ganzen Ablage.
     tx.delete(nachrichten).run();
     tx.delete(exponatDokumente).run();
     tx.delete(exponatLinks).run();
-    tx.delete(exponatAnsprechpartner).run();
-    tx.delete(ansprechpartner).run();
+    tx.delete(exponatKontakte).run();
     tx.delete(exponatBetreuer).run();
     tx.delete(exponate).run();
     tx.delete(besucher).run();

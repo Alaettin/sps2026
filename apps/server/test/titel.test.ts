@@ -202,30 +202,12 @@ describe("Der Titel in values", () => {
       })
     ).json<{ id: string; kennung: string }>();
 
-    const person = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/ansprechpartner",
-        headers: { cookie: keks },
-        payload: { titel: "Dr.", vorname: "Dirk", nachname: "Jansen" },
-      })
-    ).json<{ id: string }>();
-
     await s.app.inject({
       method: "POST",
-      url: `/api/exponate/${exponat.id}/ansprechpartner`,
+      url: `/api/exponate/${exponat.id}/kontakte`,
       headers: { cookie: keks },
-      payload: { ansprechpartnerId: person.id },
+      payload: { titel: "Dr.", vorname: "Dirk", nachname: "Jansen" },
     });
-    // Ansprechpartner kommen mit dem Exponat, sobald etwas zugeordnet ist; also ein Link.
-    const link = (
-      await s.app.inject({
-        method: "POST",
-        url: `/api/exponate/${exponat.id}/links`,
-        headers: { cookie: keks },
-        payload: { url: "https://industrialdigitaltwin.org/", titel: "IDTA" },
-      })
-    ).json<{ id: string }>();
 
     await s.app.inject({
       method: "POST",
@@ -234,14 +216,9 @@ describe("Der Titel in values", () => {
       payload: { guid: "TITEL-0004", vorname: "Eva", nachname: "Klein", email: testEmail() },
     });
     await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
+      method: "PUT",
+      url: `/api/besucher/TITEL-0004/besuche/${exponat.id}`,
       headers: { cookie: keks },
-      payload: {
-        guid: "TITEL-0004",
-        exponatId: exponat.id,
-        elemente: [{ art: "link", zielId: link.id }],
-      },
     });
 
     const alle = await werte(s, "TITEL-0004");

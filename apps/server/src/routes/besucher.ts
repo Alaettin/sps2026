@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { badRequest, unauthorized } from "../errors.js";
+import { badRequest } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import {
   aendereBesucher,
@@ -7,10 +7,14 @@ import {
   legeBesucherAn,
   listeBesucher,
   loescheBesucher,
-  zuordnungenVonBesucher,
   type BesucherEingabe,
 } from "../services/besucher.js";
-import { exponateFuerBesucher, leseElemente, setzeZuordnungen } from "../services/zuordnungen.js";
+import {
+  besucheVonBesucher,
+  entferneBesuch,
+  exponateFuerBesucher,
+  setzeBesuch,
+} from "../services/besuche.js";
 import { pruefeAvatarWahl } from "../services/avatare.js";
 import { setzeBesucherPasswortZurueck } from "../services/besucherzugang.js";
 import {
@@ -33,8 +37,8 @@ function mitGeprueftemAvatar<T extends { avatarDateiId?: unknown }>(ctx: Kontext
 /**
  * Besucherverwaltung, nur fuer Admins.
  *
- * Ein Betreuer kommt an Besucherdaten ausschliesslich ueber den Scan-Ablauf, und dort nur
- * an den einen, dessen Pass vor ihm liegt.
+ * Ein Betreuer kommt seit dem 02.11.2026 an keine Besucherdaten mehr: der Besucher scannt das
+ * Exponat selbst, und der Betreuer sieht dabei nichts von ihm.
  */
 export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
   app.get<{ Querystring: { suche?: string; seite?: string; groesse?: string } }>(
@@ -60,7 +64,8 @@ export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
     { preHandler: app.verlangeAdmin },
     async (req) => ({
       ...findeBesucher(ctx.db, req.params.guid),
-      zuordnungen: zuordnungenVonBesucher(ctx.db, req.params.guid),
+      // Fuer die Rueckfrage vor dem Loeschen.
+      besuche: besucheVonBesucher(ctx.db, req.params.guid).length,
     }),
   );
 
@@ -143,7 +148,7 @@ export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
     },
   );
 
-  /** Alle Exponate aus Sicht dieses Besuchers, fuer die Kaestchen im Besucherdetail. */
+  /** Alle Exponate aus Sicht dieses Besuchers, fuer die Schalter im Besucherdetail. */
   app.get<{ Params: { guid: string } }>(
     "/api/besucher/:guid/exponate",
     { preHandler: app.verlangeAdmin },
@@ -154,23 +159,22 @@ export function besucherRoutes(app: FastifyInstance, ctx: Kontext): void {
   );
 
   /**
-   * Setzt die Zuordnungen an einem Exponat auf genau die mitgeschickten Elemente.
-   *
-   * Ersetzt das einzelne Entfernen: die Kaestchen im Besucherdetail schicken je Exponat den
-   * ganzen Sollzustand, eine leere Liste nimmt das Exponat weg.
+   * Setzt oder nimmt den Besuch eines Exponats von Hand, seit dem 02.11.2026. Ersetzt die
+   * Kaestchen je Dokument und Link: aufgenommen wird das ganze Exponat.
    */
-  app.put<{ Params: { guid: string; exponatId: string }; Body: { elemente?: unknown } }>(
-    "/api/besucher/:guid/zuordnungen/:exponatId",
+  app.put<{ Params: { guid: string; exponatId: string } }>(
+    "/api/besucher/:guid/besuche/:exponatId",
     { preHandler: app.verlangeAdmin },
-    async (req) => {
-      const nutzer = req.nutzer;
-      if (nutzer === null) throw unauthorized();
-      return setzeZuordnungen(ctx.db, {
-        guid: req.params.guid,
-        exponatId: req.params.exponatId,
-        elemente: leseElemente(req.body?.elemente),
-        nutzerId: nutzer.id,
-      });
+    async (req) => setzeBesuch(ctx.db, req.params.guid, req.params.exponatId),
+  );
+
+  app.delete<{ Params: { guid: string; exponatId: string } }>(
+    "/api/besucher/:guid/besuche/:exponatId",
+    { preHandler: app.verlangeAdmin },
+    async (req, reply) => {
+      entferneBesuch(ctx.db, req.params.guid, req.params.exponatId);
+      void reply.code(204);
+      return null;
     },
   );
 }

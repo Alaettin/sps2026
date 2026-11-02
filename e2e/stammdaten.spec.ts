@@ -1,20 +1,16 @@
 import { expect, test } from "@playwright/test";
 import {
   legeExponatAn,
-  merkeAnsprechpartner,
   merkeBesucher,
   merkeExponat,
-  raeumeAnsprechpartnerAuf,
   raeumeBesucherAuf,
   raeumeExponateAuf,
   seiteMitEintrag,
 } from "./exponate.js";
 
 /**
- * Ansprechpartner als Stammdaten, Besucherfoto, Betreuerzuweisung.
- *
- * Drei Dinge, die der Server konnte und die Oberfläche nicht anbot, plus der Umbau der
- * Ansprechpartner auf eigenständige Datensätze.
+ * Besucherfoto und Betreuerzuweisung: Dinge, die der Server konnte und die Oberfläche nicht
+ * anbot. Die Ansprechpartner stehen seit dem 02.11.2026 am Exponat, siehe `exponat.spec.ts`.
  *
  * **Alle Fälle laufen auch am Handy.** Bis zum 08.10.2026 war die Tabellenbedienung bei
  * 390 px ausgenommen, weil die Aktionsspalte hinter dem waagerechten Scrollbereich lag.
@@ -26,87 +22,9 @@ import {
 test.afterEach(async ({ request }) => {
   await raeumeBesucherAuf(request);
   await raeumeExponateAuf(request);
-  await raeumeAnsprechpartnerAuf(request);
 });
 
 test.describe("Stammdaten", () => {
-  test("Ansprechpartner lassen sich anlegen und zwei Exponaten zuweisen", async ({
-    page,
-    request,
-  }) => {
-    const eins = await legeExponatAn(request, `Erstes ${String(Date.now()).slice(-5)}`);
-    const zwei = await legeExponatAn(request, `Zweites ${String(Date.now()).slice(-5)}`);
-    const name = `Teilt${String(Date.now()).slice(-6)}`;
-
-    // Auf der eigenen Seite anlegen.
-    await page.goto("/ansprechpartner");
-    await page.getByRole("button", { name: "Ansprechpartner anlegen" }).click();
-    const formular = page.getByRole("dialog");
-    await formular.getByLabel("Vorname").fill("Hendrik");
-    await formular.getByLabel("Nachname").fill(name);
-    await formular.getByLabel("Firma").fill("IDTA Geschäftsstelle");
-    await formular.getByRole("button", { name: "Speichern" }).click();
-    await expect(page.getByRole("cell", { name: `Hendrik ${name}` })).toBeVisible();
-
-    // An beiden Exponaten auswählen.
-    for (const e of [eins, zwei]) {
-      await page.goto(`/exponate/${e.id}`);
-      await page.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
-      const auswahl = page.getByRole("dialog");
-      await auswahl.getByLabel("Ansprechpartner suchen").fill(name);
-      await auswahl
-        .getByRole("button", { name: /Zuweisen/ })
-        .first()
-        .click();
-      await expect(page.getByText(`Hendrik ${name}`)).toBeVisible();
-    }
-
-    /*
-     * **Eine Person, zwei Exponate.** Genau das ging vorher nicht: ein Ansprechpartner hing
-     * an genau einem Exponat und musste für das zweite neu angelegt werden.
-     */
-    const person = (
-      (await (await request.get("/api/ansprechpartner")).json()) as {
-        id: string;
-        nachname: string;
-      }[]
-    ).find((p) => p.nachname === name);
-    expect(person, "angelegter Ansprechpartner nicht in der Liste").toBeDefined();
-    merkeAnsprechpartner((person as { id: string }).id);
-
-    const seite = await seiteMitEintrag(
-      request,
-      "/api/ansprechpartner",
-      (person as { id: string }).id,
-    );
-    await page.goto(`/ansprechpartner?seite=${String(seite)}`);
-    const zeile = page.getByRole("row", { name: new RegExp(name) });
-    await expect(zeile.getByRole("cell", { name: "2", exact: true })).toBeVisible();
-  });
-
-  test("derselbe Ansprechpartner lässt sich nicht zweimal am selben Exponat auswählen", async ({
-    page,
-    request,
-  }) => {
-    const exponat = await legeExponatAn(request, `Einmal ${String(Date.now()).slice(-5)}`);
-    const name = `Einmal${String(Date.now()).slice(-6)}`;
-    const person = await (
-      await request.post("/api/ansprechpartner", { data: { vorname: "Anna", nachname: name } })
-    ).json();
-    merkeAnsprechpartner(person.id as string);
-    await request.post(`/api/exponate/${exponat.id}/ansprechpartner`, {
-      data: { ansprechpartnerId: person.id },
-    });
-
-    await page.goto(`/exponate/${exponat.id}`);
-    await page.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
-    const auswahl = page.getByRole("dialog");
-    await auswahl.getByLabel("Ansprechpartner suchen").fill(name);
-
-    // Wer schon zugewiesen ist, steht nicht mehr in der Auswahl.
-    await expect(auswahl.getByText(`Anna ${name}`)).toHaveCount(0);
-  });
-
   test("ein Besucher zeigt den Standard-Avatar, ohne dass sich etwas hochladen lässt", async ({
     page,
     request,

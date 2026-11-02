@@ -1,14 +1,13 @@
 import type { InjectOptions } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
-import { exponatBetreuer, zuordnungen } from "../src/db/schema.js";
+import { besuche, exponatBetreuer } from "../src/db/schema.js";
 import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Nutzer loeschen, seit dem 20.10.2026.
  *
- * Die Kernzusage: **was ein Betreuer vergeben hat, bleibt beim Besucher.** Vorher
- * verhinderte die Pflichtspalte `zuordnungen.app_nutzer_id` jedes Loeschen eines solchen
- * Betreuers; jetzt wird sie `NULL`.
+ * Die Kernzusage: **was ein Betreuer am Exponat gepflegt hat, bleibt.** Seit dem 02.11.2026
+ * pflegt er Dokumente, Links und Ansprechpartner selbst; sie gehoeren dem Exponat, nicht ihm.
  */
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
@@ -36,15 +35,6 @@ async function aufbau() {
     { method: "POST", url: "/api/exponate", payload: { name: "Ventil" } },
     201,
   );
-  const link = await ruf<{ id: string }>(
-    admin,
-    {
-      method: "POST",
-      url: `/api/exponate/${exponat.id}/links`,
-      payload: { url: "https://industrialdigitaltwin.org/loeschen", titel: "Bleibt" },
-    },
-    201,
-  );
   const neu = async (name: string, rolle: string) =>
     ruf<{ id: string; email: string; startpasswort: string }>(
       admin,
@@ -55,15 +45,25 @@ async function aufbau() {
       },
       201,
     );
-  return { s, admin, ruf, exponat, link, neu };
+  return { s, admin, ruf, exponat, neu };
 }
 
 describe("Nutzer loeschen", () => {
-  it("entfernt einen Betreuer, laesst aber stehen, was er vergeben hat", async () => {
-    const { s, admin, ruf, exponat, link, neu } = await aufbau();
+  it("entfernt einen Betreuer, laesst aber stehen, was er gepflegt hat", async () => {
+    const { s, admin, ruf, exponat, neu } = await aufbau();
     const betreuer = await neu("betreuer", "betreuer");
     const bk = await melde(s, betreuer.email, betreuer.startpasswort);
 
+    // Der Betreuer legt am eigenen Exponat einen Link an.
+    await ruf(
+      bk,
+      {
+        method: "POST",
+        url: `/api/exponate/${exponat.id}/links`,
+        payload: { url: "https://industrialdigitaltwin.org/loeschen", titel: "Bleibt" },
+      },
+      201,
+    );
     await ruf(
       admin,
       {
@@ -73,19 +73,7 @@ describe("Nutzer loeschen", () => {
       },
       201,
     );
-    await ruf(
-      bk,
-      {
-        method: "POST",
-        url: "/api/scan/zuordnen",
-        payload: {
-          guid: "LOE-1",
-          exponatId: exponat.id,
-          elemente: [{ art: "link", zielId: link.id }],
-        },
-      },
-      200,
-    );
+    await ruf(admin, { method: "PUT", url: `/api/besucher/LOE-1/besuche/${exponat.id}` }, 200);
 
     await ruf(admin, { method: "DELETE", url: `/api/nutzer/${betreuer.id}` }, 204);
 
@@ -94,12 +82,8 @@ describe("Nutzer loeschen", () => {
     expect(liste.map((n) => n.id)).not.toContain(betreuer.id);
     expect(s.ctx.db.select().from(exponatBetreuer).all()).toEqual([]);
 
-    // Die Zuordnung steht noch, nur ohne Urheber.
-    const reihen = s.ctx.db.select().from(zuordnungen).all();
-    expect(reihen).toHaveLength(1);
-    expect(reihen[0]?.appNutzerId).toBeNull();
-
-    // Und der Besucher bekommt den Link im Konnektor weiter.
+    // Besuch und Link stehen noch, der Besucher bekommt den Link im Konnektor weiter.
+    expect(s.ctx.db.select().from(besuche).all()).toHaveLength(1);
     const werte = (
       await s.app.inject({ method: "POST", url: "/connector/product/LOE-1/values", payload: {} })
     ).json<{ value: string }[]>();
@@ -110,11 +94,10 @@ describe("Nutzer loeschen", () => {
   });
 
   it("verbietet, sich selbst zu loeschen", async () => {
-    const { s, admin, ruf } = await aufbau();
+    const { admin, ruf } = await aufbau();
     const ich = await ruf<{ id: string }>(admin, { method: "GET", url: "/api/auth/ich" }, 200);
     await ruf(admin, { method: "DELETE", url: `/api/nutzer/${ich.id}` }, 409);
     await ruf(admin, { method: "GET", url: "/api/auth/ich" }, 200);
-    expect(s.ctx.db.select().from(zuordnungen).all()).toEqual([]);
   });
 
   it("laesst einen Admin einen anderen Admin loeschen", async () => {

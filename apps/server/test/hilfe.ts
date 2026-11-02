@@ -84,3 +84,95 @@ export async function melde(stand: Pruefstand, email: string, passwort: string):
 export function verlangeAnmeldung(stand: Pruefstand, an: boolean): void {
   setzeSchalter(stand.ctx.db, SCHLUESSEL_ANMELDUNG, an);
 }
+
+/**
+ * Ein Multipart-Koerper aus Textfeldern und hoechstens einer Datei, fuer `inject`.
+ *
+ * Dokumente gehen seit dem 02.11.2026 samt Datei in **einem** Aufruf an das Exponat.
+ */
+export function multipart(
+  felder: Record<string, string>,
+  datei?: { feld?: string; name: string; inhalt: Buffer },
+): { payload: Buffer; headers: Record<string, string> } {
+  const grenze = "----passport";
+  const teile: Buffer[] = [];
+  for (const [name, wert] of Object.entries(felder)) {
+    teile.push(
+      Buffer.from(
+        `--${grenze}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${wert}\r\n`,
+        "utf8",
+      ),
+    );
+  }
+  if (datei !== undefined) {
+    teile.push(
+      Buffer.from(
+        `--${grenze}\r\nContent-Disposition: form-data; name="${datei.feld ?? "datei"}"; filename="${datei.name}"\r\n` +
+          "Content-Type: application/octet-stream\r\n\r\n",
+        "utf8",
+      ),
+      datei.inhalt,
+      Buffer.from("\r\n", "utf8"),
+    );
+  }
+  teile.push(Buffer.from(`--${grenze}--\r\n`, "utf8"));
+  return {
+    payload: Buffer.concat(teile),
+    headers: { "content-type": `multipart/form-data; boundary=${grenze}` },
+  };
+}
+
+/** Legt ein PDF-Dokument an einem Exponat an und gibt die Antwort zurueck. */
+export async function legeDokumentAn(
+  stand: Pruefstand,
+  keks: string,
+  exponatId: string,
+  titel = "Datenblatt",
+) {
+  const { payload, headers } = multipart(
+    { titel },
+    { name: "blatt.pdf", inhalt: Buffer.from("%PDF-1.4 test\n") },
+  );
+  return stand.app.inject({
+    method: "POST",
+    url: `/api/exponate/${exponatId}/dokumente`,
+    headers: { ...headers, cookie: keks },
+    payload,
+  });
+}
+
+/** Der geheime Code des QR-Codes am Exponat, direkt aus der Datenbank. */
+export function scanCode(stand: Pruefstand, exponatId: string): string {
+  const reihe = stand.ctx.sqlite
+    .prepare("select scan_code as code from exponate where id = ?")
+    .get(exponatId) as { code: string } | undefined;
+  if (reihe === undefined) throw new Error(`kein Exponat ${exponatId}`);
+  return reihe.code;
+}
+
+/**
+ * Legt einen Besucher an (als Admin), meldet ihn mit dem Standardpasswort an und gibt GUID
+ * und Cookie zurueck.
+ */
+export async function alsBesucher(stand: Pruefstand, adminKeks: string) {
+  const email = testEmail();
+  const besucher = (
+    await stand.app.inject({
+      method: "POST",
+      url: "/api/besucher",
+      headers: { cookie: adminKeks },
+      payload: { vorname: "Anna", nachname: "Ahrens", email },
+    })
+  ).json<{ guid: string }>();
+  return { guid: besucher.guid, keks: await melde(stand, email, "password") };
+}
+
+/** Der Besucher scannt den QR-Code am Exponat. */
+export function nimmAuf(stand: Pruefstand, besucherKeks: string, code: string) {
+  return stand.app.inject({
+    method: "POST",
+    url: "/api/mein/besuche",
+    headers: { cookie: besucherKeks },
+    payload: { code },
+  });
+}

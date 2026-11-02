@@ -27,10 +27,13 @@ export function verlangeExponatZugriff(ctx: Kontext, req: FastifyRequest, expona
 }
 
 /**
- * Nur Admins duerfen Exponate und ihre Inhalte aendern.
+ * Darf dieser Nutzer die **Inhalte** dieses Exponats aendern (Dokumente, Links,
+ * Ansprechpartner)?
  *
- * Ein Betreuer sieht sein Exponat und scannt daran, er legt aber keine Dokumente an und
- * aendert keine Kennungen: beides wirkt sich auf das Modell in Axon aus.
+ * Seit dem 02.11.2026 Admin **und** Betreuer dieses Exponats; vorher nur der Admin, und der
+ * Betreuer scannte. Name, Beschreibung und Loeschen des Exponats bleiben beim Admin
+ * (`verlangeAdmin` an der Route). Die Plaetze vergibt weiter der Server, das Mapping in Axon
+ * bleibt also stabil, egal wer anlegt.
  */
 export function verlangeExponatBearbeiten(
   ctx: Kontext,
@@ -38,8 +41,4 @@ export function verlangeExponatBearbeiten(
   exponatId: string,
 ): void {
   verlangeExponatZugriff(ctx, req, exponatId);
-  if (req.nutzer?.rolle !== "admin") {
-    // Auch hier 404 und nicht 403: dieselbe Begruendung wie oben.
-    throw notFound("exponat-unbekannt", "Unknown exhibit.");
-  }
 }

@@ -167,8 +167,7 @@ export function aendereNutzer(
 /**
  * Loescht einen Nutzer endgueltig, seit dem 20.10.2026.
  *
- * Was er vergeben hat, bleibt beim Besucher: `zuordnungen.app_nutzer_id` wird `NULL`
- * (`ON DELETE SET NULL`), seine Exponat-Zuweisungen fallen per Kaskade weg. Eine laufende
+ * Seine Exponat-Zuweisungen fallen per Kaskade weg; was er am Exponat gepflegt hat, bleibt. Eine laufende
  * Sitzung endet bei der naechsten Anfrage, weil `verlangeAnmeldung` die Zeile nicht mehr
  * findet.
  *

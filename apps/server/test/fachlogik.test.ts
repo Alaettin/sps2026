@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
+import {
+  alsBesucher,
+  legeDokumentAn,
+  melde,
+  nimmAuf,
+  scanCode,
+  starte,
+  testEmail,
+  type Pruefstand,
+} from "./hilfe.js";
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
 
@@ -14,7 +23,7 @@ async function alsAdmin() {
   return { s: stand, keks: await melde(stand, "admin@idta-passport.de", "startpasswort-123") };
 }
 
-/** Legt ein Exponat mit einer Datei und einem Dokument an. */
+/** Legt ein Exponat mit einem Dokument an. */
 async function mitExponat(s: Pruefstand, keks: string, name = "Pruefexponat") {
   const exponat = (
     await s.app.inject({
@@ -26,35 +35,8 @@ async function mitExponat(s: Pruefstand, keks: string, name = "Pruefexponat") {
     })
   ).json<{ id: string }>();
 
-  const grenze = "----passport";
-  const koerper = Buffer.concat([
-    Buffer.from(
-      `--${grenze}\r\nContent-Disposition: form-data; name="datei"; filename="blatt.pdf"\r\n` +
-        "Content-Type: application/octet-stream\r\n\r\n",
-      "utf8",
-    ),
-    Buffer.from("%PDF-1.4 test\n"),
-    Buffer.from(`\r\n--${grenze}--\r\n`, "utf8"),
-  ]);
-  const datei = (
-    await s.app.inject({
-      method: "POST",
-      url: "/api/dateien",
-      headers: { cookie: keks, "content-type": `multipart/form-data; boundary=${grenze}` },
-      payload: koerper,
-    })
-  ).json<{ id: string }>();
-
-  const dok = (
-    await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${exponat.id}/dokumente`,
-      headers: { cookie: keks },
-      payload: { dateiId: datei.id, titel: "Datenblatt" },
-    })
-  ).json<{ id: string; platz: number }>();
-
-  return { exponatId: exponat.id, dateiId: datei.id, dokumentId: dok.id, platz: dok.platz };
+  const dok = (await legeDokumentAn(s, keks, exponat.id)).json<{ id: string; platz: number }>();
+  return { exponatId: exponat.id, dokumentId: dok.id, platz: dok.platz };
 }
 
 describe("Besucher", () => {
@@ -123,16 +105,9 @@ describe("Besucher", () => {
 describe("Exponate und Plaetze", () => {
   it("vergibt die kleinste freie Nummer, nicht die naechsthoehere", async () => {
     const { s, keks } = await alsAdmin();
-    const { exponatId, dateiId, dokumentId } = await mitExponat(s, keks, "Eins");
+    const { exponatId, dokumentId } = await mitExponat(s, keks, "Eins");
 
-    const zweites = (
-      await s.app.inject({
-        method: "POST",
-        url: `/api/exponate/${exponatId}/dokumente`,
-        headers: { cookie: keks },
-        payload: { dateiId, titel: "Zweites" },
-      })
-    ).json<{ platz: number }>();
+    const zweites = (await legeDokumentAn(s, keks, exponatId, "Zweites")).json<{ platz: number }>();
     expect(zweites.platz).toBe(2);
 
     // Platz 1 freigeben.
@@ -142,14 +117,7 @@ describe("Exponate und Plaetze", () => {
       headers: { cookie: keks },
     });
 
-    const drittes = (
-      await s.app.inject({
-        method: "POST",
-        url: `/api/exponate/${exponatId}/dokumente`,
-        headers: { cookie: keks },
-        payload: { dateiId, titel: "Drittes" },
-      })
-    ).json<{ platz: number }>();
+    const drittes = (await legeDokumentAn(s, keks, exponatId, "Drittes")).json<{ platz: number }>();
     /*
      * **1, nicht 3.** Waere es `max + 1`, waere die Obergrenze nach zehn Loeschvorgaengen
      * erreicht, obwohl kaum Dokumente da sind.
@@ -159,24 +127,14 @@ describe("Exponate und Plaetze", () => {
 
   it("sperrt das Hinzufuegen, wenn alle zehn Plaetze belegt sind", async () => {
     const { s, keks } = await alsAdmin();
-    const { exponatId, dateiId } = await mitExponat(s, keks, "Eins");
+    const { exponatId } = await mitExponat(s, keks, "Eins");
 
     for (let i = 2; i <= 10; i++) {
-      const antwort = await s.app.inject({
-        method: "POST",
-        url: `/api/exponate/${exponatId}/dokumente`,
-        headers: { cookie: keks },
-        payload: { dateiId, titel: `Nr ${String(i)}` },
-      });
+      const antwort = await legeDokumentAn(s, keks, exponatId, `Nr ${String(i)}`);
       expect(antwort.statusCode, `Platz ${String(i)}`).toBe(201);
     }
 
-    const elftes = await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${exponatId}/dokumente`,
-      headers: { cookie: keks },
-      payload: { dateiId, titel: "Eins zu viel" },
-    });
+    const elftes = await legeDokumentAn(s, keks, exponatId, "Eins zu viel");
     expect(elftes.statusCode).toBe(409);
     expect(elftes.json<{ code: string }>().code).toBe("kontingent-erschoepft");
   });
@@ -258,25 +216,8 @@ describe("Exponate und Plaetze", () => {
   it("nennt die Zahl der betroffenen Besucher vor dem Loeschen", async () => {
     const { s, keks } = await alsAdmin();
     const { exponatId, dokumentId } = await mitExponat(s, keks, "Eins");
-    const besucher = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/besucher",
-        headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
-      })
-    ).json<{ guid: string }>();
-
-    await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: keks },
-      payload: {
-        guid: besucher.guid,
-        exponatId,
-        elemente: [{ art: "dokument", zielId: dokumentId }],
-      },
-    });
+    const besucher = await alsBesucher(s, keks);
+    await nimmAuf(s, besucher.keks, scanCode(s, exponatId));
 
     const betroffene = (
       await s.app.inject({
@@ -285,116 +226,6 @@ describe("Exponate und Plaetze", () => {
       })
     ).json<{ betroffene: number }>();
     expect(betroffene.betroffene).toBe(1);
-  });
-});
-
-describe("Scan und Zuordnungen", () => {
-  it("ist idempotent und meldet beim zweiten Mal null neue", async () => {
-    const { s, keks } = await alsAdmin();
-    const { exponatId, dokumentId } = await mitExponat(s, keks, "Eins");
-    const besucher = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/besucher",
-        headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
-      })
-    ).json<{ guid: string }>();
-
-    const rumpf = {
-      guid: besucher.guid,
-      exponatId,
-      elemente: [{ art: "dokument", zielId: dokumentId }],
-    };
-
-    const erst = await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: keks },
-      payload: rumpf,
-    });
-    expect(erst.json()).toEqual({ neu: 1, bereits: 0 });
-
-    /*
-     * **Derselbe Rumpf noch einmal**, wie ihn "Erneut versuchen" nach `ErrOffline`
-     * schickt. Nichts Neues, kein Fehler, kein Doppelter.
-     */
-    const nochmal = await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: keks },
-      payload: rumpf,
-    });
-    expect(nochmal.statusCode).toBe(200);
-    expect(nochmal.json()).toEqual({ neu: 0, bereits: 1 });
-  });
-
-  it("weist ein Element ab, das zu einem anderen Exponat gehoert", async () => {
-    const { s, keks } = await alsAdmin();
-    const eins = await mitExponat(s, keks, "Eins");
-    const zwei = await mitExponat(s, keks, "Zwei");
-    const besucher = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/besucher",
-        headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
-      })
-    ).json<{ guid: string }>();
-
-    const antwort = await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: keks },
-      // Dokument von E02 am Exponat E01 zuordnen: das darf nicht gehen.
-      payload: {
-        guid: besucher.guid,
-        exponatId: eins.exponatId,
-        elemente: [{ art: "dokument", zielId: zwei.dokumentId }],
-      },
-    });
-    expect(antwort.statusCode).toBe(404);
-  });
-
-  it("markiert bereits zugeordnete Elemente und zaehlt sie nicht als offen", async () => {
-    const { s, keks } = await alsAdmin();
-    const { exponatId, dokumentId, dateiId } = await mitExponat(s, keks, "Eins");
-    await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${exponatId}/dokumente`,
-      headers: { cookie: keks },
-      payload: { dateiId, titel: "Zweites" },
-    });
-    const besucher = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/besucher",
-        headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
-      })
-    ).json<{ guid: string }>();
-
-    await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: keks },
-      payload: {
-        guid: besucher.guid,
-        exponatId,
-        elemente: [{ art: "dokument", zielId: dokumentId }],
-      },
-    });
-
-    const treffer = (
-      await s.app.inject({
-        url: `/api/scan/besucher/${besucher.guid}?exponat=${exponatId}`,
-        headers: { cookie: keks },
-      })
-    ).json<{ dokumente: { id: string; bereitsZugeordnet: boolean }[]; offen: number }>();
-
-    expect(treffer.dokumente.find((d) => d.id === dokumentId)?.bereitsZugeordnet).toBe(true);
-    // Nur das zweite Dokument ist noch offen, also "Zuordnen (1)".
-    expect(treffer.offen).toBe(1);
   });
 });
 
@@ -461,46 +292,6 @@ describe("Rechte", () => {
     expect(antwort.statusCode).not.toBe(403);
   });
 
-  it("laesst einen Betreuer nicht an einem fremden Exponat scannen", async () => {
-    const { s, keks } = await alsAdmin();
-    const eigen = await mitExponat(s, keks, "Eins");
-    const fremd = await mitExponat(s, keks, "Zwei");
-    const betreuer = await mitBetreuer(s, keks, eigen.exponatId);
-    const besucher = (
-      await s.app.inject({
-        method: "POST",
-        url: "/api/besucher",
-        headers: { cookie: keks },
-        payload: { vorname: "Anna", nachname: "Ahrens", email: testEmail() },
-      })
-    ).json<{ guid: string }>();
-
-    const verwehrt = await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: betreuer.keks },
-      payload: {
-        guid: besucher.guid,
-        exponatId: fremd.exponatId,
-        elemente: [{ art: "dokument", zielId: fremd.dokumentId }],
-      },
-    });
-    expect(verwehrt.statusCode).toBe(404);
-
-    // Gegenrichtung: am eigenen Exponat geht es.
-    const erlaubt = await s.app.inject({
-      method: "POST",
-      url: "/api/scan/zuordnen",
-      headers: { cookie: betreuer.keks },
-      payload: {
-        guid: besucher.guid,
-        exponatId: eigen.exponatId,
-        elemente: [{ art: "dokument", zielId: eigen.dokumentId }],
-      },
-    });
-    expect(erlaubt.statusCode).toBe(200);
-  });
-
   it("haelt einen Betreuer von der Besucherliste fern", async () => {
     const { s, keks } = await alsAdmin();
     const eigen = await mitExponat(s, keks, "Eins");
@@ -519,16 +310,16 @@ describe("Rechte", () => {
     ).toBe(403);
   });
 
-  it("laesst einen Betreuer keine Dokumente anlegen", async () => {
+  it("laesst einen Betreuer das Exponat selbst nicht umbenennen", async () => {
     const { s, keks } = await alsAdmin();
     const eigen = await mitExponat(s, keks, "Eins");
     const betreuer = await mitBetreuer(s, keks, eigen.exponatId);
 
     const antwort = await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${eigen.exponatId}/dokumente`,
+      method: "PATCH",
+      url: `/api/exponate/${eigen.exponatId}`,
       headers: { cookie: betreuer.keks },
-      payload: { dateiId: eigen.dateiId, titel: "Darf nicht" },
+      payload: { name: "Darf nicht" },
     });
     expect(antwort.statusCode).toBe(403);
   });
@@ -574,9 +365,8 @@ describe("Dashboard", () => {
   /**
    * Die zweite Kachelreihe.
    *
-   * **Ansprechpartner zaehlt die angelegten Personen, nicht ihre Zuweisungen.** Deshalb
-   * steht hier eine Person an **zwei** Exponaten: zaehlte die Kachel die Zuweisungen,
-   * stuende dort 2 statt 1, und genau das soll der Fall festhalten.
+   * **Ansprechpartner zaehlt seit dem 02.11.2026 je Exponat**: derselbe Mensch an zwei
+   * Exponaten ist zweimal angelegt und zaehlt zweimal.
    */
   it("nennt Dokumente, Links und Ansprechpartner", async () => {
     const { s, keks } = await alsAdmin();
@@ -584,12 +374,7 @@ describe("Dashboard", () => {
     const zwei = await mitExponat(s, keks, "Zwei");
 
     // Ein Dokument am ersten Exponat.
-    await s.app.inject({
-      method: "POST",
-      url: `/api/exponate/${eins.exponatId}/dokumente`,
-      headers: { cookie: keks },
-      payload: { dateiId: eins.dateiId, titel: "Datenblatt" },
-    });
+    await legeDokumentAn(s, keks, eins.exponatId);
 
     // Zwei Links, verteilt auf beide Exponate.
     for (const [id, titel] of [
@@ -604,23 +389,15 @@ describe("Dashboard", () => {
       });
     }
 
-    // **Eine** Person, an beiden Exponaten.
-    const person = (
-      await s.app.inject({
+    // Dieselbe Person an beiden Exponaten, je ein eigener Datensatz.
+    for (const id of [eins.exponatId, zwei.exponatId]) {
+      const anlage = await s.app.inject({
         method: "POST",
-        url: "/api/ansprechpartner",
+        url: `/api/exponate/${id}/kontakte`,
         headers: { cookie: keks },
         payload: { vorname: "Hendrik", nachname: "Sassenberg" },
-      })
-    ).json<{ id: string }>();
-    for (const id of [eins.exponatId, zwei.exponatId]) {
-      const zuweisung = await s.app.inject({
-        method: "POST",
-        url: `/api/exponate/${id}/ansprechpartner`,
-        headers: { cookie: keks },
-        payload: { ansprechpartnerId: person.id },
       });
-      expect(zuweisung.statusCode, "Zuweisung").toBeLessThan(300);
+      expect(anlage.statusCode, "Anlage").toBe(201);
     }
 
     const k = (await s.app.inject({ url: "/api/dashboard", headers: { cookie: keks } })).json<{
@@ -633,6 +410,6 @@ describe("Dashboard", () => {
      */
     expect(k["dokumenteGesamt"]).toBe(3);
     expect(k["linksGesamt"]).toBe(2);
-    expect(k["ansprechpartnerGesamt"]).toBe(1);
+    expect(k["ansprechpartnerGesamt"]).toBe(2);
   });
 });

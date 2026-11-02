@@ -32,10 +32,9 @@ test("das Dashboard zeigt sechs Kacheln", async ({ page }) => {
   }
 });
 
-test("die vier erklärenden Absätze sind nirgends mehr zu finden", async ({ page, request }) => {
+test("die erklärenden Absätze sind nirgends mehr zu finden", async ({ page, request }) => {
   const stellen: [string, RegExp][] = [
     ["/exponate", /Die Kennung \(E01/],
-    ["/ansprechpartner", /Diese Personen stehen an den Exponaten/],
     ["/api", /Axon Core holt die Besucherdaten/],
   ];
   for (const [pfad, muster] of stellen) {
@@ -90,8 +89,8 @@ test("der Konnektor-Zugang steht auf aus und warnt, eingeschaltet nicht mehr", a
   await expect(block.getByText(/Die Schnittstelle ist ohne Anmeldung erreichbar/)).toBeVisible();
 });
 
-test("Exponate, Ansprechpartner und Nutzer blättern zu zehn", async ({ page }) => {
-  for (const pfad of ["/exponate", "/ansprechpartner", "/nutzer"]) {
+test("Exponate und Nutzer blättern zu zehn", async ({ page }) => {
+  for (const pfad of ["/exponate", "/nutzer"]) {
     await page.goto(pfad);
     await expect(page.getByRole("table"), pfad).toBeVisible();
 
@@ -151,7 +150,7 @@ test("die entfernten Blöcke sind nirgends mehr zu finden", async ({ page }) => 
   await page.goto("/");
   await expect(page.getByText("Letzte Zuordnungen")).toHaveCount(0);
   // Die Balken je Exponat bleiben.
-  await expect(page.getByText("Zuordnungen je Exponat")).toBeVisible();
+  await expect(page.getByText("Aufnahmen je Exponat")).toBeVisible();
 });
 
 /**

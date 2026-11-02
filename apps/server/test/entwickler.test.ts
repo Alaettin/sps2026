@@ -26,7 +26,7 @@ describe("Entwicklermodus", () => {
 
     expect(bestand["besucher"]).toBe(700);
     expect(bestand["exponate"]).toBe(10);
-    expect(bestand["zuordnungen"]).toBeGreaterThan(0);
+    expect(bestand["besuche"]).toBeGreaterThan(0);
     expect(bestand["dateien"]).toBeGreaterThan(0);
     // Die Nutzer bleiben, werden aber genannt, damit der Dialog es sagen kann.
     expect(bestand["appNutzer"]).toBe(1);
@@ -69,7 +69,7 @@ describe("Entwicklermodus", () => {
     const nachher = (
       await s.app.inject({ url: "/api/entwickler/bestand", headers: { cookie: keks } })
     ).json<Record<string, number>>();
-    for (const feld of ["besucher", "exponate", "dokumente", "links", "kontakte", "zuordnungen"]) {
+    for (const feld of ["besucher", "exponate", "dokumente", "links", "kontakte", "besuche"]) {
       expect(nachher[feld], feld).toBe(0);
     }
     /*

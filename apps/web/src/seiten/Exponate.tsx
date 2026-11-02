@@ -25,16 +25,14 @@ interface Exponatzeile {
   name: string;
   beschreibung: string | null;
   anzahl: { dokumente: number; links: number; kontakte: number };
-  scanbar: boolean;
 }
 
 /**
- * Für wen die Weiterleitung in den Scan schon geschah, **je Anmeldung**.
+ * Für wen die Weiterleitung ins Exponat schon geschah, **je Anmeldung**.
  *
- * Bis zum 20.10.2026 ein `useRef`: der lebt nur so lange wie die eingehängte Seite. „Scannen
- * beenden“ führt Betreuer hierher, die Seite wird neu eingehängt, der Merker ist wieder leer,
- * und es geht zurück in den Scan. Eine Schleife ohne Ausgang, also auch ohne Abmelden. An
- * die Id gebunden, damit der nächste Betreuer am selben Gerät wieder direkt im Scan landet.
+ * Ein `useRef` lebte nur so lange wie die eingehängte Seite: „Zurück zur Liste“ hängt sie neu
+ * ein, und es ginge sofort wieder ins Exponat. An die Id gebunden, damit der nächste Betreuer
+ * am selben Gerät wieder direkt dort landet.
  */
 let weitergeleitetFuer: string | null = null;
 
@@ -44,16 +42,15 @@ export function Exponate({ ich }: { ich: Ich }) {
   const { seite, zuSeite, sichtbar, gesamt } = useBlaettern(daten ?? []);
 
   /*
-   * **Ein Betreuer mit genau einem Exponat landet direkt im Scan-Ablauf.** So steht es in
-   * der Uebergabe: am Stand soll niemand erst eine Liste mit einem Eintrag durchklicken.
-   *
-   * Nur einmal je Anmeldung, sonst kommt er aus dem Scan nie wieder in die Liste zurueck.
+   * **Ein Betreuer mit genau einem Exponat landet direkt in dessen Pflege**, seit dem
+   * 02.11.2026 (vorher im Scan, den es nicht mehr gibt). Eine Liste mit einem Eintrag muss
+   * niemand durchklicken. Nur einmal je Anmeldung, sonst kommt er nie zur Liste zurück.
    */
   useEffect(() => {
     if (weitergeleitetFuer === ich.id || daten === null || ich.rolle === "admin") return;
-    if (daten.length === 1 && daten[0]?.scanbar === true) {
+    if (daten.length === 1 && daten[0] !== undefined) {
       weitergeleitetFuer = ich.id;
-      void navigate(`/exponate/${daten[0].id}/scan`, { replace: true });
+      void navigate(`/exponate/${daten[0].id}`, { replace: true });
     }
   }, [daten, ich.id, ich.rolle, navigate]);
 
@@ -156,26 +153,19 @@ export function Exponate({ ich }: { ich: Ich }) {
                     />
                   </Zelle>
                   <Zelle titel="Status">
-                    {e.scanbar ? (
+                    {e.anzahl.dokumente + e.anzahl.links + e.anzahl.kontakte > 0 ? (
                       <Markierung text="BEREIT" />
                     ) : (
                       <Markierung text="OHNE INHALT" farbe="var(--color-fehler)" />
                     )}
                   </Zelle>
                   <Zelle className="text-right">
-                    <span className="flex flex-wrap justify-end gap-3">
-                      {e.scanbar && (
-                        <Link to={`/exponate/${e.id}/scan`}>
-                          <Knopf className="h-9 px-4 text-[13px]">Scannen</Knopf>
-                        </Link>
-                      )}
-                      <Link
-                        to={`/exponate/${e.id}`}
-                        className="self-center text-[13px] font-semibold whitespace-nowrap text-primaer-dunkel"
-                      >
-                        {istAdmin ? "Bearbeiten →" : "Ansehen →"}
-                      </Link>
-                    </span>
+                    <Link
+                      to={`/exponate/${e.id}`}
+                      className="text-[13px] font-semibold whitespace-nowrap text-primaer-dunkel"
+                    >
+                      Bearbeiten →
+                    </Link>
                   </Zelle>
                 </Reihe>
               ))}

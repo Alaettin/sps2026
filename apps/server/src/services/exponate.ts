@@ -1,18 +1,20 @@
-import { randomUUID } from "node:crypto";
-import { and, asc, countDistinct, eq } from "drizzle-orm";
+import { randomBytes, randomUUID } from "node:crypto";
+import { and, asc, count, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
+import type { Dateiablage } from "../ablage/dateien.js";
 import {
+  besuche,
   dateien,
   exponate,
   exponatBetreuer,
   exponatDokumente,
-  exponatAnsprechpartner,
+  exponatKontakte,
   exponatLinks,
-  zuordnungen,
 } from "../db/schema.js";
 import { badRequest, kontingentErschoepft, notFound } from "../errors.js";
 import { MAX_DOKUMENTE, MAX_LINKS } from "../modell/felder.js";
-import { ansprechpartnerVonExponat } from "./ansprechpartner.js";
+import { loescheDatei, speichereDatei } from "./dateien.js";
+import { kontakteVonExponat } from "./kontakte.js";
 
 /**
  * Exponate und ihre Inhalte.
@@ -67,6 +69,8 @@ export function legeExponatAn(db: Db, eingabe: { name: string; beschreibung?: st
     kennung: naechsteKennung(db),
     name: eingabe.name.trim(),
     beschreibung: eingabe.beschreibung?.trim() ?? null,
+    // Der geheime Teil des QR-Codes am Exponat, siehe `exponate.scanCode`.
+    scanCode: randomBytes(16).toString("base64url"),
     angelegt: Date.now(),
   };
   db.insert(exponate).values(reihe).run();
@@ -116,7 +120,7 @@ export function loescheExponat(db: Db, id: string): void {
  * sind, und die Obergrenze waere nach zehn Loeschvorgaengen erreicht, ohne dass zehn
  * Dokumente da sind.
  */
-function kleinsterFreierPlatz(belegt: number[], obergrenze: number, was: string): number {
+export function kleinsterFreierPlatz(belegt: number[], obergrenze: number, was: string): number {
   const genommen = new Set(belegt);
   for (let p = 1; p <= obergrenze; p++) {
     if (!genommen.has(p)) return p;
@@ -127,49 +131,164 @@ function kleinsterFreierPlatz(belegt: number[], obergrenze: number, was: string)
   });
 }
 
-export function legeDokumentAn(
+function belegtePlaetze(
   db: Db,
+  tabelle: typeof exponatDokumente | typeof exponatLinks,
   exponatId: string,
-  eingabe: { dateiId: string; titel: string; beschreibung?: string | null },
 ) {
-  findeExponat(db, exponatId);
-  const belegt = db
-    .select({ platz: exponatDokumente.platz })
-    .from(exponatDokumente)
-    .where(eq(exponatDokumente.exponatId, exponatId))
+  return db
+    .select({ platz: tabelle.platz })
+    .from(tabelle)
+    .where(eq(tabelle.exponatId, exponatId))
     .all()
     .map((d) => d.platz);
+}
 
+/** Eine hochgeladene Datei aus einem Multipart-Koerper. */
+export interface Upload {
+  name: string;
+  inhalt: Buffer;
+}
+
+/**
+ * Legt ein Dokument **samt Datei** an, seit dem 02.11.2026 in einem Aufruf.
+ *
+ * Der Platz wird **vor** dem Speichern der Datei geprueft: sind alle zehn belegt, soll keine
+ * Datei in der Ablage liegen bleiben, an der nichts haengt.
+ */
+export async function legeDokumentAn(
+  db: Db,
+  ablage: Dateiablage,
+  exponatId: string,
+  eingabe: { datei: Upload; titel: string; beschreibung?: string | null },
+) {
+  findeExponat(db, exponatId);
+  if (eingabe.titel.trim() === "") throw badRequest("feld-fehlt", "Field titel is required.");
+  const platz = kleinsterFreierPlatz(
+    belegtePlaetze(db, exponatDokumente, exponatId),
+    MAX_DOKUMENTE,
+    "document",
+  );
+
+  const datei = await speichereDatei(db, ablage, eingabe.datei.name, eingabe.datei.inhalt);
   const reihe = {
     id: randomUUID(),
     exponatId,
-    platz: kleinsterFreierPlatz(belegt, MAX_DOKUMENTE, "document"),
-    dateiId: eingabe.dateiId,
+    platz,
+    dateiId: datei.id,
     titel: eingabe.titel.trim(),
-    beschreibung: eingabe.beschreibung?.trim() ?? null,
+    beschreibung: leerAlsNull(eingabe.beschreibung),
   };
   db.insert(exponatDokumente).values(reihe).run();
   return reihe;
 }
 
+/**
+ * Aendert Titel, Beschreibung oder die Datei eines Dokuments. Der Platz bleibt, also auch das
+ * Mapping in Axon. Eine ersetzte Datei wird geloescht, **nachdem** das Dokument auf die neue
+ * zeigt; andersherum wiese SQLite das Loeschen ab (kein `set null` an dieser Stelle).
+ */
+export async function aendereDokument(
+  db: Db,
+  ablage: Dateiablage,
+  exponatId: string,
+  id: string,
+  eingabe: { datei?: Upload; titel?: string; beschreibung?: string | null },
+) {
+  const vorher = findeElement(db, exponatDokumente, exponatId, id);
+  const aenderung: Partial<typeof exponatDokumente.$inferInsert> = {};
+  if (eingabe.titel !== undefined) {
+    if (eingabe.titel.trim() === "")
+      throw badRequest("feld-fehlt", "Field titel must not be empty.");
+    aenderung.titel = eingabe.titel.trim();
+  }
+  if ("beschreibung" in eingabe) aenderung.beschreibung = leerAlsNull(eingabe.beschreibung);
+  if (eingabe.datei !== undefined) {
+    aenderung.dateiId = (
+      await speichereDatei(db, ablage, eingabe.datei.name, eingabe.datei.inhalt)
+    ).id;
+  }
+
+  if (Object.keys(aenderung).length > 0) {
+    db.update(exponatDokumente).set(aenderung).where(eq(exponatDokumente.id, id)).run();
+  }
+  if (aenderung.dateiId !== undefined) await loescheDatei(db, ablage, vorher.dateiId);
+  return findeElement(db, exponatDokumente, exponatId, id);
+}
+
+/**
+ * Nur `http` und `https`. Seit der Betreuer Links selbst anlegt, landet sonst ein
+ * `javascript:` ungeprueft im Viewer.
+ */
+function pruefeUrl(url: string): string {
+  const sauber = url.trim();
+  let protokoll = "";
+  try {
+    protokoll = new URL(sauber).protocol;
+  } catch {
+    // faellt unten durch
+  }
+  if (protokoll !== "http:" && protokoll !== "https:") {
+    throw badRequest("url-ungueltig", "Field url must be an http or https address.");
+  }
+  return sauber;
+}
+
 export function legeLinkAn(db: Db, exponatId: string, eingabe: { url: string; titel: string }) {
   findeExponat(db, exponatId);
-  const belegt = db
-    .select({ platz: exponatLinks.platz })
-    .from(exponatLinks)
-    .where(eq(exponatLinks.exponatId, exponatId))
-    .all()
-    .map((l) => l.platz);
-
+  if (eingabe.titel.trim() === "") throw badRequest("feld-fehlt", "Field titel is required.");
   const reihe = {
     id: randomUUID(),
     exponatId,
-    platz: kleinsterFreierPlatz(belegt, MAX_LINKS, "link"),
-    url: eingabe.url.trim(),
+    platz: kleinsterFreierPlatz(belegtePlaetze(db, exponatLinks, exponatId), MAX_LINKS, "link"),
+    url: pruefeUrl(eingabe.url),
     titel: eingabe.titel.trim(),
   };
   db.insert(exponatLinks).values(reihe).run();
   return reihe;
+}
+
+export function aendereLink(
+  db: Db,
+  exponatId: string,
+  id: string,
+  eingabe: { url?: string; titel?: string },
+) {
+  findeElement(db, exponatLinks, exponatId, id);
+  const aenderung: Partial<typeof exponatLinks.$inferInsert> = {};
+  if (eingabe.titel !== undefined) {
+    if (eingabe.titel.trim() === "")
+      throw badRequest("feld-fehlt", "Field titel must not be empty.");
+    aenderung.titel = eingabe.titel.trim();
+  }
+  if (eingabe.url !== undefined) aenderung.url = pruefeUrl(eingabe.url);
+  if (Object.keys(aenderung).length > 0) {
+    db.update(exponatLinks).set(aenderung).where(eq(exponatLinks.id, id)).run();
+  }
+  return findeElement(db, exponatLinks, exponatId, id);
+}
+
+function leerAlsNull(wert: string | null | undefined): string | null {
+  return wert === null || wert === undefined || wert.trim() === "" ? null : wert.trim();
+}
+
+/**
+ * Ein Element **dieses** Exponats. Immer ueber Exponat und Id gesucht: sonst aenderte ein
+ * Betreuer ueber eine untergeschobene Id ein Dokument an einem fremden Exponat.
+ */
+function findeElement<T extends typeof exponatDokumente | typeof exponatLinks>(
+  db: Db,
+  tabelle: T,
+  exponatId: string,
+  id: string,
+): T["$inferSelect"] {
+  const reihe = db
+    .select()
+    .from(tabelle)
+    .where(and(eq(tabelle.exponatId, exponatId), eq(tabelle.id, id)))
+    .get();
+  if (reihe === undefined) throw notFound("element-unbekannt", "No such item at this exhibit.");
+  return reihe as T["$inferSelect"];
 }
 
 /**
@@ -201,9 +320,6 @@ export function inhalteVonExponat(db: Db, exponatId: string) {
     .orderBy(asc(exponatDokumente.platz))
     .all();
 
-  // Ansprechpartner liegen in eigenen Stammdaten und kommen ueber die Zuweisung.
-  const kontakte = ansprechpartnerVonExponat(db, exponatId);
-
   return {
     dokumente,
     links: db
@@ -212,97 +328,49 @@ export function inhalteVonExponat(db: Db, exponatId: string) {
       .where(eq(exponatLinks.exponatId, exponatId))
       .orderBy(asc(exponatLinks.platz))
       .all(),
-    kontakte,
+    kontakte: kontakteVonExponat(db, exponatId),
   };
 }
 
 /**
- * Hat das Exponat ueberhaupt etwas, das sich zuordnen laesst? Sonst ist Scannen gesperrt.
+ * Wie viele Besucher dieses Exponat aufgenommen haben.
  *
- * **Nur Dokumente und Links.** Ansprechpartner kommen seit dem 19.10.2026 mit dem Exponat
- * und lassen sich nicht anhaken; ein Exponat nur mit ihnen haette nichts zum Zuordnen.
+ * Seit dem 02.11.2026 dieselbe Zahl fuer jedes Element: aufgenommen wird das ganze Exponat,
+ * und jeder dieser Besucher verliert ein geloeschtes Dokument im Viewer. Die Oberflaeche nennt
+ * die Zahl **vor** dem Loeschen.
  */
-export function hatInhalte(db: Db, exponatId: string): boolean {
-  const i = inhalteVonExponat(db, exponatId);
-  return i.dokumente.length + i.links.length > 0;
-}
-
-/**
- * Wie viele Besucher ein Loeschen betrifft.
- *
- * Die Oberflaeche nennt die Zahl **vor** dem Loeschen. Ein Betreuer soll nicht erfahren,
- * dass er zwoelf Besuchern etwas weggenommen hat, nachdem er es getan hat.
- */
-export function betroffeneBesucher(
-  db: Db,
-  exponatId: string,
-  art: "dokument" | "link" | "kontakt",
-  zielId: string,
-): number {
-  /*
-   * Ein Ansprechpartner geht an **jeden** Besucher, der an diesem Exponat etwas bekommen
-   * hat; genau die verlieren ihn, wenn die Zuweisung faellt.
-   */
-  if (art === "kontakt") return betroffeneBesucherVonExponat(db, exponatId);
-  return db
-    .select({ guid: zuordnungen.besucherGuid })
-    .from(zuordnungen)
-    .where(and(eq(zuordnungen.art, art), eq(zuordnungen.zielId, zielId)))
-    .all().length;
-}
-
-/**
- * Wie viele **verschiedene** Besucher ein Loeschen des ganzen Exponats betrifft.
- *
- * `countDistinct`, nicht `count`: ein Besucher, der an diesem Exponat drei Dokumente
- * bekommen hat, ist ein Betroffener und nicht drei. Eine zu grosse Zahl in einer
- * Rueckfrage ist genauso falsch wie eine zu kleine.
- */
-export function betroffeneBesucherVonExponat(db: Db, exponatId: string): number {
+export function besucherVonExponat(db: Db, exponatId: string): number {
   return (
-    db
-      .select({ n: countDistinct(zuordnungen.besucherGuid) })
-      .from(zuordnungen)
-      .where(eq(zuordnungen.exponatId, exponatId))
-      .get()?.n ?? 0
+    db.select({ n: count() }).from(besuche).where(eq(besuche.exponatId, exponatId)).get()?.n ?? 0
   );
 }
 
-export function loescheInhalt(
+/**
+ * Loescht ein Element. Ein Dokument nimmt seit dem 02.11.2026 seine Datei mit: der Betreuer
+ * loescht am Stand, und verwaiste Dateien saehe niemand mehr.
+ */
+export async function loescheInhalt(
   db: Db,
+  ablage: Dateiablage,
   exponatId: string,
   art: "dokument" | "link" | "kontakt",
   zielId: string,
-): void {
-  db.transaction((tx) => {
-    /*
-     * Zuordnungen gibt es nur an Dokumenten und Links. Bei einem Ansprechpartner bleiben
-     * sie stehen: alte `kontakt`-Zeilen zaehlen als "an diesem Exponat etwas bekommen", und
-     * ein Loeschen ueber `zielId` traefe auch seine Zeilen an anderen Exponaten.
-     */
-    if (art !== "kontakt") {
-      tx.delete(zuordnungen)
-        .where(and(eq(zuordnungen.art, art), eq(zuordnungen.zielId, zielId)))
-        .run();
-    }
-    if (art === "dokument")
-      tx.delete(exponatDokumente).where(eq(exponatDokumente.id, zielId)).run();
-    else if (art === "link") tx.delete(exponatLinks).where(eq(exponatLinks.id, zielId)).run();
-    else {
-      /*
-       * Bei einem Ansprechpartner wird **nur die Zuweisung** aufgehoben. Die Person bleibt
-       * als Stammdatensatz stehen; sie haengt womoeglich noch an anderen Exponaten.
-       */
-      tx.delete(exponatAnsprechpartner)
-        .where(
-          and(
-            eq(exponatAnsprechpartner.exponatId, exponatId),
-            eq(exponatAnsprechpartner.ansprechpartnerId, zielId),
-          ),
-        )
-        .run();
-    }
-  });
+): Promise<void> {
+  if (art === "dokument") {
+    const d = findeElement(db, exponatDokumente, exponatId, zielId);
+    db.delete(exponatDokumente).where(eq(exponatDokumente.id, zielId)).run();
+    await loescheDatei(db, ablage, d.dateiId);
+  } else if (art === "link") {
+    findeElement(db, exponatLinks, exponatId, zielId);
+    db.delete(exponatLinks).where(eq(exponatLinks.id, zielId)).run();
+  } else {
+    const weg = db
+      .delete(exponatKontakte)
+      .where(and(eq(exponatKontakte.exponatId, exponatId), eq(exponatKontakte.id, zielId)))
+      .run();
+    if (weg.changes === 0)
+      throw notFound("kontakt-unbekannt", "No contact with this id at this exhibit.");
+  }
 }
 
 // --- Betreuer ---------------------------------------------------------------------------

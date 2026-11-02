@@ -13,7 +13,7 @@ interface Dashboarddaten {
     /** Angelegte Personen, **nicht** ihre Zuweisungen an Exponate. */
     ansprechpartnerGesamt: number;
   };
-  jeExponat: { id: string; kennung: string; name: string; zuordnungen: number }[];
+  jeExponat: { id: string; kennung: string; name: string; besuche: number }[];
 }
 
 function Kennzahl({ text, wert }: { text: string; wert: number }) {
@@ -29,7 +29,7 @@ function Kennzahl({ text, wert }: { text: string; wert: number }) {
 
 export function Dashboard() {
   const { daten, laedt, fehler } = useAbruf<Dashboarddaten>("/api/dashboard");
-  const groesster = Math.max(1, ...(daten?.jeExponat.map((e) => e.zuordnungen) ?? [0]));
+  const groesster = Math.max(1, ...(daten?.jeExponat.map((e) => e.besuche) ?? [0]));
 
   return (
     <>
@@ -58,7 +58,7 @@ export function Dashboard() {
               <Kennzahl text="Ansprechpartner" wert={daten.kennzahlen.ansprechpartnerGesamt} />
             </section>
 
-            <Abschnitt titel="Zuordnungen je Exponat">
+            <Abschnitt titel="Aufnahmen je Exponat">
               {daten.jeExponat.length === 0 ? (
                 <p className="text-sm text-text-hinweis">Noch keine Exponate angelegt.</p>
               ) : (
@@ -72,14 +72,14 @@ export function Dashboard() {
                         >
                           <span className="font-mono text-xs">{e.kennung}</span> {e.name}
                         </Link>
-                        <span className="shrink-0 tabular-nums">{e.zuordnungen}</span>
+                        <span className="shrink-0 tabular-nums">{e.besuche}</span>
                       </span>
                       {/* Der Balken ist Zierde, die Zahl steht daneben: deshalb aria-hidden. */}
                       <span aria-hidden="true" className="h-2 w-full bg-linie">
                         <span
                           className="block h-full bg-primaer"
                           style={{
-                            width: `${String(Math.round((e.zuordnungen / groesster) * 100))}%`,
+                            width: `${String(Math.round((e.besuche / groesster) * 100))}%`,
                           }}
                         />
                       </span>

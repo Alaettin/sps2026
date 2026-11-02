@@ -15,54 +15,38 @@ test.afterEach(async ({ request }) => {
   await raeumeExponateAuf(request);
 });
 
-test("im Besucherdetail lässt sich ein Exponat ganz und einzeln zuweisen", async ({
+/** Seit dem 02.11.2026 ein Kästchen je Exponat: aufgenommen oder nicht. */
+test("im Besucherdetail lässt sich ein Exponat als aufgenommen setzen und zurücknehmen", async ({
   page,
   request,
 }) => {
   const exponat = await legeExponatAn(request, `Kästchen ${String(Date.now()).slice(-5)}`);
-  for (const titel of ["Erster Link", "Zweiter Link"]) {
-    await request.post(`/api/exponate/${exponat.id}/links`, {
-      data: { url: "https://industrialdigitaltwin.org/", titel },
-    });
-  }
   const guid = `BXD-${String(Date.now()).slice(-8)}`;
   await request.post("/api/besucher", {
     data: { guid, email: `${guid}@example.invalid`, vorname: "Kai", nachname: "Kasten" },
   });
   merkeBesucher(guid);
 
-  await page.goto(`/besucher/${guid}`);
-  const ganz = page.getByRole("checkbox", { name: new RegExp(`${exponat.kennung} .* besucht`) });
-  await expect(ganz).not.toBeChecked();
-  await ganz.click();
-  await expect(ganz).toBeChecked();
-
-  const zugeordnet = async () =>
+  const besucht = async () =>
     (
       (await (await request.get(`/api/besucher/${guid}/exponate`)).json()) as {
         id: string;
-        links: { titel: string; zugeordnet: boolean }[];
+        besucht: boolean;
       }[]
-    ).find((e) => e.id === exponat.id)?.links;
-  expect((await zugeordnet())?.every((l) => l.zugeordnet)).toBe(true);
+    ).find((e) => e.id === exponat.id)?.besucht;
 
-  /*
-   * **Zu als Vorgabe**: die einzelnen Links sind unsichtbar, das ganze Exponat ließ sich
-   * trotzdem eben anhaken. Erst aufklappen, dann einzeln.
-   */
-  await expect(page.getByRole("checkbox", { name: /Zweiter Link/ })).toHaveCount(0);
-  const klappe = page.getByRole("button", { name: new RegExp(exponat.kennung) });
-  await expect(klappe).toHaveAttribute("aria-expanded", "false");
-  await klappe.click();
-  await expect(klappe).toHaveAttribute("aria-expanded", "true");
-  await expect(klappe).toContainText("2 von 2");
+  await page.goto(`/besucher/${guid}`);
+  const kaestchen = page.getByRole("checkbox", {
+    name: new RegExp(`${exponat.kennung} .* aufgenommen`),
+  });
+  await expect(kaestchen).not.toBeChecked();
+  await kaestchen.click();
+  await expect(kaestchen).toBeChecked();
+  expect(await besucht()).toBe(true);
 
-  // Einen Link einzeln abwählen: das Exponat steht danach auf "teilweise".
-  await page.getByRole("checkbox", { name: /Zweiter Link/ }).click();
-  await expect(page.getByRole("checkbox", { name: /Zweiter Link/ })).not.toBeChecked();
-  expect((await zugeordnet())?.map((l) => l.zugeordnet)).toEqual([true, false]);
-  expect(await ganz.evaluate((e) => (e as HTMLInputElement).indeterminate)).toBe(true);
-  await expect(klappe).toContainText("1 von 2");
+  await kaestchen.click();
+  await expect(kaestchen).not.toBeChecked();
+  expect(await besucht()).toBe(false);
 });
 
 test("die Auswertung kommt als CSV mit BOM und einer Spalte je Exponat", async ({ page }) => {
@@ -109,17 +93,14 @@ test("Export und Import derselben Sicherung lassen den Bestand stehen", async ({
 
 /**
  * **Speichern gibt Rückmeldung und lädt die Seite nicht neu.** Vorher setzte das Speichern die
- * ganze Seite kurz auf „Wird geladen“: kein sichtbares Ergebnis, und aufgeklappte Exponate
- * klappten wieder zu.
+ * ganze Seite kurz auf „Wird geladen“: kein sichtbares Ergebnis, und der Zustand der Exponate
+ * ging verloren.
  */
 test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen", async ({
   page,
   request,
 }) => {
   const exponat = await legeExponatAn(request, `Speichern ${String(Date.now()).slice(-5)}`);
-  await request.post(`/api/exponate/${exponat.id}/links`, {
-    data: { url: "https://industrialdigitaltwin.org/", titel: "Ein Link" },
-  });
   const guid = `SPE-${String(Date.now()).slice(-8)}`;
   await request.post("/api/besucher", {
     data: { guid, email: `${guid}@example.invalid`, vorname: "Sina", nachname: "Speicher" },
@@ -127,9 +108,11 @@ test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen
   merkeBesucher(guid);
 
   await page.goto(`/besucher/${guid}`);
-  const klappe = page.getByRole("button", { name: new RegExp(exponat.kennung) });
-  await klappe.click();
-  await expect(klappe).toHaveAttribute("aria-expanded", "true");
+  const kaestchen = page.getByRole("checkbox", {
+    name: new RegExp(`${exponat.kennung} .* aufgenommen`),
+  });
+  await kaestchen.click();
+  await expect(kaestchen).toBeChecked();
 
   const firma = page.getByLabel("Firma", { exact: true });
   await firma.fill("  Neue Firma GmbH  ");
@@ -139,7 +122,7 @@ test("Speichern im Besucherdetail meldet Gespeichert und lässt die Seite stehen
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
   await expect(status).toBeVisible();
   await expect(page.getByText("Wird geladen")).toHaveCount(0);
-  await expect(klappe).toHaveAttribute("aria-expanded", "true");
+  await expect(kaestchen).toBeChecked();
   // So, wie der Server es abgelegt hat: getrimmt.
   await expect(firma).toHaveValue("Neue Firma GmbH");
   expect((await (await request.get(`/api/besucher/${guid}`)).json()).firma).toBe("Neue Firma GmbH");

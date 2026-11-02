@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { raeumeExponateAuf } from "./exponate.js";
+import { raeumeBesucherAuf } from "./exponate.js";
 import { kameraOptionen, oeffneKamera } from "./kamera.js";
 
 /** Ein Gerät mit nur einer Kamera zeigt keinen toten Wechselknopf. */
@@ -7,7 +7,7 @@ import { kameraOptionen, oeffneKamera } from "./kamera.js";
 test.use(kameraOptionen(1));
 
 test.afterEach(async ({ request }) => {
-  await raeumeExponateAuf(request);
+  await raeumeBesucherAuf(request);
 });
 
 test("mit einer Kamera gibt es keinen Wechselknopf", async ({ page, request }) => {

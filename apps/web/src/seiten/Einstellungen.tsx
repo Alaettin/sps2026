@@ -31,7 +31,7 @@ interface Bestand {
   dokumente: number;
   links: number;
   kontakte: number;
-  zuordnungen: number;
+  besuche: number;
   dateien: number;
   abrufe: number;
   globaleDaten: number;
@@ -67,11 +67,11 @@ export function Einstellungen({ ich }: { ich: Ich }) {
         const e = await api<{
           exponate: number;
           besucher: number;
-          zuordnungen: number;
+          besuche: number;
         }>("/api/aussaat", { method: "POST" });
         setzeMeldung(
           `Testdaten eingespielt: ${String(e.exponate)} Exponate, ${String(e.besucher)} Besucher, ` +
-            `${String(e.zuordnungen)} Zuordnungen.`,
+            `${String(e.besuche)} aufgenommene Exponate.`,
         );
       } else {
         const e = await api<{ geloescht: Bestand }>("/api/entwickler/zuruecksetzen", {
@@ -170,7 +170,7 @@ export function Einstellungen({ ich }: { ich: Ich }) {
                 {[
                   ["Besucher", b?.besucher],
                   ["Exponate", b?.exponate],
-                  ["Zuordnungen", b?.zuordnungen],
+                  ["Aufgenommene Exponate", b?.besuche],
                   ["Dateien", b?.dateien],
                 ].map(([text, zahl]) => (
                   <div key={String(text)} className="flex flex-col">
@@ -228,7 +228,7 @@ export function Einstellungen({ ich }: { ich: Ich }) {
       >
         <p>
           Angelegt werden 6 Exponate mit Dokumenten, Links und Ansprechpartnern, dazu 50 Besucher,
-          von denen jeder dritte Zuordnungen bekommt.
+          von denen jeder dritte ein Exponat aufgenommen hat.
         </p>
         <p>
           Die Daten sind erfunden und nur für Entwicklung und Abnahme gedacht. Sie erscheinen danach
@@ -263,7 +263,8 @@ export function Einstellungen({ ich }: { ich: Ich }) {
             Links und {b?.kontakte ?? 0} Ansprechpartnern
           </li>
           <li>
-            <b>{b?.zuordnungen ?? 0}</b> Zuordnungen und {b?.dateien ?? 0} hochgeladene Dateien
+            <b>{b?.besuche ?? 0}</b> aufgenommene Exponate und {b?.dateien ?? 0} hochgeladene
+            Dateien
           </li>
           <li>
             die Abrufzähler für <b>{b?.abrufe ?? 0}</b> GUIDs

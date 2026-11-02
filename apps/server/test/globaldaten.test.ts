@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
+import { legeDokumentAn, melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Globale Daten, seit dem 20.10.2026: Datenpunkte, die der Konnektor **jedem** Besucher gleich
@@ -199,10 +199,9 @@ describe("Globale Daten im Konnektor", () => {
 
   /** Die Datei-Id kommt von aussen; haengt sie auch an einem Exponat, bleibt sie dort. */
   it("loescht keine Datei, die noch an einem Exponat haengt", async () => {
-    const { ruf, lege, hochladen } = await aufbau();
-    const dateiId = await hochladen("blatt.pdf", PDF);
+    const { s, keks, ruf, lege } = await aufbau();
     const e = (await ruf("POST", "/api/exponate", { name: "Mit Blatt" })).json<{ id: string }>();
-    await ruf("POST", `/api/exponate/${e.id}/dokumente`, { dateiId, titel: "Blatt" });
+    const { dateiId } = (await legeDokumentAn(s, keks, e.id, "Blatt")).json<{ dateiId: string }>();
 
     const g = await lege("Auch Blatt", "datei");
     await ruf("PATCH", `/api/globale-daten/${g.id}`, { dateiId });

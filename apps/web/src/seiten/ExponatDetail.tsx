@@ -1,5 +1,6 @@
-import { useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import QRCode from "qrcode";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
@@ -13,8 +14,8 @@ import {
   Zustand,
 } from "../bausteine/basis.js";
 import { Rueckfrage, Schaufenster } from "../bausteine/dialog.js";
+import { KontaktFormular, type Kontakt } from "../bausteine/kontaktformular.js";
 import type { Ich } from "../lib/ich.js";
-import { type Person } from "./Ansprechpartner.js";
 import { ANSPRECHPARTNERFELDER } from "../lib/personenfelder.js";
 
 /** Obergrenzen, dieselben wie im Modell auf dem Server. */
@@ -51,39 +52,18 @@ interface LinkEintrag {
   url: string;
 }
 
-/**
- * Ein Ansprechpartner **an diesem Exponat**: die Stammdaten plus der Platz aus der
- * Zuweisung. Ohne Foto, das gibt es seit dem 08.10.2026 nicht mehr.
- */
-interface Kontakt {
-  id: string;
-  platz: number;
-  titel: string | null;
-  vorname: string;
-  nachname: string;
-  firma: string | null;
-  position: string | null;
-  email: string | null;
-  strasse: string | null;
-  plz: string | null;
-  ort: string | null;
-  land: string | null;
-  website: string | null;
-  /** Die Schau liest die Felder ueber `ANSPRECHPARTNERFELDER`, also ueber den Namen. */
-  [feld: string]: unknown;
-}
-
 interface ExponatDaten {
   id: string;
   kennung: string;
   name: string;
   beschreibung: string | null;
+  /** Der geheime Teil des QR-Codes, nur für den Admin. */
+  scanCode?: string;
   dokumente: Dokument[];
   links: LinkEintrag[];
   kontakte: Kontakt[];
   betreuer: string[];
-  scanbar: boolean;
-  /** Verschiedene Besucher, denen an diesem Exponat schon etwas zugeordnet wurde. */
+  /** Besucher, die dieses Exponat aufgenommen haben. */
   betroffeneBesucher: number;
 }
 
@@ -150,6 +130,13 @@ function AnsehenKnopf({ titel, aufKlick }: { titel: string; aufKlick: () => void
   );
 }
 
+/**
+ * Ein Exponat und seine Inhalte.
+ *
+ * Seit dem 02.11.2026 pflegt der **Betreuer** Dokumente, Links und Ansprechpartner seines
+ * Exponats selbst; vorher scannte er hier die Pässe der Besucher. Name und Löschen des
+ * Exponats bleiben beim Admin, ebenso der QR-Code, den der Besucher am Stand scannt.
+ */
 export function ExponatDetail({ ich }: { ich: Ich }) {
   const { id } = useParams();
   const abruf = useAbruf<ExponatDaten>(`/api/exponate/${String(id)}`);
@@ -163,7 +150,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
   } | null>(null);
   const [bildschau, setzeBildschau] = useState<{ dateiId: string; titel: string } | null>(null);
   const [kontaktschau, setzeKontaktschau] = useState<Kontakt | null>(null);
-  const [kontaktNeu, setzeKontaktNeu] = useState(false);
+  const [kontaktBearbeiten, setzeKontaktBearbeiten] = useState<Kontakt | "neu" | null>(null);
+  const [dokumentBearbeiten, setzeDokumentBearbeiten] = useState<Dokument | null>(null);
+  const [linkBearbeiten, setzeLinkBearbeiten] = useState<LinkEintrag | null>(null);
 
   const istAdmin = ich.rolle === "admin";
   const e = abruf.daten;
@@ -180,18 +169,17 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
 
     setzeFehler(null);
     try {
+      // Seit dem 02.11.2026 Datei und Titel in **einem** Aufruf, siehe Server.
       for (const datei of dateien) {
         const formular = new FormData();
+        formular.append("titel", datei.name.replace(/\.[^.]+$/, ""));
         formular.append("datei", datei);
-        const hoch = await api<{ id: string }>("/api/dateien", { method: "POST", body: formular });
-        await api(`/api/exponate/${String(id)}/dokumente`, {
-          method: "POST",
-          body: JSON.stringify({ dateiId: hoch.id, titel: datei.name.replace(/\.[^.]+$/, "") }),
-        });
+        await api(`/api/exponate/${String(id)}/dokumente`, { method: "POST", body: formular });
       }
-      abruf.neu();
     } catch (ursache) {
       setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Hochladen nicht möglich.");
+    } finally {
+      abruf.neu();
     }
   }
 
@@ -206,7 +194,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
     }
   }
 
-  /** Eine Zeile im Abschnitt: Platz, Beschriftung, Ansehen, Entfernen. */
+  /** Eine Zeile im Abschnitt: Platz, Beschriftung, Ansehen, Bearbeiten, Entfernen. */
   function Zeile({
     platz,
     text,
@@ -214,6 +202,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
     werkzeug,
     art,
     zielId,
+    aufBearbeiten,
   }: {
     platz: number;
     text: string;
@@ -221,10 +210,12 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
     werkzeug?: ReactNode;
     art: "dokument" | "link" | "kontakt";
     zielId: string;
+    aufBearbeiten: () => void;
   }) {
     return (
-      <li className="flex items-center justify-between gap-3 border-b border-linie py-2.5 text-sm last:border-b-0">
-        <span className="flex min-w-0 items-center gap-3">
+      <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-linie py-2.5 text-sm last:border-b-0">
+        {/* Mindestbreite, damit die Knöpfe am Handy umbrechen statt den Titel auf drei Buchstaben zu kürzen. */}
+        <span className="flex min-w-[12rem] flex-1 items-center gap-3">
           <code className="shrink-0 font-mono text-xs text-text-hinweis">
             {String(platz).padStart(2, "0")}
           </code>
@@ -235,17 +226,25 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             )}
           </span>
         </span>
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
           {werkzeug}
-          {istAdmin && (
-            <Knopf
-              art="still"
-              className="h-8 px-3 text-[13px]"
-              onClick={() => void frageBetroffene(art, zielId)}
-            >
-              Entfernen
-            </Knopf>
-          )}
+          <Knopf
+            art="still"
+            className="h-8 px-3 text-[13px]"
+            onClick={() => {
+              setzeFehler(null);
+              aufBearbeiten();
+            }}
+          >
+            Bearbeiten
+          </Knopf>
+          <Knopf
+            art="still"
+            className="h-8 px-3 text-[13px]"
+            onClick={() => void frageBetroffene(art, zielId)}
+          >
+            Entfernen
+          </Knopf>
         </span>
       </li>
     );
@@ -287,7 +286,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         ) : (
           <ul className="flex flex-col">{children}</ul>
         )}
-        {istAdmin && !voll && formular}
+        {!voll && formular}
         {voll && (
           <p className="text-[13px] text-text-hinweis">
             Alle {grenze} Plätze sind belegt. Erst einen freigeben, dann lässt sich wieder etwas
@@ -303,11 +302,6 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
       <Seitenkopf>
         <Ueberschrift>{e === null ? "Exponat" : `${e.kennung} ${e.name}`}</Ueberschrift>
         <div className="flex flex-wrap items-center gap-4">
-          {e !== null && e.scanbar && (
-            <Link to={`/exponate/${String(id)}/scan`}>
-              <Knopf>Scannen</Knopf>
-            </Link>
-          )}
           {e !== null && istAdmin && (
             <Knopf
               art="gefahr"
@@ -330,14 +324,8 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
 
         {e !== null && (
           <>
-            {!e.scanbar && (
-              <Abschnitt titel="Noch nichts zum Zuordnen" className="gap-2">
-                <p className="text-sm text-text-zweit">
-                  Solange dieses Exponat keine Dokumente oder Links hat, bleibt das Scannen
-                  gesperrt: ein Betreuer könnte einem Besucher nichts geben. Ansprechpartner kommen
-                  nur mit, sobald etwas zugeordnet ist.
-                </p>
-              </Abschnitt>
+            {istAdmin && e.scanCode !== undefined && (
+              <QrAbschnitt kennung={e.kennung} code={e.scanCode} />
             )}
 
             <Platzabschnitt
@@ -371,6 +359,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   unterzeile={d.originalName ?? undefined}
                   art="dokument"
                   zielId={d.id}
+                  aufBearbeiten={() => {
+                    setzeDokumentBearbeiten(d);
+                  }}
                   werkzeug={
                     istBild(d.mimeType) ? (
                       <AnsehenKnopf
@@ -407,6 +398,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   unterzeile={l.url}
                   art="link"
                   zielId={l.id}
+                  aufBearbeiten={() => {
+                    setzeLinkBearbeiten(l);
+                  }}
                   werkzeug={<OeffnenLink ziel={l.url} titel="Link in neuem Tab öffnen" />}
                 />
               ))}
@@ -421,7 +415,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   <Knopf
                     onClick={() => {
                       setzeFehler(null);
-                      setzeKontaktNeu(true);
+                      setzeKontaktBearbeiten("neu");
                     }}
                   >
                     Ansprechpartner hinzufügen
@@ -437,6 +431,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   unterzeile={[c.firma, c.position].filter(Boolean).join(" · ") || undefined}
                   art="kontakt"
                   zielId={c.id}
+                  aufBearbeiten={() => {
+                    setzeKontaktBearbeiten(c);
+                  }}
                   werkzeug={
                     <AnsehenKnopf
                       titel="Ansprechpartner ansehen"
@@ -501,12 +498,31 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         )}
       </Schaufenster>
 
-      <KontaktAuswahl
-        offen={kontaktNeu}
-        aufOffen={setzeKontaktNeu}
+      <KontaktFormular
         exponatId={String(id)}
-        schonZugewiesen={e?.kontakte.map((c) => c.id) ?? []}
-        aufZugewiesen={abruf.neu}
+        kontakt={kontaktBearbeiten}
+        aufSchliessen={() => {
+          setzeKontaktBearbeiten(null);
+        }}
+        aufGespeichert={abruf.neu}
+      />
+
+      <DokumentFormular
+        exponatId={String(id)}
+        dokument={dokumentBearbeiten}
+        aufSchliessen={() => {
+          setzeDokumentBearbeiten(null);
+        }}
+        aufGespeichert={abruf.neu}
+      />
+
+      <LinkBearbeiten
+        exponatId={String(id)}
+        link={linkBearbeiten}
+        aufSchliessen={() => {
+          setzeLinkBearbeiten(null);
+        }}
+        aufGespeichert={abruf.neu}
       />
 
       <Rueckfrage
@@ -521,26 +537,24 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
           if (zuLoeschen === null) return;
           void api(`/api/exponate/${String(id)}/inhalte/${zuLoeschen.art}/${zuLoeschen.zielId}`, {
             method: "DELETE",
-          }).then(() => {
-            setzeZuLoeschen(null);
-            abruf.neu();
-          });
+          })
+            .catch((u: unknown) => {
+              setzeFehler(u instanceof ApiFehler ? u.message : "Entfernen nicht möglich.");
+            })
+            .finally(() => {
+              setzeZuLoeschen(null);
+              abruf.neu();
+            });
         }}
       >
         <p>
-          {zuLoeschen !== null && zuLoeschen.betroffene > 0 && zuLoeschen.art === "kontakt" ? (
+          {zuLoeschen !== null && zuLoeschen.betroffene > 0 ? (
             <>
-              <b>{zuLoeschen.betroffene} Besucher</b> haben an diesem Exponat etwas bekommen und
-              sehen diesen Ansprechpartner. Er verschwindet bei ihnen unter diesem Exponat aus dem
-              Viewer.
-            </>
-          ) : zuLoeschen !== null && zuLoeschen.betroffene > 0 ? (
-            <>
-              <b>{zuLoeschen.betroffene} Besucher</b> haben diesen Inhalt bereits zugeordnet
-              bekommen. Er verschwindet auch bei ihnen aus dem Viewer.
+              <b>{zuLoeschen.betroffene} Besucher</b> haben dieses Exponat aufgenommen. Der Inhalt
+              verschwindet auch bei ihnen aus dem Viewer.
             </>
           ) : (
-            "Dieser Inhalt ist noch keinem Besucher zugeordnet."
+            "Noch kein Besucher hat dieses Exponat aufgenommen."
           )}
         </p>
         <p>Der Platz wird frei und beim nächsten Hinzufügen wieder vergeben.</p>
@@ -580,22 +594,294 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
               {e.kennung} {e.name}
             </b>{" "}
             verschwindet mit allem, was daran hängt: {e.dokumente.length} Dokumente,{" "}
-            {e.links.length} Links und {e.kontakte.length} Ansprechpartner-Zuweisungen.
+            {e.links.length} Links und {e.kontakte.length} Ansprechpartner.
           </p>
           <p>
             {e.betroffeneBesucher > 0 ? (
               <>
-                <b>{e.betroffeneBesucher} Besucher</b> haben davon bereits etwas zugeordnet
-                bekommen. Es verschwindet auch bei ihnen aus dem Viewer.
+                <b>{e.betroffeneBesucher} Besucher</b> haben es aufgenommen. Es verschwindet auch
+                bei ihnen aus dem Viewer.
               </>
             ) : (
-              "Bisher hat kein Besucher etwas von diesem Exponat zugeordnet bekommen."
+              "Bisher hat kein Besucher dieses Exponat aufgenommen."
             )}
           </p>
-          <p>Die Ansprechpartner selbst bleiben in den Stammdaten erhalten.</p>
         </Rueckfrage>
       )}
     </>
+  );
+}
+
+/**
+ * Der QR-Code, den der Besucher am Stand scannt, nur für den Admin.
+ *
+ * Inhalt ist eine **Adresse dieser App** (`/mein/scan/<code>`), keine nackte Zeichenfolge:
+ * so öffnet ihn auch die gewöhnliche Kamera-App eines Handys, und nach der Anmeldung ist das
+ * Exponat aufgenommen. Die Adresse kommt aus `window.location.origin`, also von dort, wo der
+ * Admin die App gerade aufruft; gedruckt wird deshalb aus der Produktivumgebung.
+ */
+function QrAbschnitt({ kennung, code }: { kennung: string; code: string }) {
+  const adresse = `${window.location.origin}/mein/scan/${code}`;
+  const [bild, setzeBild] = useState<string | null>(null);
+
+  useEffect(() => {
+    let aktuell = true;
+    void QRCode.toDataURL(adresse, { width: 1024, margin: 2, errorCorrectionLevel: "M" }).then(
+      (url) => {
+        if (aktuell) setzeBild(url);
+      },
+    );
+    return () => {
+      aktuell = false;
+    };
+  }, [adresse]);
+
+  async function svgLaden() {
+    const svg = await QRCode.toString(adresse, {
+      type: "svg",
+      margin: 2,
+      errorCorrectionLevel: "M",
+    });
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `QR ${kennung}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <Abschnitt titel="QR-Code für Besucher">
+      <div className="flex flex-wrap items-start gap-6">
+        {bild !== null && (
+          <img
+            src={bild}
+            alt={`QR-Code von ${kennung}`}
+            className="size-40 shrink-0 border border-linie bg-white"
+          />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
+          <p className="text-text-zweit">
+            Am Exponat aushängen. Besucher scannen ihn nach der Anmeldung und nehmen das Exponat mit
+            allen Dokumenten, Links und Ansprechpartnern in ihren Pass auf.
+          </p>
+          <p className="break-all font-mono text-xs text-text-hinweis">{adresse}</p>
+          <div className="flex flex-wrap gap-3">
+            {bild !== null && (
+              <a href={bild} download={`QR ${kennung}.png`} className={knopfKlassen("rand")}>
+                PNG laden
+              </a>
+            )}
+            <Knopf art="rand" onClick={() => void svgLaden()}>
+              SVG laden
+            </Knopf>
+          </div>
+        </div>
+      </div>
+    </Abschnitt>
+  );
+}
+
+/** Titel, Beschreibung und auf Wunsch eine neue Datei. Der Platz bleibt. */
+function DokumentFormular({
+  exponatId,
+  dokument,
+  aufSchliessen,
+  aufGespeichert,
+}: {
+  exponatId: string;
+  dokument: Dokument | null;
+  aufSchliessen: () => void;
+  aufGespeichert: () => void;
+}) {
+  const [titel, setzeTitel] = useState("");
+  const [beschreibung, setzeBeschreibung] = useState("");
+  const [datei, setzeDatei] = useState<File | null>(null);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const [laeuft, setzeLaeuft] = useState(false);
+
+  useEffect(() => {
+    if (dokument === null) return;
+    setzeTitel(dokument.titel);
+    setzeBeschreibung(dokument.beschreibung ?? "");
+    setzeDatei(null);
+    setzeFehler(null);
+  }, [dokument]);
+
+  async function speichern() {
+    if (dokument === null) return;
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      const formular = new FormData();
+      formular.append("titel", titel);
+      formular.append("beschreibung", beschreibung);
+      if (datei !== null) formular.append("datei", datei);
+      await api(`/api/exponate/${exponatId}/dokumente/${dokument.id}`, {
+        method: "PATCH",
+        body: formular,
+      });
+      aufGespeichert();
+      aufSchliessen();
+    } catch (ursache) {
+      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Speichern nicht möglich.");
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Schaufenster
+      offen={dokument !== null}
+      aufOffen={(o) => {
+        if (!o) aufSchliessen();
+      }}
+      titel="Dokument bearbeiten"
+    >
+      {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          void speichern();
+        }}
+      >
+        <label className="flex flex-col gap-2 text-[13px] font-semibold">
+          Titel
+          <Feld
+            required
+            value={titel}
+            onChange={(ev) => {
+              setzeTitel(ev.target.value);
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-[13px] font-semibold">
+          Beschreibung
+          <Feld
+            value={beschreibung}
+            onChange={(ev) => {
+              setzeBeschreibung(ev.target.value);
+            }}
+          />
+        </label>
+        <div className="flex flex-col gap-2 text-[13px]">
+          <span className="font-semibold">Datei</span>
+          <span className="text-text-hinweis">
+            {datei !== null ? `Neu: ${datei.name}` : (dokument?.originalName ?? "ohne Datei")}
+          </span>
+          {/* Feld `sr-only`, Label als Knopf, wie beim Hinzufügen. */}
+          <label className={knopfKlassen("rand", "cursor-pointer self-start")}>
+            Datei ersetzen
+            <input
+              type="file"
+              onChange={(ev) => {
+                setzeDatei(ev.target.files?.[0] ?? null);
+              }}
+              className="sr-only"
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap justify-end gap-3">
+          <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
+            Abbrechen
+          </Knopf>
+          <Knopf type="submit" disabled={titel.trim() === "" || laeuft}>
+            {laeuft ? "Wird gespeichert …" : "Speichern"}
+          </Knopf>
+        </div>
+      </form>
+    </Schaufenster>
+  );
+}
+
+/** Titel und Adresse eines vorhandenen Links. Der Platz bleibt. */
+function LinkBearbeiten({
+  exponatId,
+  link,
+  aufSchliessen,
+  aufGespeichert,
+}: {
+  exponatId: string;
+  link: LinkEintrag | null;
+  aufSchliessen: () => void;
+  aufGespeichert: () => void;
+}) {
+  const [titel, setzeTitel] = useState("");
+  const [url, setzeUrl] = useState("");
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const [laeuft, setzeLaeuft] = useState(false);
+
+  useEffect(() => {
+    if (link === null) return;
+    setzeTitel(link.titel);
+    setzeUrl(link.url);
+    setzeFehler(null);
+  }, [link]);
+
+  return (
+    <Schaufenster
+      offen={link !== null}
+      aufOffen={(o) => {
+        if (!o) aufSchliessen();
+      }}
+      titel="Link bearbeiten"
+    >
+      {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          if (link === null) return;
+          setzeLaeuft(true);
+          setzeFehler(null);
+          void api(`/api/exponate/${exponatId}/links/${link.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ titel, url }),
+          })
+            .then(() => {
+              aufGespeichert();
+              aufSchliessen();
+            })
+            .catch((u: unknown) => {
+              setzeFehler(u instanceof ApiFehler ? u.message : "Speichern nicht möglich.");
+            })
+            .finally(() => {
+              setzeLaeuft(false);
+            });
+        }}
+      >
+        <label className="flex flex-col gap-2 text-[13px] font-semibold">
+          Titel
+          <Feld
+            required
+            value={titel}
+            onChange={(ev) => {
+              setzeTitel(ev.target.value);
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-[13px] font-semibold">
+          Adresse
+          <Feld
+            required
+            type="url"
+            value={url}
+            onChange={(ev) => {
+              setzeUrl(ev.target.value);
+            }}
+          />
+        </label>
+        <div className="flex flex-wrap justify-end gap-3">
+          <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
+            Abbrechen
+          </Knopf>
+          <Knopf type="submit" disabled={laeuft}>
+            {laeuft ? "Wird gespeichert …" : "Speichern"}
+          </Knopf>
+        </div>
+      </form>
+    </Schaufenster>
   );
 }
 
@@ -664,113 +950,5 @@ function LinkFormular({
         {laeuft ? "Wird angelegt …" : "Link hinzufügen"}
       </Knopf>
     </form>
-  );
-}
-
-/**
- * Wählt einen **vorhandenen** Ansprechpartner aus und weist ihn dem Exponat zu.
- *
- * Angelegt werden sie unter Ansprechpartner: sie sind Stammdaten, die mehrere Exponate
- * teilen. Früher wurde hier angelegt, und derselbe Mensch stand dann an jedem Stand als
- * eigener Datensatz.
- */
-function KontaktAuswahl({
-  offen,
-  aufOffen,
-  exponatId,
-  schonZugewiesen,
-  aufZugewiesen,
-}: {
-  offen: boolean;
-  aufOffen: (offen: boolean) => void;
-  exponatId: string;
-  schonZugewiesen: string[];
-  aufZugewiesen: () => void;
-}) {
-  // Erst laden, wenn das Fenster offen ist: die Liste kann lang werden.
-  const abruf = useAbruf<Person[]>(offen ? "/api/ansprechpartner" : null);
-  const [suche, setzeSuche] = useState("");
-  const [fehler, setzeFehler] = useState<string | null>(null);
-  const [laeuft, setzeLaeuft] = useState<string | null>(null);
-
-  const begriff = suche.trim().toLowerCase();
-  const offene = (abruf.daten ?? []).filter((p) => {
-    if (schonZugewiesen.includes(p.id)) return false;
-    if (begriff === "") return true;
-    return `${p.vorname} ${p.nachname} ${p.firma ?? ""}`.toLowerCase().includes(begriff);
-  });
-
-  async function waehle(person: Person) {
-    setzeLaeuft(person.id);
-    setzeFehler(null);
-    try {
-      await api(`/api/exponate/${exponatId}/ansprechpartner`, {
-        method: "POST",
-        body: JSON.stringify({ ansprechpartnerId: person.id }),
-      });
-      aufZugewiesen();
-      aufOffen(false);
-    } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Zuweisen nicht möglich.");
-    } finally {
-      setzeLaeuft(null);
-    }
-  }
-
-  return (
-    <Schaufenster offen={offen} aufOffen={aufOffen} titel="Ansprechpartner auswählen" fliessend>
-      {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
-
-      <Feld
-        type="search"
-        placeholder="Nach Name oder Firma suchen"
-        aria-label="Ansprechpartner suchen"
-        value={suche}
-        onChange={(ev) => {
-          setzeSuche(ev.target.value);
-        }}
-      />
-
-      <Zustand
-        laedt={abruf.laedt}
-        fehler={abruf.fehler}
-        leer={abruf.daten !== null && offene.length === 0}
-        leerText={
-          begriff === ""
-            ? "Alle vorhandenen Ansprechpartner stehen schon an diesem Exponat. Neue legst du unter Ansprechpartner an."
-            : "Niemand passt zu dieser Suche."
-        }
-      >
-        {/*
-          `min-h-0 flex-1`: nur **diese** Liste laeuft, das Fenster selbst nicht. Vorher
-          scrollten beide ineinander und der innere Balken lag ueber der Liste. `min-h-0`
-          ist noetig, weil ein Flex-Kind sonst nicht unter seine Inhaltshoehe schrumpft.
-        */}
-        <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {offene.map((p) => (
-            <li key={p.id} className="border-b border-linie last:border-b-0">
-              <button
-                type="button"
-                disabled={laeuft !== null}
-                onClick={() => void waehle(p)}
-                className="flex w-full items-center justify-between gap-3 py-3 text-left text-sm hover:bg-black/5 disabled:opacity-50"
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-semibold">
-                    {p.vorname} {p.nachname}
-                  </span>
-                  <span className="truncate text-xs text-text-hinweis">
-                    {[p.firma, p.position].filter(Boolean).join(" · ") || "ohne Firma"}
-                  </span>
-                </span>
-                <span className="shrink-0 text-[13px] font-semibold text-primaer-dunkel">
-                  {laeuft === p.id ? "…" : "Zuweisen"}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Zustand>
-    </Schaufenster>
   );
 }

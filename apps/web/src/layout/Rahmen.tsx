@@ -23,7 +23,6 @@ const REITER_HAUPT = [
   { pfad: "/", text: "Dashboard", genau: true },
   { pfad: "/besucher", text: "Besucher" },
   { pfad: "/exponate", text: "Exponate" },
-  { pfad: "/ansprechpartner", text: "Ansprechpartner" },
   { pfad: "/nutzer", text: "Nutzer" },
   { pfad: "/globale-daten", text: "Globale Daten" },
 ];
@@ -41,7 +40,7 @@ const REITER_MEHR = [
 
 const REITER_ADMIN = [...REITER_HAUPT, ...REITER_MEHR];
 
-/** Ein Betreuer sieht nur seine Exponate. Von dort geht es in den Scan-Ablauf. */
+/** Ein Betreuer sieht nur seine Exponate und pflegt dort deren Inhalte. */
 const REITER_BETREUER = [{ pfad: "/exponate", text: "Exponate", genau: true }];
 
 /**

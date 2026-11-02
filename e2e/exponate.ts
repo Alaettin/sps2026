@@ -104,31 +104,36 @@ export async function raeumeExponateAuf(request: APIRequestContext): Promise<voi
   }
 }
 
-/** Angelegte Ansprechpartner dieses Falls. */
-const personen: string[] = [];
-
-/** Merkt einen angelegten Ansprechpartner zum Aufräumen vor. */
-export function merkeAnsprechpartner(id: string): void {
-  personen.push(id);
+/**
+ * Legt ein Dokument samt Datei an einem Exponat an und merkt die Datei zum Aufräumen vor.
+ *
+ * Seit dem 02.11.2026 in **einem** Multipart-Aufruf; das getrennte Hochladen über
+ * `/api/dateien` gibt es für Exponatdokumente nicht mehr.
+ */
+export async function legeDokumentAn(
+  request: APIRequestContext,
+  exponatId: string,
+  titel: string,
+  datei: { name: string; mimeType: string; buffer: Buffer },
+): Promise<{ id: string; dateiId: string }> {
+  const antwort = await request.post(`/api/exponate/${exponatId}/dokumente`, {
+    multipart: { titel, datei },
+  });
+  if (!antwort.ok()) {
+    throw new Error(`Dokument liess sich nicht anlegen: ${String(antwort.status())}`);
+  }
+  const dok = (await antwort.json()) as { id: string; dateiId: string };
+  dateien.push(dok.dateiId);
+  return dok;
 }
 
-/**
- * Gibt die angelegten Ansprechpartner zurück. Gehört neben `raeumeExponateAuf`.
- *
- * **App-Nutzer stehen hier nicht.** Bis zum 20.10.2026 ließen sie sich gar nicht löschen;
- * seitdem geht es (`DELETE /api/nutzer/:id`), ältere Prüfnutzer aus früheren Läufen stehen
- * aber noch im Bestand.
- */
-export async function raeumeAnsprechpartnerAuf(request: APIRequestContext): Promise<void> {
-  while (personen.length > 0) {
-    const id = personen.pop();
-    if (id === undefined) break;
-    try {
-      await request.delete(`/api/ansprechpartner/${id}`);
-    } catch {
-      // absichtlich still
-    }
-  }
+/** Der geheime Code des QR-Codes am Exponat; nur der Admin bekommt ihn. */
+export async function scanCode(request: APIRequestContext, exponatId: string): Promise<string> {
+  const exponat = (await (await request.get(`/api/exponate/${exponatId}`)).json()) as {
+    scanCode?: string;
+  };
+  if (exponat.scanCode === undefined) throw new Error("kein Scan-Code, nicht als Admin?");
+  return exponat.scanCode;
 }
 
 /**

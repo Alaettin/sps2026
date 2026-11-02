@@ -14,7 +14,7 @@ import { Rueckfrage } from "../bausteine/dialog.js";
 interface Bestand {
   besucher: number;
   exponate: number;
-  zuordnungen: number;
+  besuche: number;
   dateien: number;
   /** Fehlt in Sicherungen vor dem 20.10.2026. */
   globaleDaten?: number;
@@ -31,7 +31,7 @@ interface Pruefergebnis {
 const ZEILEN: [keyof Bestand, string][] = [
   ["besucher", "Besucher"],
   ["exponate", "Exponate"],
-  ["zuordnungen", "Zuordnungen"],
+  ["besuche", "Aufgenommene Exponate"],
   ["dateien", "Dateien"],
   ["globaleDaten", "Globale Daten"],
   ["nachrichten", "Nachrichten"],

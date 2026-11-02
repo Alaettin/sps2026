@@ -1,6 +1,6 @@
 import { asc } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { besucher, exponate, zuordnungen } from "../db/schema.js";
+import { besuche as besucheTabelle, besucher, exponate } from "../db/schema.js";
 
 /**
  * Die Auswertung nach der Messe: wer welches Exponat besucht hat, als CSV fuer Excel.
@@ -63,8 +63,8 @@ export function auswertungCsv(db: Db): string {
   // Eine Abfrage fuer alle Besuche statt einer je Besucher.
   const besuche = new Set(
     db
-      .selectDistinct({ guid: zuordnungen.besucherGuid, exponatId: zuordnungen.exponatId })
-      .from(zuordnungen)
+      .select({ guid: besucheTabelle.besucherGuid, exponatId: besucheTabelle.exponatId })
+      .from(besucheTabelle)
       .all()
       .map((b) => `${b.guid}\u0000${b.exponatId}`),
   );
@@ -80,6 +80,8 @@ export function auswertungCsv(db: Db): string {
 
   // BOM und CRLF wie bei der CSV-Vorlage: so oeffnet Excel die Datei mit Umlauten.
   return (
-    "\uFEFF" + [kopf, ...zeilen].map((z) => z.map((f) => csvFeld(f)).join(";")).join("\r\n") + "\r\n"
+    "\uFEFF" +
+    [kopf, ...zeilen].map((z) => z.map((f) => csvFeld(f)).join(";")).join("\r\n") +
+    "\r\n"
   );
 }

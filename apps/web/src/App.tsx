@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { api } from "./lib/api.js";
 import type { Ich } from "./lib/ich.js";
 import { Rahmen } from "./layout/Rahmen.js";
 import { Anmeldung } from "./seiten/Anmeldung.js";
-import { Ansprechpartner } from "./seiten/Ansprechpartner.js";
 import { Api } from "./seiten/Api.js";
 import { GlobaleDaten } from "./seiten/GlobaleDaten.js";
 import { Besucher } from "./seiten/Besucher.js";
@@ -15,10 +14,10 @@ import { Monitoring } from "./seiten/Monitoring.js";
 import { KioskRegistrierung, KioskScan } from "./kiosk/Kiosk.js";
 import { MeinAvatar, MeinDatenschutz, MeinMenue, MeinStammdaten } from "./besucher/Mein.js";
 import { MeinNachricht, MeinNachrichten } from "./besucher/Nachrichten.js";
+import { MeinExponatScan } from "./besucher/ExponatScan.js";
 import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
-import { Scan } from "./scan/Scan.js";
 
 /**
  * Der Anmeldezustand kommt aus `GET /api/auth/ich`, bei jedem Start.
@@ -78,7 +77,7 @@ export function App() {
             Die Anmeldemaske haengt an **keiner** anderen Route. Ein direkter Aufruf von
             /anmeldung aus einem Lesezeichen muss genauso gehen wie der Weg ueber /.
           */}
-          <Route path="*" element={<Navigate to="/anmeldung" replace />} />
+          <Route path="*" element={<ZurAnmeldung />} />
         </Routes>
       ) : ich.rolle === "kiosk" ? (
         /*
@@ -105,26 +104,13 @@ export function App() {
           <Route path="/mein/nachrichten" element={<MeinNachrichten aufAbmelden={abmelden} />} />
           <Route path="/mein/nachrichten/neu" element={<MeinNachricht aufAbmelden={abmelden} />} />
           <Route path="/mein/nachrichten/:id" element={<MeinNachricht aufAbmelden={abmelden} />} />
-          <Route path="*" element={<Navigate to="/mein" replace />} />
+          <Route path="/mein/scan" element={<MeinExponatScan aufAbmelden={abmelden} />} />
+          <Route path="/mein/scan/:code" element={<MeinExponatScan aufAbmelden={abmelden} />} />
+          <Route path="*" element={<ZumZiel />} />
         </Routes>
       ) : (
         <Routes>
           <Route path="/anmeldung" element={<Navigate to="/" replace />} />
-          {/*
-            Der Scan läuft im Vollbild, **außerhalb** des Rahmens: er hat eine eigene
-            Kopfzeile, und die Reiter wären am Stand nur im Weg.
-          */}
-          <Route
-            path="/exponate/:id/scan"
-            element={
-              <Scan
-                ich={ich}
-                aufAbmelden={() => {
-                  setzeIch(null);
-                }}
-              />
-            }
-          />
           <Route
             element={
               <Rahmen
@@ -145,7 +131,6 @@ export function App() {
             <Route path="/besucher/:guid" element={<BesucherDetail ich={ich} />} />
             <Route path="/exponate" element={<Exponate ich={ich} />} />
             <Route path="/exponate/:id" element={<ExponatDetail ich={ich} />} />
-            <Route path="/ansprechpartner" element={<Ansprechpartner />} />
             <Route path="/nutzer" element={<Nutzer ich={ich} />} />
             <Route path="/api" element={<Api />} />
             <Route path="/globale-daten" element={<GlobaleDaten />} />
@@ -156,5 +141,27 @@ export function App() {
         </Routes>
       )}
     </BrowserRouter>
+  );
+}
+
+/**
+ * Leitet zur Anmeldung und **merkt sich das Ziel**, seit dem 02.11.2026. Der QR-Code am Exponat
+ * ist die Adresse `/mein/scan/<code>`; wer ihn mit der Handykamera öffnet und noch nicht
+ * angemeldet ist, soll danach dort landen und nicht im Menü.
+ *
+ * Das Ziel steht im Zustand des Verlaufseintrags, nicht im Speicher des Browsers: es
+ * überlebt den Wechsel des Routenbaums nach der Anmeldung und verschwindet mit dem Tab.
+ */
+function ZurAnmeldung() {
+  const { pathname } = useLocation();
+  return <Navigate to="/anmeldung" replace state={{ ziel: pathname }} />;
+}
+
+/** Nach der Anmeldung als Besucher: zum gemerkten Ziel, wenn es in seinem Bereich liegt. */
+function ZumZiel() {
+  const { state } = useLocation() as { state: { ziel?: unknown } | null };
+  const ziel = state?.ziel;
+  return (
+    <Navigate to={typeof ziel === "string" && ziel.startsWith("/mein/") ? ziel : "/mein"} replace />
   );
 }

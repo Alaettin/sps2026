@@ -1,15 +1,14 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
-  merkeAnsprechpartner,
+  legeExponatAn,
   merkeBesucher,
-  raeumeAnsprechpartnerAuf,
   raeumeBesucherAuf,
-  seiteMitEintrag,
+  raeumeExponateAuf,
 } from "./exponate.js";
 
 test.afterEach(async ({ request }) => {
   await raeumeBesucherAuf(request);
-  await raeumeAnsprechpartnerAuf(request);
+  await raeumeExponateAuf(request);
 });
 
 /**
@@ -98,7 +97,6 @@ test("der Seitenkoerper scrollt nicht waagerecht", async ({ page }) => {
     "/besucher",
     "/besucher/import",
     "/exponate",
-    "/ansprechpartner",
     "/nutzer",
     "/api",
     "/einstellungen",
@@ -343,28 +341,22 @@ test.describe("am Handy bedienbar", () => {
    * nicht, der hängt am Entwicklermodus und ist im Normalbetrieb gar nicht da.
    */
   test("die Knöpfe im Fenster liegen frei", async ({ page, request }) => {
-    const marke = String(Date.now()).slice(-6);
-    const angelegt = await (
-      await request.post("/api/ansprechpartner", {
-        data: { vorname: "Fenster", nachname: `Probe${marke}` },
-      })
-    ).json();
-    merkeAnsprechpartner(angelegt.id as string);
-
-    /*
-     * **Auf die richtige Seite gehen.** Die Liste blaettert zu zehnt, und ein neuer
-     * Ansprechpartner landet alphabetisch irgendwo; auf Seite eins zu suchen ging bisher
-     * nur aus Glueck gut und fiel um, als der Bestand wuchs.
-     */
-    const seite = await seiteMitEintrag(request, "/api/ansprechpartner", angelegt.id as string);
-    await page.goto(`/ansprechpartner?seite=${String(seite)}`);
-    const zeile = page.getByRole("row", { name: new RegExp(`Probe${marke}`) });
-    await zeile.getByRole("button", { name: "Löschen" }).click();
+    // Seit dem 02.11.2026 die Rückfrage beim Entfernen eines Links am Exponat.
+    const exponat = await legeExponatAn(request, `Fenster ${String(Date.now()).slice(-5)}`);
+    await request.post(`/api/exponate/${exponat.id}/links`, {
+      data: { url: "https://industrialdigitaltwin.org/", titel: "Fensterprobe" },
+    });
+    await page.goto(`/exponate/${exponat.id}`);
+    await page
+      .getByRole("listitem")
+      .filter({ hasText: "Fensterprobe" })
+      .getByRole("button", { name: "Entfernen" })
+      .click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
-    for (const name of ["Abbrechen", "Löschen"]) {
+    for (const name of ["Abbrechen", "Entfernen"]) {
       const knopf = dialog.getByRole("button", { name, exact: true });
       await expect(knopf).toBeVisible();
       expect(await liegtFrei(page, knopf), `etwas liegt über "${name}"`).toBe(true);

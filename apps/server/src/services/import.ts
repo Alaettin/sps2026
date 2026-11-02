@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, notInArray } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { besucher, zuordnungen } from "../db/schema.js";
+import { besuche, besucher } from "../db/schema.js";
 import { badRequest } from "../errors.js";
 import { avatarFuer } from "./standardavatar.js";
 import { leseCsv, schlageZuordnungVor, ZIELFELDER, type CsvInhalt, type Zielfeld } from "./csv.js";
@@ -293,7 +293,7 @@ export function uebernehmeImport(
               .all();
       const guids = weg.map((w) => w.g);
       if (guids.length > 0) {
-        tx.delete(zuordnungen).where(inArray(zuordnungen.besucherGuid, guids)).run();
+        tx.delete(besuche).where(inArray(besuche.besucherGuid, guids)).run();
         tx.delete(besucher).where(inArray(besucher.guid, guids)).run();
       }
       entfernt = guids.length;

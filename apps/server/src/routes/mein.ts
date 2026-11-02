@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { badRequest, forbidden, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
+import { nimmAuf } from "../services/besuche.js";
 import { findeDatei } from "../services/dateien.js";
 import {
   aendereNachricht,
@@ -53,6 +54,20 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
     "/api/mein/avatar",
     { preHandler: app.verlangeBesucher },
     async (req) => waehleAvatar(ctx.db, guid(req), req.body?.avatarDateiId ?? null),
+  );
+
+  /**
+   * Der Besucher scannt den QR-Code am Exponat und nimmt es auf, seit dem 02.11.2026.
+   * Idempotent; die Antwort sagt, ob es neu war, fuer die Bestaetigung.
+   */
+  app.post<{ Body: { code?: unknown } }>(
+    "/api/mein/besuche",
+    { preHandler: app.verlangeBesucher },
+    async (req) => {
+      const code = req.body?.code;
+      if (typeof code !== "string") throw badRequest("code-fehlt", "Field code is required.");
+      return nimmAuf(ctx.db, guid(req), code);
+    },
   );
 
   // --- Nachrichten ----------------------------------------------------------------------

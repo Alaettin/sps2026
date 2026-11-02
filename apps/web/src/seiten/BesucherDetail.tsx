@@ -61,7 +61,8 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
   const abruf = useAbruf<
     BesucherDaten &
       Einwilligung & {
-        zuordnungen: { id: string }[];
+        /** Wie viele Exponate er aufgenommen hat. */
+        besuche: number;
       }
   >(neu ? null : `/api/besucher/${String(guid)}`);
 
@@ -304,7 +305,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
         }}
       >
         <p>
-          Der Besucher und seine {abruf.daten?.zuordnungen.length ?? 0} Zuordnungen werden entfernt.
+          Der Besucher und seine {abruf.daten?.besuche ?? 0} aufgenommenen Exponate werden entfernt.
           Sein Pass zeigt danach nichts mehr an.
         </p>
       </Rueckfrage>

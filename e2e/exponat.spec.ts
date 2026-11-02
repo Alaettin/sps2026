@@ -1,14 +1,9 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import {
-  legeExponatAn,
-  merkeAnsprechpartner,
-  merkeDatei,
-  raeumeAnsprechpartnerAuf,
-  raeumeExponateAuf,
-} from "./exponate.js";
+import { legeDokumentAn, legeExponatAn, raeumeExponateAuf } from "./exponate.js";
 
 /**
- * Die Exponatbearbeitung: Links und Ansprechpartner anlegen, Inhalte ansehen.
+ * Die Exponatbearbeitung: Links und Ansprechpartner anlegen und ändern, Inhalte ansehen,
+ * der QR-Code für Besucher.
  *
  * Das war die Lücke: der Server konnte beides von Anfang an, die Oberfläche zeigte sie nur
  * an und bot kein Formular.
@@ -23,7 +18,6 @@ async function exponat(request: APIRequestContext): Promise<string> {
 // Jeder Fall gibt seine Kennungen zurück, siehe die Begründung in `exponate.ts`.
 test.afterEach(async ({ request }) => {
   await raeumeExponateAuf(request);
-  await raeumeAnsprechpartnerAuf(request);
 });
 
 test("ein Link lässt sich anlegen und öffnen", async ({ page, request }) => {
@@ -48,30 +42,23 @@ test("ein Link lässt sich anlegen und öffnen", async ({ page, request }) => {
 });
 
 /**
- * Die Detailansicht eines zugewiesenen Ansprechpartners.
- *
- * **Angelegt wird hier nicht mehr:** seit dem 08.10.2026 sind Ansprechpartner Stammdaten
- * unter `/ansprechpartner`, am Exponat wird nur ausgewählt. Diesen Weg prüft
- * `stammdaten.spec.ts`.
+ * Ansprechpartner gehören seit dem 02.11.2026 dem Exponat: hier anlegen, ansehen, ändern.
  */
-test("ein zugewiesener Ansprechpartner lässt sich im Detail ansehen", async ({ page, request }) => {
+test("ein Ansprechpartner lässt sich am Exponat anlegen, ansehen und ändern", async ({
+  page,
+  request,
+}) => {
   const id = await exponat(request);
-  const person = await (
-    await request.post("/api/ansprechpartner", {
-      data: {
-        vorname: "Miriam",
-        nachname: "Osterkamp",
-        firma: "Novaplast AG",
-        position: "Betriebsingenieurin",
-      },
-    })
-  ).json();
-  merkeAnsprechpartner(person.id as string);
-  await request.post(`/api/exponate/${id}/ansprechpartner`, {
-    data: { ansprechpartnerId: person.id },
-  });
-
   await page.goto(`/exponate/${id}`);
+
+  await page.getByRole("button", { name: "Ansprechpartner hinzufügen" }).click();
+  const formular = page.getByRole("dialog");
+  await formular.getByLabel("Vorname").fill("Miriam");
+  await formular.getByLabel("Nachname").fill("Osterkamp");
+  await formular.getByLabel("Firma").fill("Novaplast AG");
+  await formular.getByRole("button", { name: "Speichern" }).click();
+  await expect(formular).toHaveCount(0);
+
   await expect(page.getByText("Ansprechpartner (1 von 5)")).toBeVisible();
   await expect(page.getByText("Miriam Osterkamp")).toBeVisible();
 
@@ -79,9 +66,44 @@ test("ein zugewiesener Ansprechpartner lässt sich im Detail ansehen", async ({ 
   const schau = page.getByRole("dialog");
   await expect(schau.getByRole("heading", { name: "Miriam Osterkamp" })).toBeVisible();
   await expect(schau.getByText("Novaplast AG")).toBeVisible();
-  await expect(schau.getByText("Betriebsingenieurin")).toBeVisible();
-  // Kein Foto mehr: Ansprechpartner tragen keines.
+  // Kein Foto: Ansprechpartner tragen keines.
   await expect(schau.getByRole("img")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  // Ändern: die Firma, der Platz bleibt.
+  const zeile = page.getByRole("listitem").filter({ hasText: "Miriam Osterkamp" });
+  await zeile.getByRole("button", { name: "Bearbeiten" }).click();
+  await expect(page.getByRole("dialog").getByLabel("Vorname")).toHaveValue("Miriam");
+  await page.getByRole("dialog").getByLabel("Firma").fill("Novaplast GmbH");
+  await page.getByRole("dialog").getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText(/Novaplast GmbH/)).toBeVisible();
+
+  const gespeichert = (await (await request.get(`/api/exponate/${id}`)).json()) as {
+    kontakte: { firma: string; platz: number }[];
+  };
+  expect(gespeichert.kontakte).toEqual([
+    expect.objectContaining({ firma: "Novaplast GmbH", platz: 1 }),
+  ]);
+});
+
+/** Der QR-Code für Besucher, nur für den Admin, als geladenes Bild und zum Herunterladen. */
+test("der Admin sieht den QR-Code des Exponats", async ({ page, request }) => {
+  const id = await exponat(request);
+  const { scanCode } = (await (await request.get(`/api/exponate/${id}`)).json()) as {
+    scanCode: string;
+  };
+  await page.goto(`/exponate/${id}`);
+
+  await expect(page.getByRole("heading", { name: "QR-Code für Besucher" })).toBeVisible();
+  const bild = page.getByRole("img", { name: /QR-Code von/ });
+  await expect
+    .poll(() => bild.evaluate((e: HTMLImageElement) => e.naturalWidth))
+    .toBeGreaterThan(0);
+  await expect(page.getByText(`/mein/scan/${scanCode}`)).toBeVisible();
+  await expect(page.getByRole("link", { name: "PNG laden" })).toHaveAttribute(
+    "download",
+    /QR E\d+\.png/,
+  );
 });
 
 test("ein Bild öffnet sich im Fenster, ein PDF als Link in den Tab", async ({ page, request }) => {
@@ -99,14 +121,10 @@ test("ein Bild öffnet sich im Fenster, ein PDF als Link in den Tab", async ({ p
     ],
     ["blatt.pdf", "application/pdf", Buffer.from("%PDF-1.4\n%%EOF\n")],
   ] as const) {
-    const datei = await (
-      await request.post("/api/dateien", {
-        multipart: { datei: { name, mimeType: typ, buffer: inhalt } },
-      })
-    ).json();
-    merkeDatei(datei.id as string);
-    await request.post(`/api/exponate/${id}/dokumente`, {
-      data: { dateiId: datei.id, titel: name.replace(/\.[^.]+$/, "") },
+    await legeDokumentAn(request, id, name.replace(/\.[^.]+$/, ""), {
+      name,
+      mimeType: typ,
+      buffer: inhalt,
     });
   }
 

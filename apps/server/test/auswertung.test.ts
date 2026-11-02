@@ -4,7 +4,7 @@ import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
  * Die Auswertung als CSV, seit dem 19.10.2026: eine Zeile je Besucher, alle Stammdaten,
- * eine Spalte je Exponat mit `x`, wenn er dort etwas bekommen hat.
+ * eine Spalte je Exponat mit `x`, wenn er es aufgenommen hat.
  */
 
 const ADMIN = { ADMIN_EMAIL: "admin@idta-passport.de", ADMIN_PASSWORT: "startpasswort-123" };
@@ -24,26 +24,18 @@ async function aufbau() {
 
   const exponat = async (name: string) => {
     const e = await ruf<{ id: string; kennung: string }>("POST", "/api/exponate", { name });
-    const link = await ruf<{ id: string }>("POST", `/api/exponate/${e.id}/links`, {
-      url: "https://industrialdigitaltwin.org/",
-      titel: name,
-    });
-    return { ...e, link: link.id };
+    return e;
   };
   const e1 = await exponat("Pumpe");
   const e2 = await exponat("Ventil");
 
-  const besucher = async (
-    guid: string,
-    felder: object,
-    exponate: { id: string; link: string }[],
-  ) => {
+  const besucher = async (guid: string, felder: object, exponate: { id: string }[]) => {
     await ruf("POST", "/api/besucher", { guid, email: testEmail(), ...felder });
     for (const e of exponate) {
-      await ruf("POST", "/api/scan/zuordnen", {
-        guid,
-        exponatId: e.id,
-        elemente: [{ art: "link", zielId: e.link }],
+      await s.app.inject({
+        method: "PUT",
+        url: `/api/besucher/${guid}/besuche/${e.id}`,
+        headers: { cookie: keks },
       });
     }
   };

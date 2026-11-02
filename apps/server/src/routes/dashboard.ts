@@ -1,15 +1,14 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import {
-  ansprechpartner,
   appNutzer,
   besucher,
   exponatDokumente,
+  exponatKontakte,
   exponatLinks,
   exponate,
-  zuordnungen,
 } from "../db/schema.js";
-import { badRequest, unauthorized } from "../errors.js";
+import { badRequest } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { saeAus } from "../services/aussaat.js";
 import { endpunktListe, fuehreProbeAus } from "../services/probe.js";
@@ -19,7 +18,7 @@ import {
   setzeSchalter,
 } from "../services/einstellungen.js";
 import { FELDER_BESUCHER, baueModell } from "../modell/modell.js";
-import { listeExponate } from "../services/exponate.js";
+import { besucherVonExponat, listeExponate } from "../services/exponate.js";
 
 /**
  * Dashboard und der Bildschirm API.
@@ -59,27 +58,19 @@ export function dashboardRoutes(app: FastifyInstance, ctx: Kontext): void {
         .select({ n: sql<number>`count(*)` })
         .from(exponatLinks)
         .get()?.n ?? 0;
-    /*
-     * **Angelegte Personen, nicht Zuweisungen.** Wer an drei Exponaten steht, zaehlt
-     * einmal. Das passt zu den Kacheln darueber, die ebenfalls Bestaende zaehlen; die
-     * Zuweisungen stehen in `exponat_ansprechpartner` und waeren eine andere Zahl.
-     */
+    // Seit dem 02.11.2026 je Exponat gezaehlt: wer an zwei Exponaten steht, zaehlt zweimal.
     const ansprechpartnerGesamt =
       ctx.db
         .select({ n: sql<number>`count(*)` })
-        .from(ansprechpartner)
+        .from(exponatKontakte)
         .get()?.n ?? 0;
 
     const jeExponat = listeExponate(ctx.db).map((e) => ({
       id: e.id,
       kennung: e.kennung,
       name: e.name,
-      zuordnungen:
-        ctx.db
-          .select({ n: sql<number>`count(*)` })
-          .from(zuordnungen)
-          .where(eq(zuordnungen.exponatId, e.id))
-          .get()?.n ?? 0,
+      // Wie viele Besucher dieses Exponat aufgenommen haben.
+      besuche: besucherVonExponat(ctx.db, e.id),
     }));
 
     return {
@@ -187,14 +178,12 @@ export function dashboardRoutes(app: FastifyInstance, ctx: Kontext): void {
    * Laeuft nur auf einem Bestand ohne Exponate und meldet sonst einen Konflikt: ein
    * zweiter Lauf wuerde die Kennungen doppelt vergeben und mittendrin abbrechen.
    */
-  app.post("/api/aussaat", { preHandler: app.verlangeAdmin }, async (req) => {
-    const nutzer = req.nutzer;
-    if (nutzer === null) throw unauthorized();
+  app.post("/api/aussaat", { preHandler: app.verlangeAdmin }, async () => {
     /*
      * Kein try/catch hier. `saeAus` wirft bereits den richtigen `AppError`, und ein
      * Sammel-catch machte aus **jedem** Fehler einen Konflikt, auch aus einem Schreibfehler
      * der Ablage: der Beweis fuer die eigentliche Ursache waere damit verschluckt.
      */
-    return saeAus(ctx.db, ctx.ablage, nutzer.id);
+    return saeAus(ctx.db, ctx.ablage);
   });
 }

@@ -132,6 +132,12 @@ export const exponate = sqliteTable("exponate", {
   kennung: text("kennung").notNull().unique(),
   name: text("name").notNull(),
   beschreibung: text("beschreibung"),
+  /**
+   * Der geheime Teil des QR-Codes am Exponat, seit dem 02.11.2026. Der Besucher scannt ihn und
+   * nimmt das Exponat damit auf. **Zufaellig, nicht die Kennung**: `E01` bis `E10` waeren
+   * erratbar, und man koennte jedes Exponat aufnehmen, ohne am Stand gewesen zu sein.
+   */
+  scanCode: text("scan_code").notNull().unique(),
   angelegt: integer("angelegt").notNull().default(jetzt),
 });
 
@@ -174,96 +180,68 @@ export const exponatLinks = sqliteTable(
 );
 
 /**
- * Ansprechpartner als **eigenstaendige Stammdaten**.
+ * Ansprechpartner **gehoeren einem Exponat**, seit dem 02.11.2026 wieder.
  *
- * Frueher hing jeder an genau einem Exponat (`exponat_kontakte`). Mehrere Exponate koennen
- * denselben Menschen aber gemeinsam haben, und dann stand er doppelt im Bestand: zwei
- * Datensaetze, die beim Korrigieren einer E-Mail auseinanderlaufen.
+ * Vom 19.10. bis 02.11.2026 waren sie zentrale Stammdaten, die nur der Admin pflegte. Seit der
+ * Betreuer die Inhalte seines Exponats selbst pflegt, gehoeren sie dorthin: ein Betreuer soll
+ * keinen Datensatz aendern koennen, der zugleich an einem fremden Exponat steht. Derselbe Mensch
+ * an zwei Exponaten ist deshalb bewusst zweimal im Bestand.
  *
- * **Kein Foto.** Ansprechpartner brauchen keines, und damit entfaellt auch der Datenpunkt
- * `{K}_Contact{NN}_Image` im Konnektor-Modell.
+ * `platz` ist die Bruecke zum Modell (`{K}_Contact03_Email`), vergeben als kleinste freie Nummer,
+ * danach unveraendert. **Kein Foto**, `{K}_Contact{NN}_Image` gibt es nicht.
  */
-export const ansprechpartner = sqliteTable("ansprechpartner", {
-  id: text("id").primaryKey(),
-  /** Siehe `besucher.titel`: dieselbe Feldliste traegt beide. */
-  titel: text("titel"),
-  vorname: text("vorname").notNull(),
-  nachname: text("nachname").notNull(),
-  firma: text("firma"),
-  position: text("position"),
-  email: text("email"),
-  strasse: text("strasse"),
-  plz: text("plz"),
-  ort: text("ort"),
-  land: text("land"),
-  website: text("website"),
-  angelegt: integer("angelegt").notNull().default(jetzt),
-  geaendert: integer("geaendert").notNull().default(jetzt),
-});
-
-/**
- * Welcher Ansprechpartner an welchem Exponat auf welchem Platz steht.
- *
- * **Der Platz gehoert hierher, nicht an die Person.** Er ist die Bruecke zum Modell
- * (`{K}_Contact03_Email`) und damit eine Eigenschaft der Zuweisung: derselbe Mensch kann an
- * E01 auf Platz 1 und an E04 auf Platz 3 stehen.
- *
- * Zwei Eindeutigkeiten: ein Platz je Exponat nur einmal, und dieselbe Person nicht zweimal
- * am selben Exponat.
- */
-export const exponatAnsprechpartner = sqliteTable(
-  "exponat_ansprechpartner",
+export const exponatKontakte = sqliteTable(
+  "exponat_kontakte",
   {
+    id: text("id").primaryKey(),
     exponatId: text("exponat_id")
       .notNull()
       .references(() => exponate.id, { onDelete: "cascade" }),
-    ansprechpartnerId: text("ansprechpartner_id")
-      .notNull()
-      .references(() => ansprechpartner.id, { onDelete: "cascade" }),
     platz: integer("platz").notNull(),
+    /** Siehe `besucher.titel`: dieselbe Feldliste traegt beide. */
+    titel: text("titel"),
+    vorname: text("vorname").notNull(),
+    nachname: text("nachname").notNull(),
+    firma: text("firma"),
+    position: text("position"),
+    email: text("email"),
+    strasse: text("strasse"),
+    plz: text("plz"),
+    ort: text("ort"),
+    land: text("land"),
+    website: text("website"),
+    angelegt: integer("angelegt").notNull().default(jetzt),
+    geaendert: integer("geaendert").notNull().default(jetzt),
   },
-  (t) => [
-    unique("exponat_ansprechpartner_platz").on(t.exponatId, t.platz),
-    unique("exponat_ansprechpartner_paar").on(t.exponatId, t.ansprechpartnerId),
-    index("exponat_ansprechpartner_person_idx").on(t.ansprechpartnerId),
-  ],
+  (t) => [unique("exponat_kontakte_platz").on(t.exponatId, t.platz)],
 );
 
-// --- Zuordnungen ---------------------------------------------------------------------
+// --- Besuche -------------------------------------------------------------------------
 
 /**
- * Was ein Besucher an einem Exponat bekommen hat.
+ * Welcher Besucher welches Exponat aufgenommen hat, seit dem 02.11.2026.
  *
- * Der Eindeutigkeitsschluessel traegt die Zusage "Zuordnen ist idempotent": ein zweiter
- * Versuch nach einem Netzfehler legt nichts doppelt an. `exponatId` steht trotz
- * `zielId` dabei, weil `values` je Exponat gruppiert antwortet und sonst jede Abfrage
- * drei Tabellen zusammenfuehren muesste.
+ * Der Besucher scannt den QR-Code am Exponat selbst. **Aufgenommen wird das Exponat, nicht
+ * einzelne Inhalte**: der Konnektor liefert immer den aktuellen Stand aller Dokumente, Links und
+ * Ansprechpartner. Was der Betreuer spaeter ergaenzt, kommt an; was er loescht, verschwindet.
+ * Vorher hakte der Betreuer beim Scan des Passes einzelne Elemente an (`zuordnungen`).
+ *
+ * Das Paar ist eindeutig: ein zweiter Scan legt nichts an.
  */
-export const zuordnungen = sqliteTable(
-  "zuordnungen",
+export const besuche = sqliteTable(
+  "besuche",
   {
-    id: text("id").primaryKey(),
     besucherGuid: text("besucher_guid")
       .notNull()
       .references(() => besucher.guid, { onDelete: "cascade" }),
     exponatId: text("exponat_id")
       .notNull()
       .references(() => exponate.id, { onDelete: "cascade" }),
-    art: text("art", { enum: ["dokument", "link", "kontakt"] }).notNull(),
-    /** Id in `exponat_dokumente`, `exponat_links` oder `exponat_kontakte`, je nach `art`. */
-    zielId: text("ziel_id").notNull(),
-    /*
-     * Wer vergeben hat. **Nullable seit dem 20.10.2026**: ein geloeschter Nutzer laesst seine
-     * Zuordnungen stehen, der Besucher behaelt, was er bekommen hat. Vorher verhinderte die
-     * Pflichtspalte ohne `ON DELETE` jedes Loeschen eines Betreuers, der etwas vergeben hatte.
-     */
-    appNutzerId: text("app_nutzer_id").references(() => appNutzer.id, { onDelete: "set null" }),
     zeitpunkt: integer("zeitpunkt").notNull().default(jetzt),
   },
   (t) => [
-    unique("zuordnungen_eindeutig").on(t.besucherGuid, t.art, t.zielId),
-    index("zuordnungen_besucher_idx").on(t.besucherGuid),
-    index("zuordnungen_exponat_idx").on(t.exponatId),
+    unique("besuche_paar").on(t.besucherGuid, t.exponatId),
+    index("besuche_exponat_idx").on(t.exponatId),
   ],
 );
 
