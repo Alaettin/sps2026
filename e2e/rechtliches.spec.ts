@@ -24,6 +24,14 @@ test.afterEach(async () => {
   await admin.dispose();
 });
 
+/**
+ * Ein Link der Fusszeile, genau beim Namen: das Impressum nennt `datenschutz@idtwin.org`, und
+ * ohne `exact` traefe „Datenschutz“ auch diesen Link.
+ */
+function fussLink(page: Page, name: string) {
+  return page.locator("footer").getByRole("link", { name, exact: true });
+}
+
 /** Fusszeile da, Foto geladen, Links wie in der Vorlage, kein waagerechter Überlauf. */
 async function pruefeFusszeile(page: Page, wo: string) {
   const fuss = page.locator("footer");
@@ -86,17 +94,33 @@ test("Anmeldung trägt die IDTA-Fusszeile, die Rechtsseiten öffnen ohne Anmeldu
   await page.goto("/anmeldung");
   await pruefeFusszeile(page, "Anmeldung");
 
-  await page.getByRole("link", { name: "Impressum" }).click();
+  await fussLink(page, "Impressum").click();
   await expect(page).toHaveURL(/\/impressum$/);
   await expect(page.getByRole("heading", { name: "Impressum" })).toBeVisible();
   await expect(page.getByText("VR 16747", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Technischer Betrieb" })).toBeVisible();
+  await expect(page.getByText("HRB 726560", { exact: false })).toBeVisible();
   await pruefeFusszeile(page, "Impressum");
 
-  await page.getByRole("link", { name: "Datenschutz" }).click();
+  await fussLink(page, "Datenschutz").click();
   await expect(page.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
   await expect(page.getByText(/Fassung vom \d{4}-\d{2}-\d{2}/)).toBeVisible();
+  // Das lange Wort lief bei 390 px aus dem weissen Feld; die Seite selbst scrollte dabei nicht.
+  // Gemessen wird der Text, nicht der Kasten: der schrumpft mit `min-w-0` auch ohne Umbruch.
+  const ueberstand = await page
+    .getByRole("heading", { name: "Datenschutzhinweis" })
+    .evaluate((h) => {
+      const bereich = document.createRange();
+      bereich.selectNodeContents(h);
+      const feld = h.closest("main > div")?.getBoundingClientRect();
+      return bereich.getBoundingClientRect().right - (feld?.right ?? 0);
+    });
+  expect(ueberstand).toBeLessThanOrEqual(0);
+  // Seit Fassung 2026-11-02.3 ohne Platzhalter.
+  await expect(page.getByText("30.11.2027", { exact: false })).toBeVisible();
+  expect(await page.locator("main").innerText()).not.toContain("[[");
 
-  await page.getByRole("link", { name: "Cookie-Einstellungen" }).click();
+  await fussLink(page, "Cookie-Einstellungen").click();
   await expect(page.getByRole("heading", { name: "Cookie-Einstellungen" })).toBeVisible();
   await expect(page.getByText("nur ein technisch notwendiges Cookie")).toBeVisible();
 
@@ -123,7 +147,7 @@ test("Der Besucherbereich trägt die Fusszeile, die Rechtsseiten bleiben angemel
   await expect(page).toHaveURL(/\/mein$/);
   await pruefeFusszeile(page, "Besuchermenü");
 
-  await page.getByRole("link", { name: "Datenschutz" }).click();
+  await fussLink(page, "Datenschutz").click();
   await expect(page).toHaveURL(/\/datenschutz$/);
   await expect(page.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
   // Angemeldet geblieben: zurück ins Menü statt auf die Anmeldung.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { DATENSCHUTZ_FASSUNG } from "../src/services/datenschutz.js";
+import { DATENSCHUTZ_FASSUNG, istEntwurf, offenePlatzhalter } from "../src/services/datenschutz.js";
 import { melde, starte, testEmail, type Pruefstand } from "./hilfe.js";
 
 /**
@@ -308,5 +308,9 @@ describe("Kiosk: Registrierung", () => {
     );
   });
 
-  it.todo("Datenschutzhinweis ohne Platzhalter (wartet auf die Angaben der IDTA)");
+  // Seit Fassung 2026-11-02.3 befuellt; ein neuer Platzhalter faellt hier auf.
+  it("Datenschutzhinweis ohne Platzhalter, also kein Entwurf", () => {
+    expect(offenePlatzhalter()).toEqual([]);
+    expect(istEntwurf()).toBe(false);
+  });
 });

@@ -60,10 +60,15 @@ function Titel({ children }: { children: ReactNode }) {
   return <h2 className="pt-2 text-[15px] font-semibold">{children}</h2>;
 }
 
-/** Wortgleich von industrialdigitaltwin.org/impressum, Stand 02.11.2026. */
+/**
+ * Anbieter des IDTA Passport ist die IDTA, den technischen Betrieb macht Neoception;
+ * Entscheidung vom 02.11.2026. Die Angaben zur IDTA stammen aus industrialdigitaltwin.org/
+ * impressum, die zu Neoception aus neoception.com/impressum (Stand 02.11.2026).
+ */
 export function Impressum() {
   return (
     <Rechtsseite titel="Impressum">
+      <Titel>Anbieter des IDTA Passport</Titel>
       <Absatz>
         Industrial Digital Twin Association e.V. (IDTA)
         <br />
@@ -79,90 +84,64 @@ export function Impressum() {
       <Absatz>Vereinsregister beim Amtsgericht Frankfurt am Main Nr. VR 16747</Absatz>
       <Absatz>Vertretungsberechtigter Vorstand:</Absatz>
       <ul className="list-disc pl-6 text-text-zweit">
-        <li>Dr. Matthias Bölke (Vorstandsvorsitzender);</li>
-        <li>Dr. Horst Heinol-Heikkinen (Stellvertretender Vorstandsvorsitzender);</li>
-        <li>Karsten Schneider (Schatzmeister);</li>
+        <li>Dr. Matthias Bölke (Vorstandsvorsitzender)</li>
+        <li>Dr. Horst Heinol-Heikkinen (Stellvertretender Vorstandsvorsitzender)</li>
+        <li>Karsten Schneider (Schatzmeister)</li>
       </ul>
+      <Absatz>Geschäftsführung: Dr. Christian Mosch</Absatz>
       <Absatz>
         Anschrift jeweils: Industrial Digital Twin Association e.V., Lyoner Straße 18, 60528
         Frankfurt am Main.
       </Absatz>
-      <Absatz>Geschäftsführung:</Absatz>
-      <ul className="list-disc pl-6 text-text-zweit">
-        <li>Dr. Christian Mosch</li>
-      </ul>
-      <Absatz>Anschrift:</Absatz>
       <Absatz>
-        Industrial Digital Twin Association e.V.
-        <br />
-        Lyoner Straße 18
-        <br />
-        60528 Frankfurt am Main
+        Inhaltlich verantwortlich gem. § 18 Abs. 2 MStV: Dr. Christian Mosch, Anschrift wie oben.
       </Absatz>
+
       <hr className="border-linie" />
+      <Titel>Technischer Betrieb</Titel>
       <Absatz>
-        Industrial Digital Twin Applications GmbH (IDTA)
+        Neoception GmbH
         <br />
-        Lyoner Straße 18
+        Mallaustraße 50-56
         <br />
-        60528 Frankfurt am Main
+        68219 Mannheim
       </Absatz>
       <Absatz>
-        E-Mail: <a href="mailto:info@idtwin.org">info@idtwin.org</a>
-        <br />
-        Telefon: <a href="tel:+4915154385054">+49 151 5438 5054</a>
+        E-Mail: <a href="mailto:info@neoception.com">info@neoception.com</a>
       </Absatz>
       <Absatz>
-        Registergericht: Amtsgericht Frankfurt am Main, HRB 138244
+        Registergericht: Amtsgericht Mannheim, HRB 726560
         <br />
-        Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG: DE453943742
+        Geschäftsführer: Dr.-Ing. Jörg Nagel, Michael Blüm
       </Absatz>
-      <Absatz>Vertretungsberechtigter Geschäftsführer: Meik Billmann</Absatz>
-      <Absatz>Anschrift:</Absatz>
       <Absatz>
-        Industrial Digital Twin Applications GmbH
-        <br />
-        Lyoner Straße 18
-        <br />
-        60528 Frankfurt am Main
+        Neoception betreibt den IDTA Passport, die Plattform AXON und den Viewer im Auftrag der
+        IDTA.
       </Absatz>
+
       <hr className="border-linie" />
-      <Absatz>Inhaltliche Verantwortliche gem. § 18 Abs. 2 MStV:</Absatz>
-      <ul className="list-disc pl-6 text-text-zweit">
-        <li>Dr. Christian Mosch</li>
-        <li>Meik Billmann</li>
-      </ul>
-      <Titel>Haftungshinweis:</Titel>
+      <Titel>Inhalte der Exponate</Titel>
       <Absatz>
-        Für die Aktualität, Richtigkeit und Vollständigkeit der in dem Internetangebot des
-        Industrial Digital Twin Association e.V. (nachfolgend „IDTA“) bereitgestellten Informationen
-        wird keine Gewähr übernommen. Das Internetangebot des IDTA kann Verweise in Form von
-        Hyperlinks auf Internetseiten Dritter enthalten. Auf die Inhalte dieser externen
-        Internetseiten sowie die zugehörigen gehörigen Domains hat der IDTA keinen Einfluss.
+        Dokumente, Links und Ansprechpartner zu den Exponaten stellen die jeweiligen Aussteller ein
+        und verantworten sie. Die IDTA übernimmt für ihre Aktualität, Richtigkeit und
+        Vollständigkeit keine Gewähr. Wird eine Rechtsverletzung bekannt, entfernen wir den Inhalt
+        umgehend.
       </Absatz>
+      <Titel>Externe Links</Titel>
       <Absatz>
-        Sowohl für die Inhalte wie auch für die zugehörigen Domains sind die jeweiligen Anbieter
-        bzw. Betreiber verantwortlich. Der IDTA übt keine inhaltliche Überwachung der verlinkten
-        Internetseiten aus. Im Falle des Bekanntwerdens von konkreten Rechtsverletzungen werden
-        entsprechende Links umgehend entfernt. Datenübertragungen im Internet, wie beispielsweise
-        per E-Mail, bergen stets ein gewisses Sicherheitsrisiko.
+        Der IDTA Passport verweist auf Internetseiten Dritter, etwa in der Fußzeile oder in den
+        Links der Aussteller. Für deren Inhalte sind allein die jeweiligen Anbieter verantwortlich;
+        auf sie haben IDTA und Neoception keinen Einfluss.
       </Absatz>
+      <Titel>Bildmaterial</Titel>
       <Absatz>
-        Ein absoluter Schutz von Daten vor unbefugtem Zugriff durch Dritte ist nicht möglich. Der
-        IDTA weist daher auf dieses Sicherheitsrisiko hin und rät zu einem bedachten Umgang mit
-        Kommunikationsmitteln. Der IDTA widerspricht der Nutzung der auf seinen Internetseiten
-        veröffentlichten Kontaktdaten durch Dritte von nicht ausdrücklich angeforderter Werbung
-        gleich welcher Form. Bei Zuwiderhandeln werden ausdrücklich rechtliche Schritte vorbehalten.
+        Das Foto der Fußzeile sowie die Logos der IDTA und der Plattform Industrie 4.0 stammen von
+        industrialdigitaltwin.org. Die Besucherbilder sind Grafiken aus einer festen Auswahl.
       </Absatz>
-      <Titel>Bildmaterial:</Titel>
+      <Titel>Kontakt</Titel>
       <Absatz>
-        Industrialdigitaltwin.org verwendet unter anderem Fotos und Grafiken von adobe.stock.com,
-        Lenze SE, Homag Group AG
-      </Absatz>
-      <Titel>Redaktion:</Titel>
-      <Absatz>
-        Die Online-Redaktion erreichen Sie unter{" "}
-        <a href="mailto:info@idtwin.org">info@idtwin.org</a>
+        Fragen zum IDTA Passport an <a href="mailto:info@idtwin.org">info@idtwin.org</a>, zum
+        Datenschutz an <a href="mailto:datenschutz@idtwin.org">datenschutz@idtwin.org</a>.
       </Absatz>
     </Rechtsseite>
   );
@@ -205,6 +184,11 @@ export function Cookies() {
         Für das Standpersonal merkt sich der Browser im lokalen Speicher, ob in den Einstellungen
         die Entwickleransicht eingeschaltet ist. Das ist eine Einstellung, die man selbst vornimmt,
         und sie verlässt das Gerät nicht.
+      </Absatz>
+      <Absatz>
+        Schriften und Bilder liefert der IDTA Passport selbst aus; beim Aufruf lädt er nichts von
+        Drittanbietern. Das Kamerabild beim Scannen eines QR-Codes wertet nur dein Browser aus, es
+        wird weder gespeichert noch übertragen.
       </Absatz>
     </Rechtsseite>
   );

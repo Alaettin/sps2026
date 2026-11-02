@@ -1,6 +1,6 @@
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 import { Dateiablage } from "./ablage/dateien.js";
 import { stelleStandardAvatarSicher } from "./services/standardavatar.js";
@@ -53,6 +53,12 @@ export async function buildServer(
     logger: {
       level: env.logLevel,
       redact: ["req.headers.cookie", "req.headers.authorization"],
+      /*
+       * **Keine IP-Adressen im Log**, seit dem 02.11.2026. Der Vorgabe-Serialisierer schreibt
+       * `remoteAddress` und `remotePort` jeder Anfrage mit; der Datenschutzhinweis sagt, dass
+       * keine IP gespeichert wird.
+       */
+      serializers: { req: (req: FastifyRequest) => ({ method: req.method, url: req.url }) },
     },
     /*
      * Genau **ein** vertrauter Sprung, nicht `true`.

@@ -1,17 +1,21 @@
 /**
  * Der Datenschutzhinweis, dem ein Besucher bei der Registrierung am Tablet zustimmt.
  *
- * **Entwurf, keine Rechtsberatung.** Aufgebaut nach den Pflichtangaben aus Art. 13 DSGVO.
- * Was hier nicht bekannt ist, steht als `[[PLATZHALTER]]`; solange einer drinsteht, meldet
- * `istEntwurf()` das, und das Tablet zeigt einen sichtbaren Hinweis. Vor dem Einsatz von der
- * IDTA bzw. einer Rechtsberatung pruefen und freigeben lassen.
+ * Aufgebaut nach den Pflichtangaben aus Art. 13 DSGVO, **seit Fassung `2026-11-02.3` ohne
+ * Platzhalter**. Quellen: Anschrift und Datenschutzkontakt aus der Datenschutzerklaerung von
+ * industrialdigitaltwin.org, Hosting aus Sliplane (Server `fsn`, Falkenstein), Speicherdauer,
+ * Ort von Axon und Viewer sowie die Rollen als Entscheidung des Projekts vom 02.11.2026. Keine
+ * Rechtsberatung; die rechtliche Pruefung steht in der Projektakte.
+ *
+ * Ein neuer `[[PLATZHALTER]]` bleibt erkennbar: `istEntwurf()` meldet ihn, das Tablet zeigt
+ * dann einen sichtbaren Hinweis, und ein Test in `kiosk.test.ts` faellt.
  *
  * **Jede inhaltliche Aenderung bekommt eine neue `DATENSCHUTZ_FASSUNG`.** Gespeichert wird beim
  * Besucher die Fassung, der er zugestimmt hat; eine Registrierung mit einer alten Fassung lehnt
  * der Server ab, damit niemand einem Text zustimmt, der nicht mehr gilt.
  */
 
-export const DATENSCHUTZ_FASSUNG = "2026-11-02.2";
+export const DATENSCHUTZ_FASSUNG = "2026-11-02.3";
 
 export interface Abschnitt {
   titel: string;
@@ -28,14 +32,16 @@ export const ABSCHNITTE: Abschnitt[] = [
   {
     titel: "Verantwortlicher",
     absaetze: [
-      "Industrial Digital Twin Association e. V. (IDTA), [[ANSCHRIFT IDTA]], [[KONTAKT IDTA: E-Mail und Telefon]].",
-      "Datenschutzbeauftragter: [[DATENSCHUTZBEAUFTRAGTER: Name oder Stelle und Kontakt]].",
+      "Industrial Digital Twin Association e. V. (IDTA), Lyoner Straße 18, 60528 Frankfurt am Main, Telefon +49 69 6603 1939, E-Mail info@idtwin.org.",
+      "Kontakt zum Datenschutz: datenschutz@idtwin.org.",
     ],
   },
   {
     titel: "Welche Daten wir verarbeiten",
     absaetze: [
       "Die Kennung deines Besucherpasses; die Angaben, die du hier einträgst (Titel, Vorname, Nachname, Alias, Firma, Position, Anschrift, E-Mail-Adresse, Website); das Bild, das du aus unserer Auswahl wählst (kein Foto von dir); dein Passwort, gespeichert nur als nicht umkehrbarer Hashwert; welche Exponate du durch Scannen ihres QR-Codes aufgenommen hast, mit dem Zeitpunkt; Zeitpunkt und Fassung deiner Einwilligung.",
+      "Beim Scannen wertet dein Browser das Kamerabild nur auf deinem Gerät aus, um den QR-Code zu lesen. Es wird weder gespeichert noch übertragen.",
+      "Nach der Anmeldung hält ein technisch notwendiges Sitzungscookie dich angemeldet; Einzelheiten stehen unter „Cookie-Einstellungen“. IP-Adressen speichern wir nicht. Sie liegen nur kurz im Arbeitsspeicher des Servers, um die Zahl der Anfragen zu begrenzen.",
     ],
   },
   {
@@ -57,20 +63,22 @@ export const ABSCHNITTE: Abschnitt[] = [
     absaetze: [
       "Das Standpersonal eines Ausstellers sieht deine Angaben nicht, auch nicht, wenn du sein Exponat aufnimmst.",
       "Der Viewer ist über die Adresse auf deinem Pass ohne Anmeldung erreichbar. Wer diese Adresse kennt, etwa durch ein Foto des QR-Codes, kann die dort angezeigten Angaben und Inhalte abrufen. Gib deinen Pass deshalb nicht aus der Hand.",
-      "Neoception GmbH betreibt diese Anwendung und den Viewer im Auftrag der IDTA (Auftragsverarbeitung nach Art. 28 DSGVO). Gehostet wird bei [[HOSTING: Anbieter und Standort]].",
-      "Eine Übermittlung in ein Land außerhalb der EU findet [[DRITTLAND: nicht statt / statt, mit Garantie]].",
+      "Die Neoception GmbH, Mallaustraße 50-56, 68219 Mannheim, betreibt diese Anwendung, die Plattform AXON und den Viewer im Auftrag der IDTA (Auftragsverarbeitung nach Art. 28 DSGVO). Die Anwendung läuft bei der Sliplane GmbH, Berlin, auf einem Server in Deutschland; AXON und der Viewer laufen bei Neoception in der Europäischen Union.",
+      "Eine Übermittlung in ein Land außerhalb der Europäischen Union findet nicht statt.",
     ],
   },
   {
     titel: "Wie lange",
-    absaetze: ["[[SPEICHERDAUER: zum Beispiel bis X Monate nach der Messe, danach gelöscht]]."],
+    absaetze: [
+      "Wir speichern deine Daten bis zwölf Monate nach dem Ende der SPS 2026 und löschen sie spätestens am 30.11.2027. Widerrufst du deine Einwilligung, löschen wir sie früher.",
+    ],
   },
   {
     titel: "Deine Rechte",
     absaetze: [
       "Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Deine Angaben kannst du nach der Anmeldung jederzeit selbst ändern.",
-      "Du kannst deine Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3 DSGVO), per E-Mail an [[KONTAKT FÜR WIDERRUF]] oder am Stand der IDTA. Die bis dahin erfolgte Verarbeitung bleibt rechtmäßig.",
-      "Du hast das Recht, dich bei einer Datenschutzaufsichtsbehörde zu beschweren (Art. 77 DSGVO), zum Beispiel bei [[AUFSICHTSBEHÖRDE am Sitz der IDTA]].",
+      "Du kannst deine Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen (Art. 7 Abs. 3 DSGVO), per E-Mail an datenschutz@idtwin.org oder am Stand der IDTA. Die bis dahin erfolgte Verarbeitung bleibt rechtmäßig.",
+      "Du hast das Recht, dich bei einer Datenschutzaufsichtsbehörde zu beschweren (Art. 77 DSGVO), zum Beispiel bei der für die IDTA zuständigen: Der Hessische Beauftragte für Datenschutz und Informationsfreiheit, Postfach 3163, 65021 Wiesbaden.",
       "Eine automatisierte Entscheidungsfindung findet nicht statt.",
     ],
   },

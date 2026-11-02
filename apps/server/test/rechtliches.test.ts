@@ -30,3 +30,25 @@ describe("Oeffentlicher Datenschutzhinweis", () => {
     expect(offen.json<{ fassung: string }>().fassung).toBe(DATENSCHUTZ_FASSUNG);
   });
 });
+
+describe("Server-Log ohne IP-Adresse", () => {
+  it("schreibt je Anfrage nur Methode und Pfad, keine Adresse und keinen Port", async () => {
+    stand = await starte(ADMIN);
+    const log = stand.app.log as unknown as Record<symbol, unknown>;
+    const sym = Object.getOwnPropertySymbols(log).find((x) => x.description === "pino.serializers");
+    const serialisierer = (sym === undefined ? {} : log[sym]) as {
+      req?: (r: unknown) => Record<string, unknown>;
+    };
+    expect(serialisierer.req).toBeTypeOf("function");
+    const zeile = serialisierer.req?.({
+      method: "GET",
+      url: "/api/health",
+      ip: "203.0.113.7",
+      hostname: "idta-passport.sliplane.app",
+      socket: { remoteAddress: "203.0.113.7", remotePort: 51234 },
+      raw: { socket: { remoteAddress: "203.0.113.7" } },
+    });
+    expect(zeile).toEqual({ method: "GET", url: "/api/health" });
+    expect(JSON.stringify(zeile)).not.toContain("203.0.113.7");
+  });
+});

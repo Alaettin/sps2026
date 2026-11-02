@@ -49,6 +49,8 @@ async function bisZumDatenschutz(page: Page, guid: string, email: string): Promi
   await page.getByRole("button", { name: "Weiter" }).click();
 
   await expect(page.getByRole("heading", { name: "Datenschutz" })).toBeVisible();
+  // Seit Fassung 2026-11-02.3 ohne Platzhalter, also kein Entwurfshinweis mehr.
+  await expect(page.getByText("noch nicht freigegeben", { exact: false })).toHaveCount(0);
 }
 
 test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ page }) => {

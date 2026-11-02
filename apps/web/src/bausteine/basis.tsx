@@ -96,10 +96,15 @@ export function Tabellenflaeche({ children }: { children: ReactNode }) {
   return <div className="bg-flaeche shadow-flaeche sm:overflow-x-auto">{children}</div>;
 }
 
-/** Seitentitel wie auf industrialdigitaltwin.org: blau, mittleres Gewicht, nicht fett. */
+/**
+ * Seitentitel wie auf industrialdigitaltwin.org: blau, mittleres Gewicht, nicht fett.
+ *
+ * Mit Silbentrennung (`lang="de"` im Dokument): „Datenschutzhinweis“ ist bei 390 px breiter
+ * als das Feld und lief sonst über den Rand.
+ */
 export function Ueberschrift({ children }: { children: ReactNode }) {
   return (
-    <h1 className="text-4xl leading-tight font-medium tracking-[-0.01em] text-primaer sm:text-[40px]">
+    <h1 className="min-w-0 text-4xl leading-tight font-medium tracking-[-0.01em] break-words hyphens-auto text-primaer sm:text-[40px]">
       {children}
     </h1>
   );
