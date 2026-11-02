@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { besuche, besucher, exponate } from "../db/schema.js";
 import { badRequest, notFound } from "../errors.js";
@@ -65,6 +65,28 @@ export function entferneBesuch(db: Db, guid: string, exponatId: string): void {
   db.delete(besuche)
     .where(and(eq(besuche.besucherGuid, guid), eq(besuche.exponatId, exponatId)))
     .run();
+}
+
+/**
+ * Die aufgenommenen Exponate des Besuchers fuer seinen Bereich `/mein`, seit dem 02.11.2026:
+ * Kennung, Name und Zeitpunkt, in der Folge der Aufnahme.
+ */
+export function meineExponate(db: Db, guid: string) {
+  return (
+    db
+      .select({
+        exponatId: besuche.exponatId,
+        kennung: exponate.kennung,
+        name: exponate.name,
+        zeitpunkt: besuche.zeitpunkt,
+      })
+      .from(besuche)
+      .innerJoin(exponate, eq(exponate.id, besuche.exponatId))
+      .where(eq(besuche.besucherGuid, guid))
+      // Bei gleicher Millisekunde entscheidet die Einfuegefolge, sonst waere die Reihe zufaellig.
+      .orderBy(asc(besuche.zeitpunkt), sql`${besuche}.rowid`)
+      .all()
+  );
 }
 
 export function besucheVonBesucher(db: Db, guid: string) {

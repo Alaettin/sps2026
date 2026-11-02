@@ -36,22 +36,23 @@ test("falsche Zugangsdaten nennen nur einen Grund", async ({ page }) => {
 });
 
 /**
- * **Das Keyvisual deckt den Sichtbereich ab, auch jenseits des Entwurfs.**
+ * **Der blaue Hintergrund deckt den Sichtbereich ab, auch jenseits des Entwurfs.**
  *
- * Bis zum 08.10.2026 hing es auf `w-[1700px]`. Damit sah es bis genau 1700 px richtig aus
- * und darüber hinaus falsch: auf einem 3440 px breiten Schirm blieben links und rechts je
- * rund 870 px grau stehen. Ein Hintergrund mit fester Pixelbreite meldet sich eben erst
- * jenseits dieser Breite, und niemand prüft von sich aus breiter als der Entwurf.
- *
- * Gemessen wird deshalb in **drei** Größen und am Kasten des Bildes, nicht am Augenschein:
- * deckt er den Sichtbereich an allen vier Seiten ab?
+ * Seit dem 02.11.2026 Blau mit Punktraster im Stil von industrialdigitaltwin.org statt des
+ * AXON-Keyvisuals. Die Prüfung von damals bleibt: am 08.10.2026 hing das Bild auf
+ * `w-[1700px]` und ließ auf einem 3440 px breiten Schirm links und rechts je rund 870 px grau.
+ * Gemessen wird in **drei** Größen am Kasten des Hintergrunds, nicht am Augenschein.
  */
-test("das Keyvisual füllt den Sichtbereich in jeder Fenstergröße", async ({ page }) => {
+test("der blaue Hintergrund füllt den Sichtbereich in jeder Fenstergröße", async ({ page }) => {
   await page.goto("/anmeldung");
-  // Das Schmuckbild ist das einzige, das aus dem Zugaenglichkeitsbaum genommen ist; das
-  // Logo in der Maske traegt ein echtes `alt`.
-  const bild = page.locator('img[aria-hidden="true"]');
-  await expect(bild).toHaveCount(1);
+  const flaeche = page.locator("[data-hintergrund]");
+  await expect(flaeche).toHaveCount(1);
+  // Das Keyvisual ist fort: kein Schmuckbild mehr, nur die Logos mit echtem `alt`.
+  await expect(page.locator('img[aria-hidden="true"]')).toHaveCount(0);
+  // Wirklich IDTA-Blau, nicht das Grau des Grundes.
+  expect(await flaeche.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain(
+    "rgb(0, 40, 205)",
+  );
 
   for (const groesse of [
     { width: 3440, height: 1440 }, // sehr breit, hier lag der gemeldete Fehler
@@ -59,17 +60,7 @@ test("das Keyvisual füllt den Sichtbereich in jeder Fenstergröße", async ({ p
     { width: 390, height: 844 }, // das Telefon
   ]) {
     await page.setViewportSize(groesse);
-
-    /*
-     * Erst wenn das Bild wirklich geladen ist, stimmt sein Kasten. Ein `<img>` mit 404 hat
-     * sonst die Breite 0 und bestünde die Prüfung nie, oder, schlimmer, bei anderer
-     * Anordnung immer.
-     */
-    await expect
-      .poll(() => bild.evaluate((e: HTMLImageElement) => e.naturalWidth))
-      .toBeGreaterThan(0);
-
-    const luecke = await bild.evaluate((e) => {
+    const luecke = await flaeche.evaluate((e) => {
       const k = e.getBoundingClientRect();
       return {
         links: Math.round(k.left),
@@ -84,10 +75,15 @@ test("das Keyvisual füllt den Sichtbereich in jeder Fenstergröße", async ({ p
     expect(luecke.oben, `graue Fläche oben bei ${wo}`).toBeLessThanOrEqual(0);
     expect(luecke.rechts, `graue Fläche rechts bei ${wo}`).toBeLessThanOrEqual(0);
     expect(luecke.unten, `graue Fläche unten bei ${wo}`).toBeLessThanOrEqual(0);
+
+    // Kein waagerechter Überlauf.
+    await page.evaluate(() => {
+      window.scrollTo(10_000, 0);
+    });
+    expect(await page.evaluate(() => window.scrollX), `Überlauf bei ${wo}`).toBe(0);
   }
 });
 
-/** Entfernt am 08.10.2026; der Satz soll nicht unbemerkt zurückkommen. */
 test("die Anmeldemaske nennt die Konferenz-Orga nicht mehr", async ({ page }) => {
   await page.goto("/anmeldung");
   await expect(page.getByRole("button", { name: "Anmelden" })).toBeVisible();

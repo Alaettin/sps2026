@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { MIGRATIONEN } from "./hilfe.js";
 
 /**
- * Migration 0004/0005 vom 02.11.2026 auf einem Bestand im alten Modell: zentrale
+ * Migrationen 0004 bis 0006 vom 02.11.2026 auf einem Bestand im alten Modell: zentrale
  * Ansprechpartner werden je Exponat kopiert, Zuordnungen werden Besuche, jedes Exponat
  * bekommt einen Scan-Code.
  */
@@ -24,7 +24,8 @@ describe("Migration auf Besuche und Kontakte je Exponat", () => {
       .sort();
     const alt = dateien.filter((d) => d < "0004");
     const neu = dateien.filter((d) => d >= "0004");
-    expect(neu).toHaveLength(2);
+    // 0004 und 0005 (Besuche, Kontakte), seit 0006 entfallen auch die Nachrichten.
+    expect(neu.length).toBeGreaterThanOrEqual(3);
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -34,7 +35,8 @@ describe("Migration auf Besuche und Kontakte je Exponat", () => {
       insert into exponate (id, kennung, name) values ('e1', 'E01', 'Eins'), ('e2', 'E02', 'Zwei');
       insert into besucher (guid, vorname, nachname, email) values ('B1', 'A', 'B', 'a@x'), ('B2', 'C', 'D', 'c@x');
       insert into dateien (id, pfad, mime_type, groesse, original_name, sha256)
-        values ('f1', 'p', 'application/pdf', 1, 'a.pdf', 'h');
+        values ('f1', 'p', 'application/pdf', 1, 'a.pdf', 'h'), ('f2', 'q', 'image/png', 1, 'b.png', 'i');
+      insert into nachrichten (id, besucher_guid, platz, titel, bild_datei_id) values ('n1', 'B2', 1, 'Hallo', 'f2');
       insert into exponat_dokumente (id, exponat_id, platz, datei_id, titel) values ('d1', 'e1', 1, 'f1', 'Blatt');
       insert into exponat_links (id, exponat_id, platz, url, titel) values ('l1', 'e1', 1, 'https://a/', 'A');
       insert into ansprechpartner (id, titel, vorname, nachname, email) values
@@ -75,6 +77,9 @@ describe("Migration auf Besuche und Kontakte je Exponat", () => {
     expect(tabellen).not.toContain("zuordnungen");
     expect(tabellen).not.toContain("ansprechpartner");
     expect(tabellen).not.toContain("exponat_ansprechpartner");
+    // 0006: die Nachrichten und ihre Bilddatei sind fort, das Dokument bleibt.
+    expect(tabellen).not.toContain("nachrichten");
+    expect(db.prepare("select id from dateien").all()).toEqual([{ id: "f1" }]);
     db.close();
   });
 });

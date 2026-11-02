@@ -55,6 +55,8 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
   const [eingabe, setzeEingabe] = useState("");
+  // Startet die Kamera nicht, bliebe nur ein schwarzer Kasten; dann blenden wir ihn aus.
+  const [kameraAus, setzeKameraAus] = useState(false);
 
   const oeffne = useCallback(
     (guid: string) => {
@@ -86,12 +88,13 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-      {kameraMoeglich() ? (
+      {kameraAus ? null : kameraMoeglich() ? (
         <div className="overflow-hidden bg-black">
           <Kamera
             pausiert={laeuft}
             aufTreffer={ausQr}
             aufFehler={(art: Kamerafehler) => {
+              setzeKameraAus(true);
               setzeFehler(
                 art === "verweigert"
                   ? "Die Kamera ist für diese Seite gesperrt. Bitte das Standpersonal ansprechen."

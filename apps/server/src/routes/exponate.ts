@@ -36,7 +36,7 @@ function text(wert: unknown): string | undefined {
 
 /**
  * Liest ein Dokument aus einem Multipart-Koerper: `titel`, `beschreibung`, optional die Datei
- * `datei`. **Ein Aufruf**, wie bei den Nachrichten: eine Datei, die hochgeladen, aber nie an ein
+ * `datei`. **Ein Aufruf**: eine Datei, die hochgeladen, aber nie an ein
  * Dokument gehaengt wurde, kann so nicht entstehen. Nicht mitgeschickte Felder bleiben
  * `undefined` und beim Aendern unberuehrt.
  */

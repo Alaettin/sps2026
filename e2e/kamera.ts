@@ -21,7 +21,7 @@ export function kameraOptionen(anzahl: number) {
 }
 
 /**
- * Meldet einen frischen Besucher an, öffnet „Exponat scannen“ und wartet, bis ein Bild läuft.
+ * Meldet einen frischen Besucher an, öffnet die Scan-Seite und wartet, bis ein Bild läuft.
  *
  * Seit dem 02.11.2026 scannt der Besucher, nicht mehr der Betreuer; die Kamera steht deshalb
  * unter `/mein/scan`. Die Anmeldung ersetzt im Kontext dieses Falls die Admin-Sitzung.

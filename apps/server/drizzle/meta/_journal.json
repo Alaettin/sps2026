@@ -43,6 +43,13 @@
       "when": 1793626416123,
       "tag": "0005_amusing_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793628901367,
+      "tag": "0006_faulty_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

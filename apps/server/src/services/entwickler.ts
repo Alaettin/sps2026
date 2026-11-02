@@ -17,7 +17,6 @@ import {
   exponatLinks,
   globaleDaten,
   konnektorAbrufe,
-  nachrichten,
 } from "../db/schema.js";
 
 /**
@@ -41,8 +40,6 @@ export interface Bestand {
   abrufe: number;
   /** Datenpunkte, die jeder Besucher gleich bekommt, seit dem 20.10.2026. */
   globaleDaten: number;
-  /** Nachrichten der Besucher, seit dem 23.10.2026. Fehlt in aelteren Sicherungen. */
-  nachrichten: number;
   /** Bleiben beim Zuruecksetzen erhalten. Nur zur Anzeige im Rueckfragedialog. */
   appNutzer: number;
 }
@@ -66,7 +63,6 @@ export function leseBestand(db: Db): Bestand {
     dateien: n(db.select({ n: sql<number>`count(*)` }).from(dateien)),
     abrufe: n(db.select({ n: sql<number>`count(*)` }).from(konnektorAbrufe)),
     globaleDaten: n(db.select({ n: sql<number>`count(*)` }).from(globaleDaten)),
-    nachrichten: n(db.select({ n: sql<number>`count(*)` }).from(nachrichten)),
     appNutzer: n(db.select({ n: sql<number>`count(*)` }).from(appNutzer)),
   };
 }
@@ -112,8 +108,6 @@ export async function setzeZurueck(db: Db, ablage: Dateiablage): Promise<Bestand
      */
     tx.delete(einstellungen).where(eq(einstellungen.schluessel, SCHLUESSEL_UNBEKANNT)).run();
     tx.delete(besuche).run();
-    // Die Bilder liegen in `dateien` und gehen unten mit der ganzen Ablage.
-    tx.delete(nachrichten).run();
     tx.delete(exponatDokumente).run();
     tx.delete(exponatLinks).run();
     tx.delete(exponatKontakte).run();

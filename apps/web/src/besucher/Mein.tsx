@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
+  Abschnitt,
   Fehlerhinweis,
   Flaeche,
   Knopf,
@@ -14,7 +15,7 @@ import { Kioskrahmen, Knopfleiste } from "../kiosk/Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
-import { MAX_NACHRICHTEN, type Nachricht } from "./Nachrichten.js";
+import { Rueckfrage } from "../bausteine/dialog.js";
 
 /**
  * Der Bereich des angemeldeten Besuchers, seit dem 23.10.2026: Begrüßung, Daten ändern, Bild
@@ -42,7 +43,6 @@ function Rahmen({ aufAbmelden, children }: { aufAbmelden: () => void; children: 
 export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
   const navigate = useNavigate();
   const abruf = useAbruf<Besucher>("/api/mein");
-  const nachrichten = useAbruf<Nachricht[]>("/api/mein/nachrichten");
   const b = abruf.daten;
 
   return (
@@ -69,10 +69,10 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Seit dem 02.11.2026 die Haupthandlung am Stand, deshalb vorn. */}
               <Kachel
-                titel="Exponat scannen"
-                text="QR-Code am Exponat scannen und alle Infos in deinen Pass übernehmen."
+                titel="Exponate"
+                text="Exponate per QR-Code scannen und deine aufgenommenen ansehen."
                 aufKlick={() => {
-                  void navigate("/mein/scan");
+                  void navigate("/mein/exponate");
                 }}
               />
               <Kachel
@@ -89,13 +89,6 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                   void navigate("/mein/avatar");
                 }}
               />
-              <Kachel
-                titel="Meine Nachrichten"
-                text={`Titel, Text und Bild für deinen Pass. ${String(nachrichten.daten?.length ?? 0)} von ${String(MAX_NACHRICHTEN)}.`}
-                aufKlick={() => {
-                  void navigate("/mein/nachrichten");
-                }}
-              />
             </div>
 
             <button
@@ -110,6 +103,129 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
           </>
         )}
       </Zustand>
+    </Rahmen>
+  );
+}
+
+interface MeinExponat {
+  exponatId: string;
+  kennung: string;
+  name: string;
+  zeitpunkt: number;
+}
+
+const datum = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" });
+
+/**
+ * Die Unterseite „Exponate“, seit dem 02.11.2026: Knopf zum Scannen und die aufgenommenen
+ * Exponate als einfache Liste, jedes mit Rückfrage entfernbar. Entfernt verschwindet es aus dem
+ * Viewer; zurück kommt es nur durch erneutes Scannen am Exponat.
+ */
+export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const navigate = useNavigate();
+  const abruf = useAbruf<MeinExponat[]>("/api/mein/besuche");
+  const [zuEntfernen, setzeZuEntfernen] = useState<MeinExponat | null>(null);
+  const [laeuft, setzeLaeuft] = useState(false);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const liste = abruf.daten ?? [];
+
+  async function entferne() {
+    if (zuEntfernen === null) return;
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      await api(`/api/mein/besuche/${zuEntfernen.exponatId}`, { method: "DELETE" });
+      setzeZuEntfernen(null);
+      abruf.neu();
+    } catch (ursache) {
+      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Entfernen nicht möglich.");
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Rahmen aufAbmelden={aufAbmelden}>
+      <Seitenkopf>
+        <Ueberschrift>Exponate</Ueberschrift>
+        <Knopf
+          onClick={() => {
+            void navigate("/mein/scan");
+          }}
+        >
+          Exponat scannen
+        </Knopf>
+      </Seitenkopf>
+
+      <Abschnitt titel={<>Meine Exponate ({liste.length})</>}>
+        <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
+          {liste.length === 0 ? (
+            <p className="text-[15px] text-text-hinweis">
+              Noch kein Exponat aufgenommen. Scanne den QR-Code an einem Exponat.
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {liste.map((e) => (
+                <li
+                  key={e.exponatId}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-linie py-3 last:border-b-0"
+                >
+                  <span className="flex min-w-[12rem] flex-1 flex-col">
+                    <span className="text-[15px] font-semibold">
+                      <span className="mr-2 text-text-hinweis">{e.kennung}</span>
+                      {e.name}
+                    </span>
+                    <span className="text-[13px] text-text-hinweis">
+                      aufgenommen {datum.format(e.zeitpunkt)}
+                    </span>
+                  </span>
+                  <Knopf
+                    art="still"
+                    className="h-9 px-3 text-[13px]"
+                    onClick={() => {
+                      setzeFehler(null);
+                      setzeZuEntfernen(e);
+                    }}
+                  >
+                    Entfernen
+                  </Knopf>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Zustand>
+
+        <Rueckfrage
+          offen={zuEntfernen !== null}
+          aufOffen={(o) => {
+            if (!o) setzeZuEntfernen(null);
+          }}
+          titel="Exponat entfernen?"
+          bestaetigenText="Entfernen"
+          art="gefahr"
+          laeuft={laeuft}
+          fehler={fehler}
+          aufBestaetigen={() => void entferne()}
+        >
+          <p>
+            <b>
+              {zuEntfernen?.kennung} {zuEntfernen?.name}
+            </b>{" "}
+            verschwindet aus deinem Messepass und deinem Viewer.
+          </p>
+          <p>Um es wieder aufzunehmen, scanne den QR-Code am Exponat erneut.</p>
+        </Rueckfrage>
+      </Abschnitt>
+
+      <Knopf
+        art="rand"
+        className="self-start"
+        onClick={() => {
+          void navigate("/mein");
+        }}
+      >
+        Zurück
+      </Knopf>
     </Rahmen>
   );
 }

@@ -19,23 +19,3 @@ export async function alsJpeg(flaeche: HTMLCanvasElement, guete: number): Promis
     );
   });
 }
-
-/**
- * Verkleinert ein Foto so, dass die längere Kante höchstens `kante` Pixel misst, und gibt
- * JPEG zurück. Das Seitenverhältnis bleibt; kleinere Bilder werden nicht vergrößert.
- *
- * Für Nachrichtenbilder: ein Handyfoto hat 12 Megapixel und mehrere MB, im Viewer geht es
- * als Base64 mitten in die Antwort des Konnektors. 1600 px reichen für jeden Bildschirm.
- */
-export async function verkleinereAufKante(datei: Blob, kante: number, guete = 0.85): Promise<Blob> {
-  const bild = await createImageBitmap(datei);
-  const faktor = Math.min(1, kante / Math.max(bild.width, bild.height));
-  const flaeche = document.createElement("canvas");
-  flaeche.width = Math.round(bild.width * faktor);
-  flaeche.height = Math.round(bild.height * faktor);
-  const stift = flaeche.getContext("2d");
-  if (stift === null) throw new Error("Kein 2D-Kontext verfügbar.");
-  stift.drawImage(bild, 0, 0, flaeche.width, flaeche.height);
-  bild.close();
-  return alsJpeg(flaeche, guete);
-}

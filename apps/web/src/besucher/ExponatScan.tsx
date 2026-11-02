@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ApiFehler, api } from "../lib/api.js";
-import { Feld, Fehlerhinweis, Flaeche, Knopf, Ueberschrift } from "../bausteine/basis.js";
+import {
+  Feld,
+  Fehlerhinweis,
+  Flaeche,
+  Knopf,
+  Seitenkopf,
+  Ueberschrift,
+} from "../bausteine/basis.js";
 import { Kamera, kameraMoeglich, type Kamerafehler } from "../scan/Kamera.js";
 import { Kioskrahmen } from "../kiosk/Kioskrahmen.js";
 
@@ -49,6 +56,8 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
   const [zustand, setzeZustand] = useState<Zustand>({ art: "scannen" });
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [eingabe, setzeEingabe] = useState("");
+  // Startet die Kamera nicht, bleibt nur ein schwarzer Kasten; dann blenden wir ihn aus.
+  const [kameraAus, setzeKameraAus] = useState(false);
 
   const nimmAuf = useCallback((code: string) => {
     setzeFehler(null);
@@ -124,10 +133,10 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
             <Knopf
               art="rand"
               onClick={() => {
-                void navigate("/mein");
+                void navigate("/mein/exponate");
               }}
             >
-              Zum Menü
+              Zu meinen Exponaten
             </Knopf>
           </div>
         </Flaeche>
@@ -137,20 +146,31 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
 
   return (
     <Kioskrahmen aufAbmelden={aufAbmelden} besucher>
-      <Ueberschrift>Exponat scannen</Ueberschrift>
-      <p className="text-[17px] leading-relaxed text-text-zweit">
-        Halte die Kamera auf den QR-Code am Exponat. Es landet mit allen Infos in deinem Messepass.
-      </p>
+      {/*
+        Im weißen Seitenkopf wie auf den anderen Unterseiten: direkt auf dem blauen Band
+        verschwand die blaue Überschrift, und der Text lag halb im Blau.
+      */}
+      <Seitenkopf>
+        <div className="flex min-w-0 flex-col gap-2">
+          <Ueberschrift>Exponat scannen</Ueberschrift>
+          <p className="text-[17px] leading-relaxed text-text-zweit">
+            Halte die Kamera auf den QR-Code am Exponat. Es landet mit allen Infos in deinem
+            Messepass.
+          </p>
+        </div>
+      </Seitenkopf>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
       {ausAdresse === undefined &&
+        !kameraAus &&
         (kameraMoeglich() ? (
           <div className="overflow-hidden bg-black">
             <Kamera
               pausiert={zustand.art === "laeuft"}
               aufTreffer={ausQr}
               aufFehler={(art: Kamerafehler) => {
+                setzeKameraAus(true);
                 setzeFehler(
                   art === "verweigert"
                     ? "Die Kamera ist für diese Seite gesperrt. Gib sie in den Einstellungen des Browsers frei, oder scanne den QR-Code mit der Kamera-App deines Handys."
@@ -180,7 +200,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
       >
         <h2 className="text-[15px] font-semibold">Kein QR-Code lesbar? Code von Hand eingeben</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-2 text-[14px] font-semibold">
+          <label className="flex w-full min-w-0 flex-col gap-2 text-[14px] font-semibold sm:w-auto sm:flex-1">
             Code vom Exponat
             <Feld
               value={eingabe}
@@ -195,7 +215,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
           </label>
           <Knopf
             type="submit"
-            className="h-12 px-8"
+            className="h-12 w-full px-8 sm:w-auto"
             disabled={eingabe.trim() === "" || zustand.art === "laeuft"}
           >
             Aufnehmen
@@ -203,15 +223,15 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
         </div>
       </form>
 
-      <button
-        type="button"
-        className="self-start text-[14px] font-semibold text-primaer-dunkel underline underline-offset-2"
+      <Knopf
+        art="rand"
+        className="self-start"
         onClick={() => {
-          void navigate("/mein");
+          void navigate("/mein/exponate");
         }}
       >
-        Zurück zum Menü
-      </button>
+        Zurück
+      </Knopf>
     </Kioskrahmen>
   );
 }

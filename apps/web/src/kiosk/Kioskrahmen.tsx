@@ -1,9 +1,10 @@
-import { useRef, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../lib/api.js";
 import { Knopf, cn } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
 import { Band, Fusszeile } from "../bausteine/band.js";
+import { Rueckfrage } from "../bausteine/dialog.js";
 import { useZeitsperre } from "./zeitsperre.js";
 
 /**
@@ -17,7 +18,7 @@ import { useZeitsperre } from "./zeitsperre.js";
  * das Standpersonal.
  *
  * Seit dem 23.10.2026 trägt er auch den Bereich des angemeldeten Besuchers (`besucher`): dort
- * gibt es keine Zeitsperre, und Abmelden ist ein gewöhnlicher Knopf, denn das Gerät gehört
+ * gibt es keine Zeitsperre, und Abmelden fragt nicht nach, denn das Gerät gehört
  * dem Besucher selbst.
  */
 
@@ -42,9 +43,6 @@ export function Knopfleiste({ children }: { children: ReactNode }) {
  */
 const SPALTE = "mx-auto w-full max-w-[820px] px-6";
 
-/** Wie lange der unbeschriftete Bereich gedrückt werden muss, bis das Abmelden greift. */
-const ABMELDEN_MS = 3000;
-
 export function Kioskrahmen({
   children,
   aufAbmelden,
@@ -61,26 +59,20 @@ export function Kioskrahmen({
 }) {
   const navigate = useNavigate();
   const mitSperre = zeitsperre && !besucher;
+  // Die Rückfrage vor dem Abmelden am Terminal.
+  const [frage, setzeFrage] = useState(false);
   const sperre = useZeitsperre(() => {
-    if (mitSperre) aufAblauf?.();
+    if (!mitSperre) return;
+    // Läuft die Zeit ab, während jemand die Rückfrage offen stehen ließ, geht sie mit zu.
+    setzeFrage(false);
+    aufAblauf?.();
   });
-
-  const halten = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function abmelden() {
     void api("/api/auth/abmelden", { method: "POST" }).finally(() => {
       aufAbmelden();
       void navigate("/anmeldung");
     });
-  }
-
-  function beginneHalten() {
-    halten.current = setTimeout(abmelden, ABMELDEN_MS);
-  }
-
-  function endeHalten() {
-    if (halten.current !== null) clearTimeout(halten.current);
-    halten.current = null;
   }
 
   return (
@@ -101,26 +93,21 @@ export function Kioskrahmen({
         <div className={cn("flex h-[72px] items-center justify-between gap-4", SPALTE)}>
           <Logoreihe art="kopf" className="justify-start gap-5" />
           {/*
-          **Abmelden ist kein Knopf.** Ein beschrifteter Knopf wird am Stand aus Versehen
-          getroffen, und dann steht das Tablet bis jemand das Passwort kennt. Drei Sekunden
-          auf eine unbeschriftete Fläche ist für das Standpersonal eine Sekunde Arbeit und
-          für einen Besucher kein Versehen.
-        */}
-          {besucher ? (
-            <Knopf art="rand" className="h-[34px] shrink-0 px-3.5 text-[13px]" onClick={abmelden}>
-              Abmelden
-            </Knopf>
-          ) : (
-            <span
-              aria-label="Gedrückt halten zum Abmelden"
-              role="button"
-              tabIndex={-1}
-              onPointerDown={beginneHalten}
-              onPointerUp={endeHalten}
-              onPointerLeave={endeHalten}
-              className="size-9 shrink-0 cursor-default"
-            />
-          )}
+            **Abmelden als sichtbarer Knopf**, seit dem 02.11.2026. Vorher hielt das Personal
+            drei Sekunden eine unbeschriftete Fläche gedrückt; wer das nicht wusste, kam bis zum
+            Ablauf der Sitzung nicht mehr heraus. Am Terminal fragt der Knopf nach, weil dort auch
+            Besucher tippen; im eigenen Bereich des Besuchers meldet er direkt ab.
+          */}
+          <Knopf
+            art="rand"
+            className="h-[34px] shrink-0 px-3.5 text-[13px]"
+            onClick={() => {
+              if (besucher) abmelden();
+              else setzeFrage(true);
+            }}
+          >
+            Abmelden
+          </Knopf>
         </div>
       </header>
 
@@ -140,6 +127,16 @@ export function Kioskrahmen({
         {children}
       </main>
       {besucher && <Fusszeile spalte={SPALTE} />}
+
+      <Rueckfrage
+        offen={frage}
+        aufOffen={setzeFrage}
+        titel="Terminal abmelden?"
+        bestaetigenText="Abmelden"
+        aufBestaetigen={abmelden}
+      >
+        <p>Danach muss sich das Standpersonal mit E-Mail und Passwort neu anmelden.</p>
+      </Rueckfrage>
 
       {sperre.restSekunden !== null && mitSperre && (
         <div

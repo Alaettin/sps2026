@@ -202,6 +202,72 @@ describe("Konnektor liefert live", () => {
   });
 });
 
+describe("Meine Exponate des Besuchers", () => {
+  it("listet nur die eigenen, mit Kennung und Name, in der Folge der Aufnahme", async () => {
+    const { s, keks, exponat } = await aufbau();
+    const a = await exponat("Pumpe");
+    const b = await exponat("Ventil");
+    const anna = await alsBesucher(s, keks);
+    const bernd = await alsBesucher(s, keks);
+    await nimmAuf(s, anna.keks, scanCode(s, b.id));
+    await nimmAuf(s, anna.keks, scanCode(s, a.id));
+    await nimmAuf(s, bernd.keks, scanCode(s, a.id));
+
+    const liste = (
+      await s.app.inject({ url: "/api/mein/besuche", headers: { cookie: anna.keks } })
+    ).json<{ exponatId: string; kennung: string; name: string; zeitpunkt: number }[]>();
+    expect(liste.map((e) => [e.kennung, e.name])).toEqual([
+      [b.kennung, "Ventil"],
+      [a.kennung, "Pumpe"],
+    ]);
+    expect(typeof liste[0]?.zeitpunkt).toBe("number");
+  });
+
+  it("entfernt nur den eigenen Besuch, danach fehlt das Exponat im Konnektor", async () => {
+    const { s, keks, exponat } = await aufbau();
+    const e = await exponat("Pumpe");
+    const anna = await alsBesucher(s, keks);
+    const bernd = await alsBesucher(s, keks);
+    await nimmAuf(s, anna.keks, scanCode(s, e.id));
+    await nimmAuf(s, bernd.keks, scanCode(s, e.id));
+
+    const weg = await s.app.inject({
+      method: "DELETE",
+      url: `/api/mein/besuche/${e.id}`,
+      headers: { cookie: anna.keks },
+    });
+    expect(weg.statusCode).toBe(204);
+
+    const zeilen = s.ctx.sqlite.prepare("select besucher_guid as guid from besuche").all();
+    expect(zeilen).toEqual([{ guid: bernd.guid }]);
+    expect((await werte(s, anna.guid)).map((w) => w.propertyId)).not.toContain(`${e.kennung}_Name`);
+    expect((await werte(s, bernd.guid)).map((w) => w.propertyId)).toContain(`${e.kennung}_Name`);
+
+    // Neu scannen nimmt es wieder auf.
+    expect((await nimmAuf(s, anna.keks, scanCode(s, e.id))).json<{ neu: boolean }>().neu).toBe(
+      true,
+    );
+  });
+
+  it("antwortet ohne Besuchersitzung mit 401 und auf ein unbekanntes Exponat mit 404", async () => {
+    const { s, keks } = await aufbau();
+    const anna = await alsBesucher(s, keks);
+    expect((await s.app.inject({ url: "/api/mein/besuche" })).statusCode).toBe(401);
+    expect(
+      (await s.app.inject({ url: "/api/mein/besuche", headers: { cookie: keks } })).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await s.app.inject({
+          method: "DELETE",
+          url: "/api/mein/besuche/gibt-es-nicht",
+          headers: { cookie: anna.keks },
+        })
+      ).statusCode,
+    ).toBe(404);
+  });
+});
+
 describe("Besuche im Besucherdetail", () => {
   it("setzt und nimmt einen Besuch von Hand, nur als Admin", async () => {
     const { s, keks, exponat } = await aufbau();

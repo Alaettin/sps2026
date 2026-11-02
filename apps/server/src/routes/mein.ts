@@ -1,15 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { badRequest, forbidden, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
-import { nimmAuf } from "../services/besuche.js";
+import { entferneBesuch, meineExponate, nimmAuf } from "../services/besuche.js";
 import { findeDatei } from "../services/dateien.js";
-import {
-  aendereNachricht,
-  legeNachrichtAn,
-  loescheNachricht,
-  nachrichtenVon,
-  type NachrichtEingabe,
-} from "../services/nachrichten.js";
 import { ABSCHNITTE, DATENSCHUTZ_FASSUNG } from "../services/datenschutz.js";
 import {
   aendereSelbst,
@@ -70,38 +63,27 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
     },
   );
 
-  // --- Nachrichten ----------------------------------------------------------------------
-
-  app.get("/api/mein/nachrichten", { preHandler: app.verlangeBesucher }, async (req) =>
-    nachrichtenVon(ctx.db, guid(req)),
+  /** Die eigenen aufgenommenen Exponate, fuer den Kasten „Meine Exponate“. */
+  app.get("/api/mein/besuche", { preHandler: app.verlangeBesucher }, async (req) =>
+    meineExponate(ctx.db, guid(req)),
   );
 
-  app.post("/api/mein/nachrichten", { preHandler: app.verlangeBesucher }, async (req, reply) => {
-    const eingabe = await leseNachricht(req);
-    void reply.code(201);
-    return legeNachrichtAn(ctx.db, ctx.ablage, guid(req), eingabe);
-  });
-
-  app.patch<{ Params: { id: string } }>(
-    "/api/mein/nachrichten/:id",
-    { preHandler: app.verlangeBesucher },
-    async (req) =>
-      aendereNachricht(ctx.db, ctx.ablage, guid(req), req.params.id, await leseNachricht(req)),
-  );
-
-  app.delete<{ Params: { id: string } }>(
-    "/api/mein/nachrichten/:id",
+  /**
+   * Nimmt ein Exponat wieder heraus. Es verschwindet aus dem Viewer des Besuchers; wer es
+   * zurueck will, scannt den QR-Code erneut. Trifft nur die eigene Zeile.
+   */
+  app.delete<{ Params: { exponatId: string } }>(
+    "/api/mein/besuche/:exponatId",
     { preHandler: app.verlangeBesucher },
     async (req, reply) => {
-      await loescheNachricht(ctx.db, ctx.ablage, guid(req), req.params.id);
+      entferneBesuch(ctx.db, guid(req), req.params.exponatId);
       void reply.code(204);
       return null;
     },
   );
 
   /**
-   * Bilder fuer den Besucher: Standard, Galerie, der eigene Avatar und die Bilder seiner
-   * Nachrichten.
+   * Bilder fuer den Besucher: Standard, Galerie und der eigene Avatar.
    *
    * `/api/dateien/:id` bleibt dem Personal; dort liegen auch die Dokumente der Exponate, und
    * die gehen einen Besucher nur ueber die Zuordnung im Viewer etwas an.
@@ -121,34 +103,4 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
       return ctx.ablage.lies(reihe.pfad);
     },
   );
-}
-
-/**
- * Liest eine Nachricht aus einem Multipart-Koerper: `titel`, `text`, optional die Datei `bild`
- * und beim Aendern `bildEntfernen=true`.
- *
- * **Multipart, nicht JSON plus eigener Upload.** So kommen Bild und Nachricht in einem Zug;
- * ein Bild, das hochgeladen, aber nie an eine Nachricht gehaengt wurde, kann nicht entstehen.
- * Felder, die nicht mitkommen, bleiben beim Aendern unberuehrt (`undefined`).
- */
-async function leseNachricht(req: FastifyRequest): Promise<NachrichtEingabe> {
-  if (!req.isMultipart()) {
-    throw badRequest("multipart-erwartet", "Send the message as multipart/form-data.");
-  }
-  const eingabe: NachrichtEingabe = {};
-  for await (const teil of req.parts()) {
-    if (teil.type === "file") {
-      if (teil.fieldname !== "bild") {
-        await teil.toBuffer();
-        continue;
-      }
-      eingabe.bild = { name: teil.filename, inhalt: await teil.toBuffer() };
-      continue;
-    }
-    const wert = typeof teil.value === "string" ? teil.value : "";
-    if (teil.fieldname === "titel") eingabe.titel = wert;
-    else if (teil.fieldname === "text") eingabe.text = wert;
-    else if (teil.fieldname === "bildEntfernen") eingabe.bildEntfernen = wert === "true";
-  }
-  return eingabe;
 }

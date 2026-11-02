@@ -90,7 +90,10 @@ test("über die Kachel mit Handeingabe, ein zweites Mal heißt schon aufgenommen
   await meldeAn(page, email);
   await expect(page).toHaveURL(/\/mein$/);
 
-  await page.getByRole("button", { name: /Exponat scannen/ }).click();
+  // Kachel „Exponate“, dort der Knopf zum Scannen.
+  await page.getByRole("button", { name: /^Exponate/ }).click();
+  await expect(page).toHaveURL(/\/mein\/exponate$/);
+  await page.getByRole("button", { name: "Exponat scannen" }).click();
   await expect(page).toHaveURL(/\/mein\/scan$/);
 
   // Ein falscher Code bleibt auf der Seite und sagt es.
@@ -109,6 +112,50 @@ test("über die Kachel mit Handeingabe, ein zweites Mal heißt schon aufgenommen
   await page.getByLabel("Code vom Exponat").fill(code);
   await page.getByRole("button", { name: "Aufnehmen" }).click();
   await expect(page.getByRole("heading", { name: "Schon aufgenommen" })).toBeVisible();
+
+  // Kein waagerechter Überlauf, auch bei 390 px.
+  await page.evaluate(() => {
+    window.scrollTo(10_000, 0);
+  });
+  expect(await page.evaluate(() => window.scrollX)).toBe(0);
+});
+
+/** Seit dem 02.11.2026: die Unterseite „Exponate“ mit der Liste, Entfernen mit Rückfrage. */
+test("Meine Exponate zeigt das Aufgenommene und entfernt es nach Rückfrage", async ({ page }) => {
+  const exponat = await legeExponatAn(admin, `Kasten ${String(Date.now()).slice(-5)}`);
+  const code = await scanCode(admin, exponat.id);
+  const { guid, email } = await neuerBesucher();
+
+  await page.goto("/anmeldung");
+  await meldeAn(page, email);
+  await expect(page).toHaveURL(/\/mein$/);
+  await page.getByRole("button", { name: /^Exponate/ }).click();
+  await expect(page.getByRole("heading", { name: "Exponate", exact: true })).toBeVisible();
+  const kasten = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: /Meine Exponate/ }) });
+  await expect(kasten.getByText("Noch kein Exponat aufgenommen", { exact: false })).toBeVisible();
+
+  await page.goto(`/mein/scan/${code}`);
+  await expect(page.getByRole("heading", { name: "Exponat aufgenommen" })).toBeVisible();
+  await page.getByRole("button", { name: "Zu meinen Exponaten" }).click();
+  await expect(page).toHaveURL(/\/mein\/exponate$/);
+
+  await expect(page.getByRole("heading", { name: "Meine Exponate (1)" })).toBeVisible();
+  const zeile = kasten.getByRole("listitem").filter({ hasText: exponat.name });
+  await expect(zeile).toContainText(exponat.kennung);
+
+  // Abbrechen lässt es stehen.
+  await zeile.getByRole("button", { name: "Entfernen" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("scanne den QR-Code am Exponat erneut");
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  expect(await besucht(guid, exponat.id)).toBe(true);
+
+  await zeile.getByRole("button", { name: "Entfernen" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Entfernen" }).click();
+  await expect(page.getByRole("heading", { name: "Meine Exponate (0)" })).toBeVisible();
+  expect(await besucht(guid, exponat.id)).toBe(false);
 
   // Kein waagerechter Überlauf, auch bei 390 px.
   await page.evaluate(() => {

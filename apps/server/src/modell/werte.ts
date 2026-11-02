@@ -28,24 +28,7 @@ import {
   linkUrl,
   globalId,
   visitorFeld,
-  visitorNachricht,
 } from "./felder.js";
-import { nachrichtenVon } from "../services/nachrichten.js";
-
-/**
- * Die Zeit einer Nachricht, lesbar und in Messezeit: `23.10.2026, 14:05`. Fest auf
- * Europe/Berlin, nicht auf die Zeitzone des Servers; der Container laeuft in UTC.
- */
-export function zeitAlsText(ms: number): string {
-  return new Intl.DateTimeFormat("de-DE", {
-    timeZone: "Europe/Berlin",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ms));
-}
 import { kontakteVonExponat } from "../services/kontakte.js";
 
 /**
@@ -141,10 +124,9 @@ function personenwert(
 /**
  * Sammelt alle Rohwerte eines Besuchers.
  *
- * **Vom Exponat kommt nur etwas, wenn der Besucher dort mindestens eine Zuordnung hat**,
- * und davon nur die zugeordneten Elemente. Alles andere wird ausgelassen, was die Spec
- * ausdruecklich erlaubt. Ein Betreuer soll niemandem etwas geben, das er ihm nicht gegeben
- * hat.
+ * **Vom Exponat kommt nur etwas, wenn der Besucher es aufgenommen hat**, dann aber alles,
+ * was es gerade hat (seit dem 02.11.2026). Alles andere wird ausgelassen, was die Spec
+ * ausdruecklich erlaubt.
  */
 export function sammleWerte(db: Db, guid: string): RohWert[] {
   const person = db.select().from(besucher).where(eq(besucher.guid, guid)).get();
@@ -174,32 +156,6 @@ export function sammleWerte(db: Db, guid: string): RohWert[] {
   const avatar = avatarFuer(db, person.avatarDateiId);
   if (avatar !== null) {
     werte.push({ propertyId: VISITOR_AVATAR, text: null, dateiId: avatar });
-  }
-
-  /*
-   * **Die Nachrichten des Besuchers**, seit dem 23.10.2026. Vor dem fruehen `return`: sie
-   * gehoeren ihm, nicht einem Exponat. Leere Teile fallen aus; das Bild geht wie jedes
-   * Dokument ueber `nachAussen` (Bild, also By Value).
-   */
-  for (const n of nachrichtenVon(db, guid)) {
-    if (n.titel !== null) {
-      werte.push({ propertyId: visitorNachricht(n.platz, "Title"), text: n.titel, dateiId: null });
-    }
-    if (n.text !== null) {
-      werte.push({ propertyId: visitorNachricht(n.platz, "Text"), text: n.text, dateiId: null });
-    }
-    werte.push({
-      propertyId: visitorNachricht(n.platz, "Time"),
-      text: zeitAlsText(n.angelegt),
-      dateiId: null,
-    });
-    if (n.bildDateiId !== null) {
-      werte.push({
-        propertyId: visitorNachricht(n.platz, "Image"),
-        text: null,
-        dateiId: n.bildDateiId,
-      });
-    }
   }
 
   /*

@@ -240,3 +240,36 @@ test("der Hinweis 'Ich bin noch da' hält den Bildschirm", async ({ page }) => {
   await page.clock.runFor(80_000);
   await expect(page).toHaveURL(new RegExp(`/kiosk/${guid}$`));
 });
+
+/**
+ * Abmelden über den sichtbaren Knopf mit Rückfrage, seit dem 02.11.2026 (vorher drei Sekunden
+ * auf einer unbeschrifteten Fläche halten). In einem **eigenen Kontext mit eigener Anmeldung**:
+ * die abgelegte Sitzung der übrigen Fälle bleibt so unberührt.
+ */
+test("das Terminal meldet sich über den Knopf ab, Abbrechen lässt es angemeldet", async ({
+  browser,
+}) => {
+  const kontext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const seite = await kontext.newPage();
+  const anmeldung = await seite.request.post("/api/auth/anmelden", {
+    data: { email: "tablet-abnahme@idta-passport.de", passwort: "tablet-abnahme-2026" },
+  });
+  expect(anmeldung.status()).toBe(200);
+  await seite.goto("/kiosk");
+  await expect(seite.getByRole("heading", { name: "Pass scannen" })).toBeVisible();
+
+  // Abbrechen: das Terminal bleibt angemeldet.
+  await seite.getByRole("button", { name: "Abmelden" }).click();
+  const dialog = seite.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Terminal abmelden?" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(seite.getByRole("dialog")).toHaveCount(0);
+  expect((await seite.request.get("/api/auth/ich")).status()).toBe(200);
+
+  // Bestätigen: abgemeldet, zurück auf der Anmeldung.
+  await seite.getByRole("button", { name: "Abmelden" }).click();
+  await seite.getByRole("dialog").getByRole("button", { name: "Abmelden" }).click();
+  await expect(seite).toHaveURL(/\/anmeldung$/);
+  expect((await seite.request.get("/api/auth/ich")).status()).toBe(401);
+  await kontext.close();
+});
