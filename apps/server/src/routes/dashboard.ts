@@ -16,6 +16,8 @@ import {
   SCHLUESSEL_ANMELDUNG,
   anmeldungVerlangt,
   setzeSchalter,
+  setzeViewerBasisUrl,
+  viewerBasisUrl,
 } from "../services/einstellungen.js";
 import { FELDER_BESUCHER, baueModell } from "../modell/modell.js";
 import { besucherVonExponat, listeExponate } from "../services/exponate.js";
@@ -105,6 +107,8 @@ export function dashboardRoutes(app: FastifyInstance, ctx: Kontext): void {
       basicUser: ctx.env.connectorBasic?.user ?? null,
       basicGesetzt: ctx.env.connectorBasic !== null,
       anmeldungVerlangt: anmeldungVerlangt(ctx.db),
+      viewerBaseUrl: viewerBasisUrl(ctx.db, ctx.env).url,
+      viewerAusUmgebung: viewerBasisUrl(ctx.db, ctx.env).ausUmgebung,
       specVersion: "1.0.0",
       endpunkte: endpunktListe(),
       /*
@@ -144,6 +148,20 @@ export function dashboardRoutes(app: FastifyInstance, ctx: Kontext): void {
       }
       setzeSchalter(ctx.db, SCHLUESSEL_ANMELDUNG, wert);
       return { anmeldungVerlangt: wert };
+    },
+  );
+
+  /**
+   * Setzt die Viewer-Adresse, seit dem 03.11.2026. Nur fuer Admins: das Terminal erkennt Paesse
+   * nur mit diesem Praefix. Leerer Wert heisst zurueck auf die Umgebung.
+   */
+  app.patch<{ Body: { url?: unknown } }>(
+    "/api/einstellungen/viewer",
+    { preHandler: app.verlangeAdmin },
+    async (req) => {
+      setzeViewerBasisUrl(ctx.db, req.body?.url);
+      const neu = viewerBasisUrl(ctx.db, ctx.env);
+      return { viewerBaseUrl: neu.url, ausUmgebung: neu.ausUmgebung };
     },
   );
 

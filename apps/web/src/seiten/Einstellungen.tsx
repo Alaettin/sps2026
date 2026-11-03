@@ -2,6 +2,8 @@ import { useState } from "react";
 import { api, leseSchalter, setzeSchalter, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
+  Fehlerhinweis,
+  Feld,
   Flaeche,
   Knopf,
   Markierung,
@@ -44,11 +46,20 @@ interface KonnektorInfo {
   basisUrl: string;
   basicUser: string | null;
   basicGesetzt: boolean;
+  viewerBaseUrl: string;
+  viewerAusUmgebung: boolean;
   specVersion: string;
   modell: { datenpunkte: number; jeBesucher: number; exponate: number };
 }
 
-export function Einstellungen({ ich }: { ich: Ich }) {
+export function Einstellungen({
+  ich,
+  aufIchGeaendert,
+}: {
+  ich: Ich;
+  /** Holt `/api/auth/ich` neu, damit Terminal und Besucherdetail die neue Viewer-Adresse sehen. */
+  aufIchGeaendert: () => void;
+}) {
   const { t } = useSprache();
   // Nur beim ersten Rendern aus dem Speicher lesen; danach ist der Zustand hier die
   // Wahrheit und wird beim Umschalten zurueckgeschrieben.
@@ -131,8 +142,6 @@ export function Einstellungen({ ich }: { ich: Ich }) {
             <dd className="text-text-zweit">
               {ich.appName === "" ? "IDTA Passport" : ich.appName}
             </dd>
-            <dt className="font-semibold">{t("Viewer", "Viewer")}</dt>
-            <dd className="font-mono text-xs break-all text-text-zweit">{ich.viewerBaseUrl}</dd>
             <dt className="font-semibold">
               {t("Konnektor-Spezifikation", "Connector specification")}
             </dt>
@@ -147,6 +156,19 @@ export function Einstellungen({ ich }: { ich: Ich }) {
           </dl>
         </Zustand>
       </Abschnitt>
+
+      {info.daten !== null && (
+        <ViewerEinstellung
+          // Nach dem Speichern neu vorbelegen: der Schluessel wechselt mit dem Wert.
+          key={`${info.daten.viewerBaseUrl}|${String(info.daten.viewerAusUmgebung)}`}
+          url={info.daten.viewerBaseUrl}
+          ausUmgebung={info.daten.viewerAusUmgebung}
+          aufGespeichert={() => {
+            info.neu();
+            aufIchGeaendert();
+          }}
+        />
+      )}
 
       <Avatarverwaltung />
 
@@ -321,5 +343,96 @@ export function Einstellungen({ ich }: { ich: Ich }) {
         </p>
       </Rueckfrage>
     </>
+  );
+}
+
+/**
+ * Die Viewer-Adresse, seit dem 03.11.2026 hier statt nur in `VIEWER_BASE_URL`. Der Server
+ * prüft und speichert sie (`services/einstellungen.ts`); leer gespeichert gilt wieder die
+ * Umgebung.
+ */
+function ViewerEinstellung({
+  url,
+  ausUmgebung,
+  aufGespeichert,
+}: {
+  url: string;
+  ausUmgebung: boolean;
+  aufGespeichert: () => void;
+}) {
+  const { t } = useSprache();
+  const [entwurf, setzeEntwurf] = useState(url);
+  const [laeuft, setzeLaeuft] = useState(false);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+
+  async function speichere(wert: string) {
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      await api("/api/einstellungen/viewer", {
+        method: "PATCH",
+        body: JSON.stringify({ url: wert }),
+      });
+      aufGespeichert();
+    } catch (ursache) {
+      setzeFehler(fehlertext(ursache, t, ["Speichern nicht möglich.", "Could not save."]));
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Abschnitt titel={t("Viewer", "Viewer")}>
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          void speichere(entwurf);
+        }}
+      >
+        <label className="flex flex-col gap-2 text-[13px] font-semibold">
+          {t("Adresse des Viewers", "Viewer address")}
+          <Feld
+            type="url"
+            value={entwurf}
+            onChange={(ev) => {
+              setzeEntwurf(ev.target.value);
+            }}
+            className="font-mono text-sm font-normal"
+            spellCheck={false}
+            autoComplete="off"
+          />
+        </label>
+        <p className="text-[13px] text-text-hinweis">
+          {ausUmgebung
+            ? t(
+                "Kommt aus der Umgebung (VIEWER_BASE_URL). Ein hier gespeicherter Wert geht vor.",
+                "Comes from the environment (VIEWER_BASE_URL). A value saved here takes precedence.",
+              )
+            : t("In den Einstellungen gesetzt.", "Set in the settings.")}{" "}
+          {t(
+            "Die Pässe tragen diese Adresse plus GUID im QR-Code; das Terminal erkennt nur Pässe mit dieser Adresse. Schon gedruckte Pässe mit einer anderen Adresse lassen sich am Terminal weiter per Passnummer eingeben.",
+            "Passes carry this address plus GUID in their QR code; the terminal only recognises passes with this address. Passes already printed with a different address can still be entered by pass number at the terminal.",
+          )}
+        </p>
+        {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
+        <div className="flex flex-wrap gap-3">
+          <Knopf type="submit" disabled={laeuft || entwurf.trim() === "" || entwurf.trim() === url}>
+            {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
+          </Knopf>
+          {!ausUmgebung && (
+            <Knopf
+              art="rand"
+              disabled={laeuft}
+              onClick={() => {
+                void speichere("");
+              }}
+            >
+              {t("Auf Vorgabe zurücksetzen", "Reset to default")}
+            </Knopf>
+          )}
+        </div>
+      </form>
+    </Abschnitt>
   );
 }

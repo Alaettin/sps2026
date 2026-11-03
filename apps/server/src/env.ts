@@ -12,6 +12,14 @@ import { fileURLToPath } from "node:url";
  * Gebaut liegt alles in `apps/server/dist/index.js`, also auf derselben Tiefe wie
  * `apps/server/src/env.ts`. Beide Wege kommen hier auf dieselbe Wurzel.
  */
+/**
+ * Die Viewer-Adresse mit genau einem abschliessenden Schraegstrich. Gilt fuer die Umgebung und
+ * fuer den Wert aus den Einstellungen (`services/einstellungen.ts`), damit beide gleich enden.
+ */
+export function normalisiereViewerUrl(roh: string): string {
+  return roh.trim().replace(/\/*$/, "/");
+}
+
 export const PROJEKT_WURZEL = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 /**
@@ -165,9 +173,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     // Mit genau einem abschliessenden Schraegstrich, egal wie er gesetzt wurde: der Scan
     // vergleicht den QR-Inhalt gegen diesen Praefix, und ein fehlender Schraegstrich
     // liesse `.../abc` auf `.../abcdef` passen.
-    viewerBaseUrl: (source["VIEWER_BASE_URL"] ?? "https://viewer-sps2026.aas.neoception.dev/")
-      .trim()
-      .replace(/\/*$/, "/"),
+    viewerBaseUrl: normalisiereViewerUrl(
+      source["VIEWER_BASE_URL"] ?? "https://viewer-sps2026.aas.neoception.dev/",
+    ),
     appName: source["APP_NAME"]?.trim() ?? "",
   };
 }

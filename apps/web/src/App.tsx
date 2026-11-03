@@ -156,7 +156,10 @@ export function App() {
             <Route path="/api" element={<Api />} />
             <Route path="/globale-daten" element={<GlobaleDaten />} />
             <Route path="/monitoring" element={<Monitoring />} />
-            <Route path="/einstellungen" element={<Einstellungen ich={ich} />} />
+            <Route
+              path="/einstellungen"
+              element={<Einstellungen ich={ich} aufIchGeaendert={pruefe} />}
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

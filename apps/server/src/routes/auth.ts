@@ -6,6 +6,7 @@ import type { Kontext } from "../kontext.js";
 import { findeNutzerPerEmail, merkeAnmeldung } from "../services/nutzer.js";
 import { findeBesucher } from "../services/besucher.js";
 import { pruefeBesucherAnmeldung } from "../services/besucherzugang.js";
+import { viewerBasisUrl } from "../services/einstellungen.js";
 
 interface AnmeldeKoerper {
   email?: unknown;
@@ -111,7 +112,7 @@ export function authRoutes(app: FastifyInstance, ctx: Kontext): void {
         email: person.email,
         rolle: "besucher",
         appName: ctx.env.appName,
-        viewerBaseUrl: ctx.env.viewerBaseUrl,
+        viewerBaseUrl: viewerBasisUrl(ctx.db, ctx.env).url,
       };
     }
 
@@ -123,7 +124,8 @@ export function authRoutes(app: FastifyInstance, ctx: Kontext): void {
       email: nutzer?.email,
       rolle: nutzer?.rolle,
       appName: ctx.env.appName,
-      viewerBaseUrl: ctx.env.viewerBaseUrl,
+      // Seit dem 03.11.2026 aus den Einstellungen, sonst aus der Umgebung.
+      viewerBaseUrl: viewerBasisUrl(ctx.db, ctx.env).url,
     };
   });
 }
