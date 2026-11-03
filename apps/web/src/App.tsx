@@ -37,6 +37,9 @@ const RECHTSSEITEN = (
     <Route path="/imprint" element={<Impressum />} />
     <Route path="/datenschutz" element={<Datenschutz />} />
     <Route path="/privacy" element={<Datenschutz />} />
+    <Route path="/cookie-einstellungen" element={<Cookies />} />
+    <Route path="/cookie-settings" element={<Cookies />} />
+    {/* Die erste Adresse bis zum 03.11.2026; bleibt, damit geteilte Links weiter gehen. */}
     <Route path="/cookies" element={<Cookies />} />
   </>
 );

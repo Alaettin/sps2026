@@ -58,13 +58,18 @@ const NUETZLICH = [
 
 /**
  * Bei der IDTA fuehren diese drei auf deren Seiten; hier auf die eigenen der App. Auch die
- * Linkzeile der Anmeldung nutzt sie. Seit dem 03.11.2026 mit englischer Adresse (`App.tsx`
- * kennt beide); `/cookies` gilt in beiden Sprachen.
+ * Linkzeile der Anmeldung nutzt sie. Seit dem 03.11.2026 je Sprache eine eigene Adresse
+ * (`App.tsx` kennt beide).
  */
 export const RECHTLICH = [
   { text: "Impressum", en: "Imprint", ziel: "/impressum", zielEn: "/imprint" },
   { text: "Datenschutz", en: "Privacy", ziel: "/datenschutz", zielEn: "/privacy" },
-  { text: "Cookie-Einstellungen", en: "Cookie settings", ziel: "/cookies", zielEn: "/cookies" },
+  {
+    text: "Cookie-Einstellungen",
+    en: "Cookie settings",
+    ziel: "/cookie-einstellungen",
+    zielEn: "/cookie-settings",
+  },
 ];
 
 const SOZIAL = [

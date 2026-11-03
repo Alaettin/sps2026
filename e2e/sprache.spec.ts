@@ -79,6 +79,7 @@ test.describe("ohne Anmeldung", () => {
     await expect(page.getByRole("heading", { name: "Technical operation" })).toBeVisible();
 
     await fuss.getByRole("link", { name: "Cookie settings", exact: true }).click();
+    await expect(page).toHaveURL(/\/cookie-settings$/);
     await expect(page.getByText("only one technically necessary cookie")).toBeVisible();
     await keinUeberlauf(page, "Cookie-Seite englisch");
   });
@@ -95,6 +96,10 @@ test.describe("ohne Anmeldung", () => {
     await expect(zeile.getByRole("link", { name: "Privacy", exact: true })).toHaveAttribute(
       "href",
       "/privacy",
+    );
+    await expect(zeile.getByRole("link", { name: "Cookie settings", exact: true })).toHaveAttribute(
+      "href",
+      "/cookie-settings",
     );
 
     await page.goto("/imprint");

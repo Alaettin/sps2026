@@ -63,6 +63,8 @@ test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ 
     "/impressum",
     "/imprint",
     "/privacy",
+    "/cookie-einstellungen",
+    "/cookie-settings",
   ]) {
     await page.goto(pfad);
     await expect(page, `${pfad} war erreichbar`).toHaveURL(/\/kiosk$/);

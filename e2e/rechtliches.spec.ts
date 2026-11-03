@@ -67,7 +67,7 @@ async function pruefeFusszeile(page: Page, wo: string) {
   );
   await expect(rechtlich.getByRole("link", { name: "Cookie-Einstellungen" })).toHaveAttribute(
     "href",
-    "/cookies",
+    "/cookie-einstellungen",
   );
   await expect(fuss.getByRole("img", { name: "Plattform INDUSTRIE 4.0" })).toHaveJSProperty(
     "complete",
@@ -100,7 +100,7 @@ test("Anmeldung trägt nur die Linkzeile, die Rechtsseiten öffnen ohne Anmeldun
   for (const [name, ziel] of [
     ["Impressum", "/impressum"],
     ["Datenschutz", "/datenschutz"],
-    ["Cookie-Einstellungen", "/cookies"],
+    ["Cookie-Einstellungen", "/cookie-einstellungen"],
   ] as const) {
     await expect(fussLink(page, name)).toBeVisible();
     await expect(fussLink(page, name)).toHaveAttribute("href", ziel);
@@ -137,6 +137,7 @@ test("Anmeldung trägt nur die Linkzeile, die Rechtsseiten öffnen ohne Anmeldun
   expect(await page.locator("main").innerText()).not.toContain("[[");
 
   await fussLink(page, "Cookie-Einstellungen").click();
+  await expect(page).toHaveURL(/\/cookie-einstellungen$/);
   await expect(page.getByRole("heading", { name: "Cookie-Einstellungen" })).toBeVisible();
   await expect(page.getByText("nur ein technisch notwendiges Cookie")).toBeVisible();
 
@@ -150,6 +151,12 @@ test("Anmeldung trägt nur die Linkzeile, die Rechtsseiten öffnen ohne Anmeldun
   await expect(page.getByRole("heading", { name: "Impressum" })).toBeVisible();
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
+  await page.goto("/cookie-settings");
+  await expect(page.getByRole("heading", { name: "Cookie-Einstellungen" })).toBeVisible();
+  // Die erste Adresse bleibt gültig.
+  await page.goto("/cookies");
+  await expect(page).toHaveURL(/\/cookies$/);
+  await expect(page.getByRole("heading", { name: "Cookie-Einstellungen" })).toBeVisible();
 });
 
 test("Der Besucherbereich trägt die Fusszeile, die Rechtsseiten bleiben angemeldet erreichbar", async ({
