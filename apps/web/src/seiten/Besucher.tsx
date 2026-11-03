@@ -14,6 +14,7 @@ import {
   Zelle,
   Zustand,
 } from "../bausteine/basis.js";
+import { useSprache } from "../lib/sprache.js";
 
 interface Besucherzeile {
   guid: string;
@@ -31,6 +32,7 @@ interface Liste {
 }
 
 export function Besucher() {
+  const { t } = useSprache();
   const [parameter, setzeParameter] = useSearchParams();
   const suche = parameter.get("suche") ?? "";
   const seite = Number(parameter.get("seite") ?? "1");
@@ -42,12 +44,12 @@ export function Besucher() {
    */
   const [eingabe, setzeEingabe] = useState(suche);
   useEffect(() => {
-    const t = setTimeout(() => {
+    const uhr = setTimeout(() => {
       if (eingabe === suche) return;
       setzeParameter(eingabe === "" ? {} : { suche: eingabe }, { replace: true });
     }, 250);
     return () => {
-      clearTimeout(t);
+      clearTimeout(uhr);
     };
   }, [eingabe, suche, setzeParameter]);
 
@@ -65,11 +67,11 @@ export function Besucher() {
   return (
     <>
       <Seitenkopf>
-        <Ueberschrift>Besucher</Ueberschrift>
+        <Ueberschrift>{t("Besucher", "Visitors")}</Ueberschrift>
         <div className="flex flex-wrap gap-2.5">
           {/* Der CSV-Import ist seit dem 23.10.2026 abgeschaltet, siehe `app.ts` im Server. */}
           <Link to="/besucher/neu">
-            <Knopf>Besucher anlegen</Knopf>
+            <Knopf>{t("Besucher anlegen", "Add visitor")}</Knopf>
           </Link>
         </div>
       </Seitenkopf>
@@ -77,8 +79,8 @@ export function Besucher() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Feld
           type="search"
-          placeholder="Nach Name, Firma, E-Mail oder GUID"
-          aria-label="Suchen"
+          placeholder={t("Nach Name, Firma, E-Mail oder GUID", "By name, company, email or GUID")}
+          aria-label={t("Suchen", "Search")}
           className="w-full max-w-[320px]"
           value={eingabe}
           onChange={(e) => {
@@ -86,7 +88,7 @@ export function Besucher() {
           }}
         />
         <span className="text-[13px] text-text-hinweis">
-          {gesamt} {gesamt === 1 ? "Besucher" : "Besucher"}
+          {gesamt} {gesamt === 1 ? t("Besucher", "visitor") : t("Besucher", "visitors")}
         </span>
       </div>
 
@@ -96,20 +98,20 @@ export function Besucher() {
         leer={daten !== null && daten.eintraege.length === 0}
         leerText={
           suche === ""
-            ? "Noch keine Besucher. Lege einen von Hand an."
-            : "Kein Besucher passt zu dieser Suche."
+            ? t("Noch keine Besucher. Lege einen von Hand an.", "No visitors yet. Add one by hand.")
+            : t("Kein Besucher passt zu dieser Suche.", "No visitor matches this search.")
         }
       >
         <Tabellenflaeche>
           <table className="w-full border-collapse text-sm max-sm:block sm:min-w-[800px]">
             <thead className="max-sm:hidden">
               <tr>
-                <Kopfzelle>Name</Kopfzelle>
-                <Kopfzelle>Firma und Position</Kopfzelle>
-                <Kopfzelle>E-Mail</Kopfzelle>
+                <Kopfzelle>{t("Name", "Name")}</Kopfzelle>
+                <Kopfzelle>{t("Firma und Position", "Company and position")}</Kopfzelle>
+                <Kopfzelle>{t("E-Mail", "Email")}</Kopfzelle>
                 <Kopfzelle>GUID</Kopfzelle>
                 <Kopfzelle className="text-right">
-                  <span className="sr-only">Aktion</span>
+                  <span className="sr-only">{t("Aktion", "Action")}</span>
                 </Kopfzelle>
               </tr>
             </thead>
@@ -119,7 +121,7 @@ export function Besucher() {
                   <Zelle className="font-semibold">
                     {b.vorname} {b.nachname}
                   </Zelle>
-                  <Zelle titel="Firma">
+                  <Zelle titel={t("Firma", "Company")}>
                     <span className="flex flex-col gap-0.5">
                       <span className="font-medium">{b.firma ?? "—"}</span>
                       {b.position !== null && (
@@ -127,7 +129,7 @@ export function Besucher() {
                       )}
                     </span>
                   </Zelle>
-                  <Zelle titel="E-Mail" className="text-text-zweit">
+                  <Zelle titel={t("E-Mail", "Email")} className="text-text-zweit">
                     {b.email ?? "—"}
                   </Zelle>
                   <Zelle titel="GUID" className="py-1.5">
@@ -138,7 +140,7 @@ export function Besucher() {
                       to={`/besucher/${b.guid}`}
                       className="text-[13px] font-semibold whitespace-nowrap text-primaer-dunkel"
                     >
-                      Ansehen →
+                      {t("Ansehen", "View")} →
                     </Link>
                   </Zelle>
                 </Reihe>

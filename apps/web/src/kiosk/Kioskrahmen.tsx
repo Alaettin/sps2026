@@ -6,6 +6,7 @@ import { Logoreihe } from "../bausteine/logos.js";
 import { Band, Fusszeile } from "../bausteine/band.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 import { useZeitsperre } from "./zeitsperre.js";
+import { Sprachwahl, browsersprache, useSprache } from "../lib/sprache.js";
 
 /**
  * Der Rahmen um alle Kiosk-Bildschirme.
@@ -57,6 +58,7 @@ export function Kioskrahmen({
   zeitsperre?: boolean;
   besucher?: boolean;
 }) {
+  const { t, zuruecksetzen } = useSprache();
   const navigate = useNavigate();
   const mitSperre = zeitsperre && !besucher;
   // Die Rückfrage vor dem Abmelden am Terminal.
@@ -65,6 +67,9 @@ export function Kioskrahmen({
     if (!mitSperre) return;
     // Läuft die Zeit ab, während jemand die Rückfrage offen stehen ließ, geht sie mit zu.
     setzeFrage(false);
+    // Der naechste Besucher am Tablet beginnt in der Sprache des Geraets, nicht in der
+    // seines Vorgaengers: in der des Browsers. Seit dem 03.11.2026.
+    zuruecksetzen(browsersprache());
     aufAblauf?.();
   });
 
@@ -98,16 +103,19 @@ export function Kioskrahmen({
             Ablauf der Sitzung nicht mehr heraus. Am Terminal fragt der Knopf nach, weil dort auch
             Besucher tippen; im eigenen Bereich des Besuchers meldet er direkt ab.
           */}
-          <Knopf
-            art="rand"
-            className="h-[34px] shrink-0 px-3.5 text-[13px]"
-            onClick={() => {
-              if (besucher) abmelden();
-              else setzeFrage(true);
-            }}
-          >
-            Abmelden
-          </Knopf>
+          <div className="flex shrink-0 items-center gap-3">
+            <Sprachwahl />
+            <Knopf
+              art="rand"
+              className="h-[34px] shrink-0 px-3.5 text-[13px]"
+              onClick={() => {
+                if (besucher) abmelden();
+                else setzeFrage(true);
+              }}
+            >
+              {t("Abmelden", "Sign out")}
+            </Knopf>
+          </div>
         </div>
       </header>
 
@@ -131,11 +139,16 @@ export function Kioskrahmen({
       <Rueckfrage
         offen={frage}
         aufOffen={setzeFrage}
-        titel="Terminal abmelden?"
-        bestaetigenText="Abmelden"
+        titel={t("Terminal abmelden?", "Sign out terminal?")}
+        bestaetigenText={t("Abmelden", "Sign out")}
         aufBestaetigen={abmelden}
       >
-        <p>Danach muss sich das Standpersonal mit E-Mail und Passwort neu anmelden.</p>
+        <p>
+          {t(
+            "Danach muss sich das Standpersonal mit E-Mail und Passwort neu anmelden.",
+            "Stand staff will then have to sign in again with email and password.",
+          )}
+        </p>
       </Rueckfrage>
 
       {sperre.restSekunden !== null && mitSperre && (
@@ -144,9 +157,12 @@ export function Kioskrahmen({
           className="fixed inset-x-0 bottom-0 z-50 flex flex-wrap items-center justify-center gap-4 border-t border-linie bg-flaeche px-6 py-4 shadow-[0_-8px_24px_rgba(27,29,38,0.12)]"
         >
           <span className="text-[15px] font-medium">
-            Noch da? Der Bildschirm wird in {sperre.restSekunden} Sekunden zurückgesetzt.
+            {t(
+              `Noch da? Der Bildschirm wird in ${String(sperre.restSekunden)} Sekunden zurückgesetzt.`,
+              `Still there? The screen resets in ${String(sperre.restSekunden)} seconds.`,
+            )}
           </span>
-          <Knopf onClick={sperre.melden}>Ich bin noch da</Knopf>
+          <Knopf onClick={sperre.melden}>{t("Ich bin noch da", "I'm still here")}</Knopf>
         </div>
       )}
     </div>

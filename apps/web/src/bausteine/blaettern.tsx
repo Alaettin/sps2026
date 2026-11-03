@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Knopf, cn } from "./basis.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Die Seitenumschaltung, einmal für alle Listen.
@@ -63,6 +64,7 @@ export function Blaetterleiste({
   jeSeite?: number;
   aufSeite: (nummer: number) => void;
 }) {
+  const { t } = useSprache();
   const seiten = Math.max(1, Math.ceil(gesamt / jeSeite));
   if (seiten <= 1) return null;
 
@@ -90,13 +92,16 @@ export function Blaetterleiste({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <span className="text-[13px] text-text-hinweis">
-        Zeige {von} bis {bis} von {gesamt}
+        {t(
+          `Zeige ${String(von)} bis ${String(bis)} von ${String(gesamt)}`,
+          `Showing ${String(von)} to ${String(bis)} of ${String(gesamt)}`,
+        )}
       </span>
-      <nav aria-label="Seiten" className="flex flex-wrap gap-2">
+      <nav aria-label={t("Seiten", "Pages")} className="flex flex-wrap gap-2">
         <Knopf
           art="rand"
           className="h-9 w-11 px-0"
-          aria-label="Vorherige Seite"
+          aria-label={t("Vorherige Seite", "Previous page")}
           disabled={seite <= 1}
           onClick={() => {
             aufSeite(seite - 1);
@@ -123,7 +128,7 @@ export function Blaetterleiste({
         <Knopf
           art="rand"
           className="h-9 w-11 px-0"
-          aria-label="Nächste Seite"
+          aria-label={t("Nächste Seite", "Next page")}
           disabled={seite >= seiten}
           onClick={() => {
             aufSeite(seite + 1);

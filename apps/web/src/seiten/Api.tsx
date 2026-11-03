@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
   Fehlerhinweis,
@@ -12,6 +12,8 @@ import {
   Ueberschrift,
   Zustand,
 } from "../bausteine/basis.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Der Bildschirm API.
@@ -56,6 +58,7 @@ interface Ergebnis {
 }
 
 export function Api() {
+  const { t } = useSprache();
   const { daten, laedt, fehler, neu } = useAbruf<Info>("/api/konnektor/info");
   const [laeuft, setzeLaeuft] = useState(false);
   const [schalterFehler, setzeSchalterFehler] = useState<string | null>(null);
@@ -75,7 +78,10 @@ export function Api() {
       neu();
     } catch (ursache) {
       setzeSchalterFehler(
-        ursache instanceof ApiFehler ? ursache.message : "Der Schalter ließ sich nicht umlegen.",
+        fehlertext(ursache, t, [
+          "Der Schalter ließ sich nicht umlegen.",
+          "The switch could not be toggled.",
+        ]),
       );
     } finally {
       setzeLaeuft(false);
@@ -85,14 +91,14 @@ export function Api() {
   return (
     <>
       <Seitenkopf>
-        <Ueberschrift>API</Ueberschrift>
+        <Ueberschrift>{t("API", "API")}</Ueberschrift>
       </Seitenkopf>
 
       <Zustand laedt={laedt} fehler={fehler}>
         {daten !== null && (
           <>
             <Zugangsblock
-              titel="Zugang AXON Connector"
+              titel={t("Zugang AXON Connector", "Access AXON Connector")}
               zugang={daten}
               pfadName="/connector"
               userVar="CONNECTOR_BASIC_USER"
@@ -103,11 +109,17 @@ export function Api() {
                 void lege("/api/konnektor/zugang", an);
               }}
             >
-              <code className="font-mono text-xs">/health</code> bleibt in beiden Stellungen anonym
-              erreichbar, sonst meldete der Dienst sich selbst als krank.
+              <code className="font-mono text-xs">/health</code>{" "}
+              {t(
+                "bleibt in beiden Stellungen anonym erreichbar, sonst meldete der Dienst sich selbst als krank.",
+                "stays reachable anonymously in both positions, otherwise the service would report itself as unhealthy.",
+              )}
             </Zugangsblock>
 
-            <Abschnitt titel="Endpunkte AXON Connector" className="gap-3">
+            <Abschnitt
+              titel={t("Endpunkte AXON Connector", "Endpoints AXON Connector")}
+              className="gap-3"
+            >
               <Endpunktliste endpunkte={daten.endpunkte} beispielGuid={daten.beispielGuid} />
             </Abschnitt>
           </>
@@ -141,6 +153,7 @@ function Zugangsblock({
   aufSchalten: (an: boolean) => void;
   children: ReactNode;
 }) {
+  const { t } = useSprache();
   // Ein `<section>` mit Namen: Screenreader und Abnahme finden den Block darüber.
   return (
     <Flaeche className="flex flex-col p-0">
@@ -148,7 +161,7 @@ function Zugangsblock({
         <h2 className="text-lg font-semibold">{titel}</h2>
 
         <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[12rem_1fr]">
-          <dt className="font-semibold">Basis-Adresse</dt>
+          <dt className="font-semibold">{t("Basis-Adresse", "Base address")}</dt>
           <dd>
             <Monowert wert={zugang.basisUrl} />
           </dd>
@@ -157,13 +170,18 @@ function Zugangsblock({
         <div className="flex flex-wrap items-start justify-between gap-4 border-t border-linie pt-5">
           <div className="flex flex-col gap-1">
             <h3 className="flex items-center gap-3 text-[15px] font-semibold">
-              Anmeldung verlangen
-              {!zugang.anmeldungVerlangt && <Markierung text="AUS" farbe="var(--color-fehler)" />}
+              {t("Anmeldung verlangen", "Require sign-in")}
+              {!zugang.anmeldungVerlangt && (
+                <Markierung text={t("AUS", "OFF")} farbe="var(--color-fehler)" />
+              )}
             </h3>
             <p className="max-w-prose text-sm text-text-zweit">
-              Steht der Schalter an, verlangt jeder Aufruf unter{" "}
-              <code className="font-mono text-xs">{pfadName}</code> eine Basic-Authentifizierung.{" "}
-              {children}
+              {t(
+                "Steht der Schalter an, verlangt jeder Aufruf unter",
+                "When the switch is on, every request under",
+              )}{" "}
+              <code className="font-mono text-xs">{pfadName}</code>{" "}
+              {t("eine Basic-Authentifizierung.", "requires basic authentication.")} {children}
             </p>
           </div>
           <Knopf
@@ -174,7 +192,9 @@ function Zugangsblock({
               aufSchalten(!zugang.anmeldungVerlangt);
             }}
           >
-            {zugang.anmeldungVerlangt ? "Ausschalten" : "Einschalten"}
+            {zugang.anmeldungVerlangt
+              ? t("Ausschalten", "Switch off")
+              : t("Einschalten", "Switch on")}
           </Knopf>
         </div>
 
@@ -183,11 +203,15 @@ function Zugangsblock({
         {zugang.anmeldungVerlangt ? (
           <>
             <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-[12rem_1fr]">
-              <dt className="font-semibold">Verfahren</dt>
-              <dd className="text-text-zweit">Basic-Authentifizierung</dd>
-              <dt className="font-semibold">Benutzer</dt>
-              <dd className="font-mono text-xs">{zugang.basicUser ?? "nicht gesetzt"}</dd>
-              <dt className="font-semibold">Passwort</dt>
+              <dt className="font-semibold">{t("Verfahren", "Method")}</dt>
+              <dd className="text-text-zweit">
+                {t("Basic-Authentifizierung", "Basic authentication")}
+              </dd>
+              <dt className="font-semibold">{t("Benutzer", "User")}</dt>
+              <dd className="font-mono text-xs">
+                {zugang.basicUser ?? t("nicht gesetzt", "not set")}
+              </dd>
+              <dt className="font-semibold">{t("Passwort", "Password")}</dt>
               <dd className="text-text-zweit">
                 {/*
                   Das Passwort wird **nicht angezeigt**, auch nicht hinter der Anmeldung. Eine
@@ -196,20 +220,23 @@ function Zugangsblock({
                 */}
                 {zugang.basicGesetzt ? (
                   <>
-                    steht in der Umgebung unter{" "}
+                    {t("steht in der Umgebung unter", "is in the environment under")}{" "}
                     <code className="font-mono text-xs">{passwortVar}</code>
                   </>
                 ) : (
-                  <Markierung text="NICHT GESETZT" farbe="var(--color-fehler)" />
+                  <Markierung text={t("NICHT GESETZT", "NOT SET")} farbe="var(--color-fehler)" />
                 )}
               </dd>
             </dl>
             {!zugang.basicGesetzt && (
               <p className="text-[13px] text-fehler">
-                Die Anmeldung ist verlangt, aber es sind keine Zugangsdaten gesetzt: damit ist die
-                Schnittstelle vollständig gesperrt und niemand erreicht sie. Setze{" "}
-                <code className="font-mono text-xs">{userVar}</code> und{" "}
-                <code className="font-mono text-xs">{passwortVar}</code> in der Umgebung.
+                {t(
+                  "Die Anmeldung ist verlangt, aber es sind keine Zugangsdaten gesetzt: damit ist die Schnittstelle vollständig gesperrt und niemand erreicht sie. Setze",
+                  "Sign-in is required, but no credentials are set: the interface is therefore completely locked and nobody can reach it. Set",
+                )}{" "}
+                <code className="font-mono text-xs">{userVar}</code> {t("und", "and")}{" "}
+                <code className="font-mono text-xs">{passwortVar}</code>{" "}
+                {t("in der Umgebung.", "in the environment.")}
               </p>
             )}
           </>
@@ -219,7 +246,12 @@ function Zugangsblock({
            * aus, und wer die Seite aufmacht, soll nicht erst nachrechnen müssen, was das bedeutet.
            */
           <p className="max-w-prose text-[13px] text-fehler">
-            <b>Die Schnittstelle ist ohne Anmeldung erreichbar.</b>
+            <b>
+              {t(
+                "Die Schnittstelle ist ohne Anmeldung erreichbar.",
+                "The interface is reachable without sign-in.",
+              )}
+            </b>
           </p>
         )}
       </section>
@@ -261,6 +293,7 @@ function EndpunktProbe({
   endpunkt: Endpunkt;
   beispielGuid: string | null;
 }) {
+  const { t } = useSprache();
   const [guid, setzeGuid] = useState(beispielGuid ?? "");
   const [rumpf, setzeRumpf] = useState(endpunkt.rumpfVorschlag ?? "");
   const [laeuft, setzeLaeuft] = useState(false);
@@ -279,7 +312,7 @@ function EndpunktProbe({
       );
     } catch (ursache) {
       setzeErgebnis(null);
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Aufruf nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Aufruf nicht möglich.", "Request not possible."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -315,7 +348,7 @@ function EndpunktProbe({
 
           {endpunkt.rumpfVorschlag !== null && (
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold">
-              Rumpf (JSON)
+              {t("Rumpf (JSON)", "Body (JSON)")}
               <textarea
                 value={rumpf}
                 rows={4}
@@ -335,7 +368,7 @@ function EndpunktProbe({
               void sende();
             }}
           >
-            {laeuft ? "Läuft …" : "Senden"}
+            {laeuft ? t("Läuft …", "Running …") : t("Senden", "Send")}
           </Knopf>
 
           {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
@@ -354,12 +387,14 @@ function EndpunktProbe({
               </div>
               {ergebnis.gekuerzt && (
                 <p className="text-[13px] text-fehler">
-                  Die Antwort ist gekürzt dargestellt. Vollständig sind es{" "}
-                  {(ergebnis.groesse / 1024).toFixed(1)} KB.
+                  {t(
+                    `Die Antwort ist gekürzt dargestellt. Vollständig sind es ${(ergebnis.groesse / 1024).toFixed(1)} KB.`,
+                    `The response is shown shortened. In full it is ${(ergebnis.groesse / 1024).toFixed(1)} KB.`,
+                  )}
                 </p>
               )}
               <pre className="max-h-80 overflow-auto bg-grund p-4 font-mono text-xs leading-relaxed">
-                {huebsch(ergebnis.koerper)}
+                {huebsch(ergebnis.koerper, t("(leerer Rumpf)", "(empty body)"))}
               </pre>
             </div>
           )}
@@ -375,8 +410,8 @@ function EndpunktProbe({
  * `/health` antwortet mit leerem Rumpf, und eine gekürzte Antwort ist kein gültiges JSON
  * mehr. Beides darf die Anzeige nicht umwerfen, deshalb der Rückfall auf den Rohtext.
  */
-function huebsch(text: string): string {
-  if (text.trim() === "") return "(leerer Rumpf)";
+function huebsch(text: string, leer: string): string {
+  if (text.trim() === "") return leer;
   try {
     return JSON.stringify(JSON.parse(text), null, 2);
   } catch {

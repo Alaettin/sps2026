@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import QRCode from "qrcode";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
   Fehlerhinweis,
@@ -16,7 +16,9 @@ import {
 import { Rueckfrage, Schaufenster } from "../bausteine/dialog.js";
 import { KontaktFormular, type Kontakt } from "../bausteine/kontaktformular.js";
 import type { Ich } from "../lib/ich.js";
-import { ANSPRECHPARTNERFELDER } from "../lib/personenfelder.js";
+import { ANSPRECHPARTNERFELDER, feldtext } from "../lib/personenfelder.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /** Obergrenzen, dieselben wie im Modell auf dem Server. */
 const MAX = { dokumente: 10, links: 10, kontakte: 5 };
@@ -138,6 +140,7 @@ function AnsehenKnopf({ titel, aufKlick }: { titel: string; aufKlick: () => void
  * Exponats bleiben beim Admin, ebenso der QR-Code, den der Besucher am Stand scannt.
  */
 export function ExponatDetail({ ich }: { ich: Ich }) {
+  const { t } = useSprache();
   const { id } = useParams();
   const abruf = useAbruf<ExponatDaten>(`/api/exponate/${String(id)}`);
   const [fehler, setzeFehler] = useState<string | null>(null);
@@ -177,7 +180,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         await api(`/api/exponate/${String(id)}/dokumente`, { method: "POST", body: formular });
       }
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Hochladen nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Hochladen nicht möglich.", "Could not upload."]));
     } finally {
       abruf.neu();
     }
@@ -236,14 +239,14 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
               aufBearbeiten();
             }}
           >
-            Bearbeiten
+            {t("Bearbeiten", "Edit")}
           </Knopf>
           <Knopf
             art="still"
             className="h-8 px-3 text-[13px]"
             onClick={() => void frageBetroffene(art, zielId)}
           >
-            Entfernen
+            {t("Entfernen", "Remove")}
           </Knopf>
         </span>
       </li>
@@ -272,25 +275,31 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
       <Abschnitt
         titel={
           <>
-            {titel} ({anzahl} von {grenze})
+            {titel} (
+            {t(`${String(anzahl)} von ${String(grenze)}`, `${String(anzahl)} of ${String(grenze)}`)}
+            )
           </>
         }
       >
         {voll && (
           <span className="self-start">
-            <Markierung text="PLÄTZE VOLL" farbe="var(--color-fehler)" />
+            <Markierung text={t("PLÄTZE VOLL", "SLOTS FULL")} farbe="var(--color-fehler)" />
           </span>
         )}
         {anzahl === 0 ? (
-          <p className="text-sm text-text-hinweis">Noch nichts hinterlegt.</p>
+          <p className="text-sm text-text-hinweis">
+            {t("Noch nichts hinterlegt.", "Nothing added yet.")}
+          </p>
         ) : (
           <ul className="flex flex-col">{children}</ul>
         )}
         {!voll && formular}
         {voll && (
           <p className="text-[13px] text-text-hinweis">
-            Alle {grenze} Plätze sind belegt. Erst einen freigeben, dann lässt sich wieder etwas
-            hinzufügen. Die Obergrenze zu ändern verlangt ein neues Mapping in Axon.
+            {t(
+              `Alle ${String(grenze)} Plätze sind belegt. Erst einen freigeben, dann lässt sich wieder etwas hinzufügen. Die Obergrenze zu ändern verlangt ein neues Mapping in Axon.`,
+              `All ${String(grenze)} slots are taken. Free one first, then you can add something again. Changing the limit requires a new mapping in Axon.`,
+            )}
           </p>
         )}
       </Abschnitt>
@@ -300,7 +309,9 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
   return (
     <>
       <Seitenkopf>
-        <Ueberschrift>{e === null ? "Exponat" : `${e.kennung} ${e.name}`}</Ueberschrift>
+        <Ueberschrift>
+          {e === null ? t("Exponat", "Exhibit") : `${e.kennung} ${e.name}`}
+        </Ueberschrift>
         <div className="flex flex-wrap items-center gap-4">
           {e !== null && istAdmin && (
             <Knopf
@@ -310,11 +321,11 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                 setzeExponatLoeschen(true);
               }}
             >
-              Exponat löschen
+              {t("Exponat löschen", "Delete exhibit")}
             </Knopf>
           )}
           <Link to="/exponate" className="text-[13px] font-semibold text-primaer-dunkel">
-            ← Zurück zur Liste
+            ← {t("Zurück zur Liste", "Back to list")}
           </Link>
         </div>
       </Seitenkopf>
@@ -329,7 +340,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             )}
 
             <Platzabschnitt
-              titel="Dokumente"
+              titel={t("Dokumente", "Documents")}
               anzahl={e.dokumente.length}
               grenze={MAX.dokumente}
               formular={
@@ -340,7 +351,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                     ist mit CSS nicht erreichbar.
                   */}
                   <label className={knopfKlassen("rand", "cursor-pointer self-start")}>
-                    Dokument hinzufügen
+                    {t("Dokument hinzufügen", "Add document")}
                     <input
                       type="file"
                       multiple
@@ -365,13 +376,16 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   werkzeug={
                     istBild(d.mimeType) ? (
                       <AnsehenKnopf
-                        titel="Bild ansehen"
+                        titel={t("Bild ansehen", "View picture")}
                         aufKlick={() => {
                           setzeBildschau({ dateiId: d.dateiId, titel: d.titel });
                         }}
                       />
                     ) : (
-                      <OeffnenLink ziel={`/api/dateien/${d.dateiId}`} titel="In neuem Tab öffnen" />
+                      <OeffnenLink
+                        ziel={`/api/dateien/${d.dateiId}`}
+                        titel={t("In neuem Tab öffnen", "Open in new tab")}
+                      />
                     )
                   }
                 />
@@ -379,7 +393,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             </Platzabschnitt>
 
             <Platzabschnitt
-              titel="Links"
+              titel={t("Links", "Links")}
               anzahl={e.links.length}
               grenze={MAX.links}
               formular={
@@ -401,13 +415,18 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   aufBearbeiten={() => {
                     setzeLinkBearbeiten(l);
                   }}
-                  werkzeug={<OeffnenLink ziel={l.url} titel="Link in neuem Tab öffnen" />}
+                  werkzeug={
+                    <OeffnenLink
+                      ziel={l.url}
+                      titel={t("Link in neuem Tab öffnen", "Open link in new tab")}
+                    />
+                  }
                 />
               ))}
             </Platzabschnitt>
 
             <Platzabschnitt
-              titel="Ansprechpartner"
+              titel={t("Ansprechpartner", "Contacts")}
               anzahl={e.kontakte.length}
               grenze={MAX.kontakte}
               formular={
@@ -418,7 +437,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                       setzeKontaktBearbeiten("neu");
                     }}
                   >
-                    Ansprechpartner hinzufügen
+                    {t("Ansprechpartner hinzufügen", "Add contact")}
                   </Knopf>
                 </div>
               }
@@ -436,7 +455,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                   }}
                   werkzeug={
                     <AnsehenKnopf
-                      titel="Ansprechpartner ansehen"
+                      titel={t("Ansprechpartner ansehen", "View contact")}
                       aufKlick={() => {
                         setzeKontaktschau(c);
                       }}
@@ -455,7 +474,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         aufOffen={(o) => {
           if (!o) setzeBildschau(null);
         }}
-        titel={bildschau?.titel ?? "Bild"}
+        titel={bildschau?.titel ?? t("Bild", "Picture")}
         breit
       >
         {bildschau !== null && (
@@ -475,7 +494,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         }}
         titel={
           kontaktschau === null
-            ? "Ansprechpartner"
+            ? t("Ansprechpartner", "Contact")
             : `${kontaktschau.vorname} ${kontaktschau.nachname}`
         }
       >
@@ -488,7 +507,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
                 if (typeof wert !== "string" || wert === "") return null;
                 return (
                   <div key={f.name} className="contents">
-                    <dt className="font-semibold">{f.text}</dt>
+                    <dt className="font-semibold">{feldtext(f, t)}</dt>
                     <dd className="break-words text-text-zweit">{wert}</dd>
                   </div>
                 );
@@ -530,8 +549,8 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         aufOffen={(o) => {
           if (!o) setzeZuLoeschen(null);
         }}
-        titel="Inhalt entfernen?"
-        bestaetigenText="Entfernen"
+        titel={t("Inhalt entfernen?", "Remove content?")}
+        bestaetigenText={t("Entfernen", "Remove")}
         art="gefahr"
         aufBestaetigen={() => {
           if (zuLoeschen === null) return;
@@ -539,7 +558,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             method: "DELETE",
           })
             .catch((u: unknown) => {
-              setzeFehler(u instanceof ApiFehler ? u.message : "Entfernen nicht möglich.");
+              setzeFehler(fehlertext(u, t, ["Entfernen nicht möglich.", "Could not remove."]));
             })
             .finally(() => {
               setzeZuLoeschen(null);
@@ -550,14 +569,27 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         <p>
           {zuLoeschen !== null && zuLoeschen.betroffene > 0 ? (
             <>
-              <b>{zuLoeschen.betroffene} Besucher</b> haben dieses Exponat aufgenommen. Der Inhalt
-              verschwindet auch bei ihnen aus dem Viewer.
+              <b>
+                {zuLoeschen.betroffene} {t("Besucher", "visitors")}
+              </b>{" "}
+              {t(
+                "haben dieses Exponat aufgenommen. Der Inhalt verschwindet auch bei ihnen aus dem Viewer.",
+                "have added this exhibit. The content will also disappear from their viewer.",
+              )}
             </>
           ) : (
-            "Noch kein Besucher hat dieses Exponat aufgenommen."
+            t(
+              "Noch kein Besucher hat dieses Exponat aufgenommen.",
+              "No visitor has added this exhibit yet.",
+            )
           )}
         </p>
-        <p>Der Platz wird frei und beim nächsten Hinzufügen wieder vergeben.</p>
+        <p>
+          {t(
+            "Der Platz wird frei und beim nächsten Hinzufügen wieder vergeben.",
+            "The slot becomes free and is reused the next time something is added.",
+          )}
+        </p>
       </Rueckfrage>
 
       {/*
@@ -569,8 +601,8 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
         <Rueckfrage
           offen={exponatLoeschen}
           aufOffen={setzeExponatLoeschen}
-          titel="Exponat löschen?"
-          bestaetigenText="Endgültig löschen"
+          titel={t("Exponat löschen?", "Delete exhibit?")}
+          bestaetigenText={t("Endgültig löschen", "Delete permanently")}
           art="gefahr"
           tippwort={e.kennung}
           aufBestaetigen={() => {
@@ -582,9 +614,10 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
               .catch((ursache: unknown) => {
                 setzeExponatLoeschen(false);
                 setzeFehler(
-                  ursache instanceof ApiFehler
-                    ? ursache.message
-                    : "Das Exponat ließ sich nicht löschen.",
+                  fehlertext(ursache, t, [
+                    "Das Exponat ließ sich nicht löschen.",
+                    "The exhibit could not be deleted.",
+                  ]),
                 );
               });
           }}
@@ -593,17 +626,27 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
             <b>
               {e.kennung} {e.name}
             </b>{" "}
-            verschwindet mit allem, was daran hängt: {e.dokumente.length} Dokumente,{" "}
-            {e.links.length} Links und {e.kontakte.length} Ansprechpartner.
+            {t(
+              `verschwindet mit allem, was daran hängt: ${String(e.dokumente.length)} Dokumente, ${String(e.links.length)} Links und ${String(e.kontakte.length)} Ansprechpartner.`,
+              `will disappear with everything attached to it: ${String(e.dokumente.length)} documents, ${String(e.links.length)} links and ${String(e.kontakte.length)} contacts.`,
+            )}
           </p>
           <p>
             {e.betroffeneBesucher > 0 ? (
               <>
-                <b>{e.betroffeneBesucher} Besucher</b> haben es aufgenommen. Es verschwindet auch
-                bei ihnen aus dem Viewer.
+                <b>
+                  {e.betroffeneBesucher} {t("Besucher", "visitors")}
+                </b>{" "}
+                {t(
+                  "haben es aufgenommen. Es verschwindet auch bei ihnen aus dem Viewer.",
+                  "have added it. It will also disappear from their viewer.",
+                )}
               </>
             ) : (
-              "Bisher hat kein Besucher dieses Exponat aufgenommen."
+              t(
+                "Bisher hat kein Besucher dieses Exponat aufgenommen.",
+                "No visitor has added this exhibit so far.",
+              )
             )}
           </p>
         </Rueckfrage>
@@ -621,6 +664,7 @@ export function ExponatDetail({ ich }: { ich: Ich }) {
  * Admin die App gerade aufruft; gedruckt wird deshalb aus der Produktivumgebung.
  */
 function QrAbschnitt({ kennung, code }: { kennung: string; code: string }) {
+  const { t } = useSprache();
   const adresse = `${window.location.origin}/mein/scan/${code}`;
   const [bild, setzeBild] = useState<string | null>(null);
 
@@ -651,29 +695,31 @@ function QrAbschnitt({ kennung, code }: { kennung: string; code: string }) {
   }
 
   return (
-    <Abschnitt titel="QR-Code für Besucher">
+    <Abschnitt titel={t("QR-Code für Besucher", "QR code for visitors")}>
       <div className="flex flex-wrap items-start gap-6">
         {bild !== null && (
           <img
             src={bild}
-            alt={`QR-Code von ${kennung}`}
+            alt={t(`QR-Code von ${kennung}`, `QR code of ${kennung}`)}
             className="size-40 shrink-0 border border-linie bg-white"
           />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-3 text-sm">
           <p className="text-text-zweit">
-            Am Exponat aushängen. Besucher scannen ihn nach der Anmeldung und nehmen das Exponat mit
-            allen Dokumenten, Links und Ansprechpartnern in ihren Pass auf.
+            {t(
+              "Am Exponat aushängen. Besucher scannen ihn nach der Anmeldung und nehmen das Exponat mit allen Dokumenten, Links und Ansprechpartnern in ihren Pass auf.",
+              "Display it at the exhibit. Visitors scan it after signing in and add the exhibit with all documents, links and contacts to their pass.",
+            )}
           </p>
           <p className="break-all font-mono text-xs text-text-hinweis">{adresse}</p>
           <div className="flex flex-wrap gap-3">
             {bild !== null && (
               <a href={bild} download={`QR ${kennung}.png`} className={knopfKlassen("rand")}>
-                PNG laden
+                {t("PNG laden", "Download PNG")}
               </a>
             )}
             <Knopf art="rand" onClick={() => void svgLaden()}>
-              SVG laden
+              {t("SVG laden", "Download SVG")}
             </Knopf>
           </div>
         </div>
@@ -694,6 +740,7 @@ function DokumentFormular({
   aufSchliessen: () => void;
   aufGespeichert: () => void;
 }) {
+  const { t } = useSprache();
   const [titel, setzeTitel] = useState("");
   const [beschreibung, setzeBeschreibung] = useState("");
   const [datei, setzeDatei] = useState<File | null>(null);
@@ -724,7 +771,7 @@ function DokumentFormular({
       aufGespeichert();
       aufSchliessen();
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Speichern nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Speichern nicht möglich.", "Could not save."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -736,7 +783,7 @@ function DokumentFormular({
       aufOffen={(o) => {
         if (!o) aufSchliessen();
       }}
-      titel="Dokument bearbeiten"
+      titel={t("Dokument bearbeiten", "Edit document")}
     >
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
       <form
@@ -747,7 +794,7 @@ function DokumentFormular({
         }}
       >
         <label className="flex flex-col gap-2 text-[13px] font-semibold">
-          Titel
+          {t("Titel", "Title")}
           <Feld
             required
             value={titel}
@@ -757,7 +804,7 @@ function DokumentFormular({
           />
         </label>
         <label className="flex flex-col gap-2 text-[13px] font-semibold">
-          Beschreibung
+          {t("Beschreibung", "Description")}
           <Feld
             value={beschreibung}
             onChange={(ev) => {
@@ -766,13 +813,15 @@ function DokumentFormular({
           />
         </label>
         <div className="flex flex-col gap-2 text-[13px]">
-          <span className="font-semibold">Datei</span>
+          <span className="font-semibold">{t("Datei", "File")}</span>
           <span className="text-text-hinweis">
-            {datei !== null ? `Neu: ${datei.name}` : (dokument?.originalName ?? "ohne Datei")}
+            {datei !== null
+              ? `${t("Neu:", "New:")} ${datei.name}`
+              : (dokument?.originalName ?? t("ohne Datei", "no file"))}
           </span>
           {/* Feld `sr-only`, Label als Knopf, wie beim Hinzufügen. */}
           <label className={knopfKlassen("rand", "cursor-pointer self-start")}>
-            Datei ersetzen
+            {t("Datei ersetzen", "Replace file")}
             <input
               type="file"
               onChange={(ev) => {
@@ -784,10 +833,10 @@ function DokumentFormular({
         </div>
         <div className="flex flex-wrap justify-end gap-3">
           <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
-            Abbrechen
+            {t("Abbrechen", "Cancel")}
           </Knopf>
           <Knopf type="submit" disabled={titel.trim() === "" || laeuft}>
-            {laeuft ? "Wird gespeichert …" : "Speichern"}
+            {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
           </Knopf>
         </div>
       </form>
@@ -807,6 +856,7 @@ function LinkBearbeiten({
   aufSchliessen: () => void;
   aufGespeichert: () => void;
 }) {
+  const { t } = useSprache();
   const [titel, setzeTitel] = useState("");
   const [url, setzeUrl] = useState("");
   const [fehler, setzeFehler] = useState<string | null>(null);
@@ -825,7 +875,7 @@ function LinkBearbeiten({
       aufOffen={(o) => {
         if (!o) aufSchliessen();
       }}
-      titel="Link bearbeiten"
+      titel={t("Link bearbeiten", "Edit link")}
     >
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
       <form
@@ -844,7 +894,7 @@ function LinkBearbeiten({
               aufSchliessen();
             })
             .catch((u: unknown) => {
-              setzeFehler(u instanceof ApiFehler ? u.message : "Speichern nicht möglich.");
+              setzeFehler(fehlertext(u, t, ["Speichern nicht möglich.", "Could not save."]));
             })
             .finally(() => {
               setzeLaeuft(false);
@@ -852,7 +902,7 @@ function LinkBearbeiten({
         }}
       >
         <label className="flex flex-col gap-2 text-[13px] font-semibold">
-          Titel
+          {t("Titel", "Title")}
           <Feld
             required
             value={titel}
@@ -862,7 +912,7 @@ function LinkBearbeiten({
           />
         </label>
         <label className="flex flex-col gap-2 text-[13px] font-semibold">
-          Adresse
+          {t("Adresse", "Address")}
           <Feld
             required
             type="url"
@@ -874,10 +924,10 @@ function LinkBearbeiten({
         </label>
         <div className="flex flex-wrap justify-end gap-3">
           <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
-            Abbrechen
+            {t("Abbrechen", "Cancel")}
           </Knopf>
           <Knopf type="submit" disabled={laeuft}>
-            {laeuft ? "Wird gespeichert …" : "Speichern"}
+            {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
           </Knopf>
         </div>
       </form>
@@ -895,6 +945,7 @@ function LinkFormular({
   aufAngelegt: () => void;
   aufFehler: (text: string | null) => void;
 }) {
+  const { t } = useSprache();
   const [titel, setzeTitel] = useState("");
   const [url, setzeUrl] = useState("");
   const [laeuft, setzeLaeuft] = useState(false);
@@ -916,7 +967,9 @@ function LinkFormular({
             aufAngelegt();
           })
           .catch((u: unknown) => {
-            aufFehler(u instanceof ApiFehler ? u.message : "Link ließ sich nicht anlegen.");
+            aufFehler(
+              fehlertext(u, t, ["Link ließ sich nicht anlegen.", "Could not create the link."]),
+            );
           })
           .finally(() => {
             setzeLaeuft(false);
@@ -924,18 +977,18 @@ function LinkFormular({
       }}
     >
       <label className="flex min-w-[12rem] flex-1 flex-col gap-2 text-[13px] font-semibold">
-        Titel
+        {t("Titel", "Title")}
         <Feld
           required
           value={titel}
           onChange={(ev) => {
             setzeTitel(ev.target.value);
           }}
-          placeholder="Produktseite"
+          placeholder={t("Produktseite", "Product page")}
         />
       </label>
       <label className="flex min-w-[16rem] flex-[2] flex-col gap-2 text-[13px] font-semibold">
-        Adresse
+        {t("Adresse", "Address")}
         <Feld
           required
           type="url"
@@ -947,7 +1000,7 @@ function LinkFormular({
         />
       </label>
       <Knopf type="submit" disabled={laeuft}>
-        {laeuft ? "Wird angelegt …" : "Link hinzufügen"}
+        {laeuft ? t("Wird angelegt …", "Creating …") : t("Link hinzufügen", "Add link")}
       </Knopf>
     </form>
   );

@@ -1,3 +1,4 @@
+import { useSprache } from "../lib/sprache.js";
 /** Ein Abschnitt des Datenschutzhinweises, wie ihn der Server liefert. */
 export interface Datenschutzabschnitt {
   titel: string;
@@ -15,6 +16,7 @@ export function Datenschutztext({
   abschnitte: Datenschutzabschnitt[];
   fassung: string;
 }) {
+  const { t } = useSprache();
   return (
     <div className="flex flex-col gap-5 text-[15px] leading-relaxed">
       {abschnitte.map((a) => (
@@ -27,7 +29,9 @@ export function Datenschutztext({
           ))}
         </section>
       ))}
-      <p className="text-xs text-text-hinweis">Fassung vom {fassung}</p>
+      <p className="text-xs text-text-hinweis">
+        {t("Fassung vom", "Version of")} {fassung}
+      </p>
     </div>
   );
 }

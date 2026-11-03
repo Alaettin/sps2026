@@ -2,6 +2,7 @@ import { NavLink } from "react-router";
 import { cn } from "./basis.js";
 import axon from "../assets/axon-logo.svg";
 import idta from "../assets/idta.png";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Die zwei Logos: Neoception AXON links, IDTA rechts.
@@ -57,11 +58,12 @@ export function Logoreihe({
    */
   zurStartseite?: boolean;
 }) {
+  const { t } = useSprache();
   const axonbild = <AxonLogo art={art} />;
   return (
     <div className={cn("flex items-center justify-between gap-3", className)}>
       {zurStartseite ? (
-        <NavLink to="/" aria-label="Startseite" className="flex shrink-0">
+        <NavLink to="/" aria-label={t("Startseite", "Home")} className="flex shrink-0">
           {axonbild}
         </NavLink>
       ) : (

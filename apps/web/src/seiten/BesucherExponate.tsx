@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import { Abschnitt } from "../bausteine/basis.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Die Exponate eines Besuchers, je eines mit Kästchen „aufgenommen“.
@@ -21,8 +23,6 @@ interface ExponatSicht {
   anzahl: { dokumente: number; links: number; kontakte: number };
 }
 
-const zeit = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" });
-
 export function BesucherExponate({
   guid,
   aufFehler,
@@ -30,6 +30,7 @@ export function BesucherExponate({
   guid: string;
   aufFehler: (text: string | null) => void;
 }) {
+  const { t, datum } = useSprache();
   const abruf = useAbruf<ExponatSicht[]>(`/api/besucher/${encodeURIComponent(guid)}/exponate`);
   const [sendet, setzeSendet] = useState(false);
 
@@ -42,7 +43,7 @@ export function BesucherExponate({
       });
       abruf.neu();
     } catch (ursache) {
-      aufFehler(ursache instanceof ApiFehler ? ursache.message : "Ändern nicht möglich.");
+      aufFehler(fehlertext(ursache, t, ["Ändern nicht möglich.", "Could not change."]));
     } finally {
       setzeSendet(false);
     }
@@ -55,12 +56,17 @@ export function BesucherExponate({
     <Abschnitt
       titel={
         <>
-          Exponate ({besucht} von {liste?.length ?? 0} aufgenommen)
+          {t(
+            `Exponate (${String(besucht)} von ${String(liste?.length ?? 0)} aufgenommen)`,
+            `Exhibits (${String(besucht)} of ${String(liste?.length ?? 0)} added)`,
+          )}
         </>
       }
     >
       {liste !== null && liste.length === 0 && (
-        <p className="text-sm text-text-hinweis">Es gibt noch keine Exponate.</p>
+        <p className="text-sm text-text-hinweis">
+          {t("Es gibt noch keine Exponate.", "There are no exhibits yet.")}
+        </p>
       )}
       <ul className="flex flex-col divide-y divide-linie border border-linie">
         {liste?.map((e) => (
@@ -72,7 +78,7 @@ export function BesucherExponate({
               <input
                 type="checkbox"
                 className="size-6 shrink-0 accent-primaer"
-                aria-label={`${e.kennung} ${e.name} aufgenommen`}
+                aria-label={t(`${e.kennung} ${e.name} aufgenommen`, `${e.kennung} ${e.name} added`)}
                 checked={e.besucht}
                 disabled={sendet}
                 onChange={(ev) => void setze(e.id, ev.target.checked)}
@@ -83,8 +89,11 @@ export function BesucherExponate({
                   {e.name}
                 </span>
                 <span className="text-[13px] text-text-hinweis">
-                  {e.anzahl.dokumente} Dok. · {e.anzahl.links} Links · {e.anzahl.kontakte} Kontakte
-                  {e.zeitpunkt !== null && ` · aufgenommen ${zeit.format(e.zeitpunkt)}`}
+                  {t(
+                    `${String(e.anzahl.dokumente)} Dok. · ${String(e.anzahl.links)} Links · ${String(e.anzahl.kontakte)} Kontakte`,
+                    `${String(e.anzahl.dokumente)} docs · ${String(e.anzahl.links)} links · ${String(e.anzahl.kontakte)} contacts`,
+                  )}
+                  {e.zeitpunkt !== null && ` · ${t("aufgenommen", "added")} ${datum(e.zeitpunkt)}`}
                 </span>
               </span>
             </label>
@@ -92,7 +101,7 @@ export function BesucherExponate({
               to={`/exponate/${e.id}`}
               className="ml-auto text-[13px] font-semibold text-primaer-dunkel"
             >
-              Exponat ansehen
+              {t("Exponat ansehen", "View exhibit")}
             </Link>
           </li>
         ))}

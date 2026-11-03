@@ -10,12 +10,23 @@
  * Ein neuer `[[PLATZHALTER]]` bleibt erkennbar: `istEntwurf()` meldet ihn, das Tablet zeigt
  * dann einen sichtbaren Hinweis, und ein Test in `kiosk.test.ts` faellt.
  *
+ * **Deutsch und Englisch gleichwertig**, seit Fassung `2026-11-03.1`: beide Texte sagen
+ * dasselbe, und beim Besucher steht neben der Fassung die Sprache, in der er zugestimmt hat.
+ * Wer den einen Text aendert, aendert den anderen mit.
+ *
  * **Jede inhaltliche Aenderung bekommt eine neue `DATENSCHUTZ_FASSUNG`.** Gespeichert wird beim
  * Besucher die Fassung, der er zugestimmt hat; eine Registrierung mit einer alten Fassung lehnt
  * der Server ab, damit niemand einem Text zustimmt, der nicht mehr gilt.
  */
 
-export const DATENSCHUTZ_FASSUNG = "2026-11-02.3";
+export const DATENSCHUTZ_FASSUNG = "2026-11-03.1";
+
+export type Sprache = "de" | "en";
+
+/** `en` nur, wenn ausdruecklich verlangt; alles andere ist Deutsch. */
+export function spracheAus(wert: unknown): Sprache {
+  return wert === "en" ? "en" : "de";
+}
 
 export interface Abschnitt {
   titel: string;
@@ -84,13 +95,86 @@ export const ABSCHNITTE: Abschnitt[] = [
   },
 ];
 
+export const EINWILLIGUNGSTEXT_EN =
+  "I have read the privacy notice and consent to IDTA e. V. processing the data I have " +
+  "provided for the purposes described. I can withdraw my consent at any time with effect " +
+  "for the future.";
+
+export const ABSCHNITTE_EN: Abschnitt[] = [
+  {
+    titel: "Controller",
+    absaetze: [
+      "Industrial Digital Twin Association e. V. (IDTA), Lyoner Straße 18, 60528 Frankfurt am Main, Germany, phone +49 69 6603 1939, email info@idtwin.org.",
+      "Data protection contact: datenschutz@idtwin.org.",
+    ],
+  },
+  {
+    titel: "What data we process",
+    absaetze: [
+      "The ID of your visitor pass; the details you enter here (title, first name, last name, alias, company, position, address, email address, website); the picture you choose from our selection (not a photo of you); your password, stored only as an irreversible hash; which exhibits you have added by scanning their QR code, with the time; the time and version of your consent.",
+      "When you scan, your browser analyses the camera image only on your device to read the QR code. It is neither stored nor transmitted.",
+      "After you sign in, a technically necessary session cookie keeps you signed in; details are under “Cookie settings”. We do not store IP addresses. They are held only briefly in the server's memory to limit the number of requests.",
+    ],
+  },
+  {
+    titel: "Purpose",
+    absaetze: [
+      "So that your pass works: when you scan the QR code on an exhibit after signing in, we store that and when you added it. You can then find its content (such as data sheets, links, contacts) in the viewer, which you open via the QR code on your pass, always in the exhibitor's current version.",
+      "So that you can sign in with your email address and password and change your details yourself.",
+      "So that we can evaluate which stands were visited.",
+    ],
+  },
+  {
+    titel: "Legal basis",
+    absaetze: [
+      "Your consent under Art. 6(1)(a) GDPR. Registration is voluntary. Without it you cannot add exhibits.",
+    ],
+  },
+  {
+    titel: "Who sees your data",
+    absaetze: [
+      "An exhibitor's stand staff do not see your details, not even when you add their exhibit.",
+      "The viewer can be reached via the address on your pass without signing in. Anyone who knows this address, for example from a photo of the QR code, can retrieve the details and content shown there. So do not hand your pass to others.",
+      "Neoception GmbH, Mallaustraße 50-56, 68219 Mannheim, Germany, operates this application, the AXON platform and the viewer on behalf of IDTA (data processing under Art. 28 GDPR). The application runs at Sliplane GmbH, Berlin, on a server in Germany; AXON and the viewer run at Neoception in the European Union.",
+      "No data is transferred to a country outside the European Union.",
+    ],
+  },
+  {
+    titel: "How long",
+    absaetze: [
+      "We store your data until twelve months after the end of SPS 2026 and delete it on 30 November 2027 at the latest. If you withdraw your consent, we delete it earlier.",
+    ],
+  },
+  {
+    titel: "Your rights",
+    absaetze: [
+      "You have the right of access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18) and data portability (Art. 20). You can change your details yourself at any time after signing in.",
+      "You can withdraw your consent at any time with effect for the future (Art. 7(3) GDPR), by email to datenschutz@idtwin.org or at the IDTA stand. Processing carried out until then remains lawful.",
+      "You have the right to lodge a complaint with a data protection supervisory authority (Art. 77 GDPR), for example the one responsible for IDTA: Der Hessische Beauftragte für Datenschutz und Informationsfreiheit, Postfach 3163, 65021 Wiesbaden, Germany.",
+      "There is no automated decision-making.",
+    ],
+  },
+];
+
+/** Text und Einwilligungssatz in einer Sprache, fuer die drei Routen, die ihn ausliefern. */
+export function datenschutzText(sprache: Sprache): {
+  abschnitte: Abschnitt[];
+  einwilligungstext: string;
+} {
+  return sprache === "en"
+    ? { abschnitte: ABSCHNITTE_EN, einwilligungstext: EINWILLIGUNGSTEXT_EN }
+    : { abschnitte: ABSCHNITTE, einwilligungstext: EINWILLIGUNGSTEXT };
+}
+
 const PLATZHALTER = /\[\[[^\]]+\]\]/g;
 
 /** Alle noch offenen Platzhalter, in der Reihenfolge des Textes. */
 export function offenePlatzhalter(): string[] {
-  const text = [EINWILLIGUNGSTEXT, ...ABSCHNITTE.flatMap((a) => [a.titel, ...a.absaetze])].join(
-    "\n",
-  );
+  const text = [
+    EINWILLIGUNGSTEXT,
+    EINWILLIGUNGSTEXT_EN,
+    ...[...ABSCHNITTE, ...ABSCHNITTE_EN].flatMap((a) => [a.titel, ...a.absaetze]),
+  ].join("\n");
   return text.match(PLATZHALTER) ?? [];
 }
 

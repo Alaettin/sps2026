@@ -5,7 +5,9 @@ import {
   GRUPPEN,
   PERSONENFELDER,
   besucherFehlertext,
+  feldtext,
   felderDerGruppe,
+  gruppentext,
   pflichtBeimBesucher,
 } from "../lib/personenfelder.js";
 import {
@@ -24,6 +26,8 @@ import { Rueckfrage } from "../bausteine/dialog.js";
 import type { Ich } from "../lib/ich.js";
 import { BesucherExponate } from "./BesucherExponate.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Die zehn Textfelder, dieselben wie im Konnektor-Modell.
@@ -50,9 +54,12 @@ type BesucherDaten = Werte & {
 interface Einwilligung {
   einwilligungAm: number | null;
   einwilligungFassung: string | null;
+  /** `de` oder `en`, seit dem 03.11.2026; aeltere Einwilligungen tragen `de`. */
+  einwilligungSprache: string | null;
 }
 
 export function BesucherDetail({ ich }: { ich: Ich }) {
+  const { t } = useSprache();
   const { guid } = useParams();
   const navigate = useNavigate();
   const neu = guid === undefined;
@@ -75,11 +82,11 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
   // Die Rückmeldung steht drei Sekunden, dann ist sie wieder weg; Muster wie `Monowert`.
   useEffect(() => {
     if (!gespeichert) return;
-    const t = setTimeout(() => {
+    const uhr = setTimeout(() => {
       setzeGespeichert(false);
     }, 3000);
     return () => {
-      clearTimeout(t);
+      clearTimeout(uhr);
     };
   }, [gespeichert]);
 
@@ -124,9 +131,8 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
       }
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler
-          ? (besucherFehlertext(ursache.code) ?? ursache.message)
-          : "Speichern nicht möglich.",
+        (ursache instanceof ApiFehler ? besucherFehlertext(ursache.code, t) : null) ??
+          fehlertext(ursache, t, ["Speichern nicht möglich.", "Could not save."]),
       );
     } finally {
       setzeLaeuft(false);
@@ -140,17 +146,19 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
       <Seitenkopf>
         {/* Der Rueckweg als Brotkrume ueber dem Titel, `basis-full` gibt ihm die eigene Zeile. */}
         <Link to="/besucher" className={cn(BROTKRUME, "basis-full")}>
-          ← Zurück zur Liste
+          ← {t("Zurück zur Liste", "Back to list")}
         </Link>
         <Ueberschrift>
-          {neu ? "Besucher anlegen" : `${werte["vorname"] ?? ""} ${werte["nachname"] ?? ""}`}
+          {neu
+            ? t("Besucher anlegen", "Add visitor")
+            : `${werte["vorname"] ?? ""} ${werte["nachname"] ?? ""}`}
         </Ueberschrift>
       </Seitenkopf>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-        <Abschnitt titel="Stammdaten" className="gap-5">
+        <Abschnitt titel={t("Stammdaten", "Details")} className="gap-5">
           <form
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
@@ -165,12 +173,14 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
             {GRUPPEN.map((gruppe) => (
               <fieldset key={gruppe} className="contents">
                 <legend className="col-span-full pt-2 text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
-                  {gruppe}
+                  {gruppentext(gruppe, t)}
                 </legend>
                 {felderDerGruppe(gruppe).map((f) => (
                   <label key={f.name} className="flex flex-col gap-2 text-[13px] font-semibold">
-                    {f.text}
-                    {pflichtBeimBesucher(f) && <span className="sr-only">Pflichtfeld</span>}
+                    {feldtext(f, t)}
+                    {pflichtBeimBesucher(f) && (
+                      <span className="sr-only">{t("Pflichtfeld", "Required")}</span>
+                    )}
                     <Feld
                       type={f.typ ?? "text"}
                       required={pflichtBeimBesucher(f)}
@@ -188,14 +198,17 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
 
             {neu && (
               <label className="flex flex-col gap-2 text-[13px] font-semibold sm:col-span-2">
-                GUID (leer lassen, dann wird eine erzeugt)
+                {t(
+                  "GUID (leer lassen, dann wird eine erzeugt)",
+                  "GUID (leave empty to have one generated)",
+                )}
                 <span className="flex gap-2">
                   <Feld
                     value={eigeneGuid}
                     onChange={(e) => {
                       setzeEigeneGuid(e.target.value);
                     }}
-                    placeholder="wird erzeugt"
+                    placeholder={t("wird erzeugt", "will be generated")}
                     className="font-mono text-sm"
                   />
                   <Knopf
@@ -204,19 +217,21 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                       setzeEigeneGuid(crypto.randomUUID());
                     }}
                   >
-                    Erzeugen
+                    {t("Erzeugen", "Generate")}
                   </Knopf>
                 </span>
                 <span className="font-normal text-text-hinweis">
-                  Erlaubt sind Buchstaben, Ziffern, Bindestrich und Unterstrich, höchstens 50
-                  Zeichen.
+                  {t(
+                    "Erlaubt sind Buchstaben, Ziffern, Bindestrich und Unterstrich, höchstens 50 Zeichen.",
+                    "Letters, digits, hyphen and underscore are allowed, at most 50 characters.",
+                  )}
                 </span>
               </label>
             )}
 
             <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
               <Knopf type="submit" disabled={laeuft}>
-                {laeuft ? "Wird gespeichert …" : "Speichern"}
+                {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
               </Knopf>
               {/* `role="status"` liest der Bildschirmleser vor, ohne den Fokus zu nehmen. */}
               <span role="status" className="order-last text-sm font-semibold sm:order-none">
@@ -235,7 +250,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                     >
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
-                    Gespeichert
+                    {t("Gespeichert", "Saved")}
                   </span>
                 )}
               </span>
@@ -246,7 +261,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                     setzeLoeschen(true);
                   }}
                 >
-                  Löschen
+                  {t("Löschen", "Delete")}
                 </Knopf>
               )}
             </div>
@@ -261,7 +276,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               aufFehler={setzeFehler}
             />
 
-            <Abschnitt titel="Pass">
+            <Abschnitt titel={t("Pass", "Pass")}>
               <div className="flex flex-wrap items-center gap-4">
                 <Monowert wert={aktuelleGuid} />
                 <a
@@ -270,7 +285,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
                   rel="noreferrer"
                   className="text-[13px] font-semibold text-primaer-dunkel"
                 >
-                  Im Viewer öffnen ↗
+                  {t("Im Viewer öffnen", "Open in viewer")} ↗
                 </a>
               </div>
             </Abschnitt>
@@ -281,6 +296,7 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
               einwilligung={{
                 einwilligungAm: abruf.daten?.einwilligungAm ?? null,
                 einwilligungFassung: abruf.daten?.einwilligungFassung ?? null,
+                einwilligungSprache: abruf.daten?.einwilligungSprache ?? null,
               }}
             />
 
@@ -292,8 +308,8 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
       <Rueckfrage
         offen={loeschen}
         aufOffen={setzeLoeschen}
-        titel="Besucher löschen?"
-        bestaetigenText="Löschen"
+        titel={t("Besucher löschen?", "Delete visitor?")}
+        bestaetigenText={t("Löschen", "Delete")}
         art="gefahr"
         aufBestaetigen={() => {
           void api(`/api/besucher/${String(guid)}`, { method: "DELETE" }).then(() => {
@@ -302,8 +318,10 @@ export function BesucherDetail({ ich }: { ich: Ich }) {
         }}
       >
         <p>
-          Der Besucher und seine {abruf.daten?.besuche ?? 0} aufgenommenen Exponate werden entfernt.
-          Sein Pass zeigt danach nichts mehr an.
+          {t(
+            `Der Besucher und seine ${String(abruf.daten?.besuche ?? 0)} aufgenommenen Exponate werden entfernt. Sein Pass zeigt danach nichts mehr an.`,
+            `The visitor and their ${String(abruf.daten?.besuche ?? 0)} added exhibits will be removed. Their pass will then show nothing.`,
+          )}
         </p>
       </Rueckfrage>
     </>
@@ -332,6 +350,7 @@ function Zugangsbereich({
   email: string | null;
   einwilligung: Einwilligung;
 }) {
+  const { t, datumLang } = useSprache();
   const [frage, setzeFrage] = useState(false);
   const [laeuft, setzeLaeuft] = useState(false);
   const [fehler, setzeFehler] = useState<string | null>(null);
@@ -347,16 +366,19 @@ function Zugangsbereich({
       setzeFrage(false);
       setzeErledigt(true);
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Zurücksetzen nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Zurücksetzen nicht möglich.", "Could not reset."]));
     } finally {
       setzeLaeuft(false);
     }
   }
 
   return (
-    <Abschnitt titel="Anmeldung">
+    <Abschnitt titel={t("Anmeldung", "Sign-in")}>
       <p className="text-sm text-text-zweit">
-        Der Besucher meldet sich mit seiner E-Mail an
+        {t(
+          "Der Besucher meldet sich mit seiner E-Mail an",
+          "The visitor signs in with their email",
+        )}
         {email === null ? (
           ""
         ) : (
@@ -368,13 +390,16 @@ function Zugangsbereich({
         .
       </p>
       <p className="text-sm text-text-zweit">
-        Einwilligung Datenschutz:{" "}
+        {t("Einwilligung Datenschutz:", "Privacy consent:")}{" "}
         {einwilligung.einwilligungAm === null ? (
-          <b>liegt nicht vor</b>
+          <b>{t("liegt nicht vor", "not given")}</b>
         ) : (
           <b>
-            erteilt am {new Date(einwilligung.einwilligungAm).toLocaleString("de-DE")} (Fassung{" "}
-            {einwilligung.einwilligungFassung})
+            {t("erteilt am", "given on")} {datumLang(einwilligung.einwilligungAm)} (
+            {t("Fassung", "version")} {einwilligung.einwilligungFassung}
+            {einwilligung.einwilligungSprache !== null &&
+              `, ${einwilligung.einwilligungSprache === "en" ? t("englisch", "English") : t("deutsch", "German")}`}
+            )
           </b>
         )}
       </p>
@@ -386,23 +411,26 @@ function Zugangsbereich({
             setzeFrage(true);
           }}
         >
-          Passwort zurücksetzen
+          {t("Passwort zurücksetzen", "Reset password")}
         </Knopf>
         <span role="status" className="text-sm font-semibold text-primaer-dunkel">
-          {erledigt && "Passwort zurückgesetzt."}
+          {erledigt && t("Passwort zurückgesetzt.", "Password reset.")}
         </span>
       </div>
 
       <Rueckfrage
         offen={frage}
         aufOffen={setzeFrage}
-        titel="Passwort zurücksetzen?"
-        bestaetigenText="Zurücksetzen"
+        titel={t("Passwort zurücksetzen?", "Reset password?")}
+        bestaetigenText={t("Zurücksetzen", "Reset")}
         laeuft={laeuft}
         fehler={fehler}
         aufBestaetigen={() => void setzeZurueck()}
       >
-        Das Passwort dieses Besuchers wird auf das Standardpasswort zurückgesetzt.
+        {t(
+          "Das Passwort dieses Besuchers wird auf das Standardpasswort zurückgesetzt.",
+          "This visitor's password will be reset to the default password.",
+        )}
       </Rueckfrage>
     </Abschnitt>
   );
@@ -417,6 +445,7 @@ function Fotobereich({
   anfang: string | null;
   aufFehler: (text: string | null) => void;
 }) {
+  const { t } = useSprache();
   const [bild, setzeBild] = useState<string | null>(anfang);
   const [offen, setzeOffen] = useState(false);
   const [gewaehlt, setzeGewaehlt] = useState<string | null>(null);
@@ -433,11 +462,11 @@ function Fotobereich({
 
   useEffect(() => {
     if (!gespeichert) return;
-    const t = setTimeout(() => {
+    const uhr = setTimeout(() => {
       setzeGespeichert(false);
     }, 3000);
     return () => {
-      clearTimeout(t);
+      clearTimeout(uhr);
     };
   }, [gespeichert]);
 
@@ -455,7 +484,7 @@ function Fotobereich({
       setzeOffen(false);
       setzeGespeichert(true);
     } catch (ursache) {
-      aufFehler(ursache instanceof ApiFehler ? ursache.message : "Bild nicht übernommen.");
+      aufFehler(fehlertext(ursache, t, ["Bild nicht übernommen.", "Picture not applied."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -463,7 +492,7 @@ function Fotobereich({
 
   const g = galerie.daten;
   return (
-    <Abschnitt titel="Foto">
+    <Abschnitt titel={t("Foto", "Photo")}>
       <Avatarbild dateiId={bild} />
       <div className="flex flex-wrap items-center gap-3">
         <Knopf
@@ -473,23 +502,23 @@ function Fotobereich({
             setzeOffen(true);
           }}
         >
-          Bild ändern
+          {t("Bild ändern", "Change picture")}
         </Knopf>
         <span role="status" className="text-sm font-semibold text-primaer-dunkel">
-          {gespeichert && "Bild übernommen"}
+          {gespeichert && t("Bild übernommen", "Picture applied")}
         </span>
       </div>
 
       <Rueckfrage
         offen={offen}
         aufOffen={setzeOffen}
-        titel="Bild auswählen"
-        bestaetigenText="Übernehmen"
+        titel={t("Bild auswählen", "Choose picture")}
+        bestaetigenText={t("Übernehmen", "Apply")}
         laeuft={laeuft}
         aufBestaetigen={() => void uebernehmen()}
       >
         {g === null ? (
-          <p>Wird geladen …</p>
+          <p>{t("Wird geladen …", "Loading …")}</p>
         ) : (
           <Avatarwahl
             standard={g.standard}
@@ -512,11 +541,12 @@ function Fotobereich({
  * zeigt, wäre schlicht falsch.
  */
 function Avatarbild({ dateiId }: { dateiId: string | null }) {
+  const { t } = useSprache();
   const quelle = dateiId === null ? "/api/standard-avatar" : `/api/dateien/${dateiId}`;
   return (
     <img
       src={quelle}
-      alt="Foto des Besuchers"
+      alt={t("Foto des Besuchers", "Visitor's photo")}
       className="size-40 shrink-0 rounded-full bg-grund object-cover"
     />
   );

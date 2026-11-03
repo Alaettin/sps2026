@@ -16,6 +16,8 @@ import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Der Bereich des angemeldeten Besuchers, seit dem 23.10.2026: Begrüßung, Daten ändern, Bild
@@ -41,6 +43,7 @@ function Rahmen({ aufAbmelden, children }: { aufAbmelden: () => void; children: 
 // --- Menü -----------------------------------------------------------------------------
 
 export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const abruf = useAbruf<Besucher>("/api/mein");
   const b = abruf.daten;
@@ -54,37 +57,48 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
               {b.avatarDateiId !== null && (
                 <img
                   src={bild(b.avatarDateiId)}
-                  alt="Dein Bild"
+                  alt={t("Dein Bild", "Your picture")}
                   className="size-20 shrink-0 object-cover"
                 />
               )}
               <div className="flex min-w-0 flex-col">
                 <Ueberschrift>
-                  Hallo {mitTitel(b.titel, b.vorname ?? "")} {b.nachname}
+                  {t("Hallo", "Hello")} {mitTitel(b.titel, b.vorname ?? "")} {b.nachname}
                 </Ueberschrift>
-                <span className="text-[15px] text-text-hinweis">{b.firma ?? "ohne Firma"}</span>
+                <span className="text-[15px] text-text-hinweis">
+                  {b.firma ?? t("ohne Firma", "no company")}
+                </span>
               </div>
             </Seitenkopf>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {/* Seit dem 02.11.2026 die Haupthandlung am Stand, deshalb vorn. */}
               <Kachel
-                titel="Exponate"
-                text="Exponate per QR-Code scannen und deine aufgenommenen ansehen."
+                titel={t("Exponate", "Exhibits")}
+                text={t(
+                  "Exponate per QR-Code scannen und deine aufgenommenen ansehen.",
+                  "Scan exhibits by QR code and see the ones you have added.",
+                )}
                 aufKlick={() => {
                   void navigate("/mein/exponate");
                 }}
               />
               <Kachel
-                titel="Daten ändern"
-                text="Name, Firma, Anschrift und Kontakt."
+                titel={t("Daten ändern", "Edit details")}
+                text={t(
+                  "Name, Firma, Anschrift und Kontakt.",
+                  "Name, company, address and contact.",
+                )}
                 aufKlick={() => {
                   void navigate("/mein/stammdaten");
                 }}
               />
               <Kachel
-                titel="Bild aussuchen"
-                text="Wähle ein Bild, das im Viewer erscheint."
+                titel={t("Bild aussuchen", "Choose picture")}
+                text={t(
+                  "Wähle ein Bild, das im Viewer erscheint.",
+                  "Choose a picture to appear in the viewer.",
+                )}
                 aufKlick={() => {
                   void navigate("/mein/avatar");
                 }}
@@ -98,7 +112,7 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 void navigate("/mein/datenschutz");
               }}
             >
-              Datenschutzhinweis und Widerruf
+              {t("Datenschutzhinweis und Widerruf", "Privacy notice and withdrawal")}
             </button>
           </>
         )}
@@ -114,14 +128,13 @@ interface MeinExponat {
   zeitpunkt: number;
 }
 
-const datum = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" });
-
 /**
  * Die Unterseite „Exponate“, seit dem 02.11.2026: Knopf zum Scannen und die aufgenommenen
  * Exponate als einfache Liste, jedes mit Rückfrage entfernbar. Entfernt verschwindet es aus dem
  * Viewer; zurück kommt es nur durch erneutes Scannen am Exponat.
  */
 export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { t, datum } = useSprache();
   const navigate = useNavigate();
   const abruf = useAbruf<MeinExponat[]>("/api/mein/besuche");
   const [zuEntfernen, setzeZuEntfernen] = useState<MeinExponat | null>(null);
@@ -138,7 +151,7 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
       setzeZuEntfernen(null);
       abruf.neu();
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Entfernen nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Entfernen nicht möglich.", "Could not remove."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -147,21 +160,30 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
       <Seitenkopf>
-        <Ueberschrift>Exponate</Ueberschrift>
+        <Ueberschrift>{t("Exponate", "Exhibits")}</Ueberschrift>
         <Knopf
           onClick={() => {
             void navigate("/mein/scan");
           }}
         >
-          Exponat scannen
+          {t("Exponat scannen", "Scan exhibit")}
         </Knopf>
       </Seitenkopf>
 
-      <Abschnitt titel={<>Meine Exponate ({liste.length})</>}>
+      <Abschnitt
+        titel={
+          <>
+            {t(`Meine Exponate (${String(liste.length)})`, `My exhibits (${String(liste.length)})`)}
+          </>
+        }
+      >
         <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
           {liste.length === 0 ? (
             <p className="text-[15px] text-text-hinweis">
-              Noch kein Exponat aufgenommen. Scanne den QR-Code an einem Exponat.
+              {t(
+                "Noch kein Exponat aufgenommen. Scanne den QR-Code an einem Exponat.",
+                "No exhibit added yet. Scan the QR code on an exhibit.",
+              )}
             </p>
           ) : (
             <ul className="flex flex-col">
@@ -176,7 +198,7 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
                       {e.name}
                     </span>
                     <span className="text-[13px] text-text-hinweis">
-                      aufgenommen {datum.format(e.zeitpunkt)}
+                      {t("aufgenommen", "added")} {datum(e.zeitpunkt)}
                     </span>
                   </span>
                   <Knopf
@@ -187,7 +209,7 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
                       setzeZuEntfernen(e);
                     }}
                   >
-                    Entfernen
+                    {t("Entfernen", "Remove")}
                   </Knopf>
                 </li>
               ))}
@@ -200,8 +222,8 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
           aufOffen={(o) => {
             if (!o) setzeZuEntfernen(null);
           }}
-          titel="Exponat entfernen?"
-          bestaetigenText="Entfernen"
+          titel={t("Exponat entfernen?", "Remove exhibit?")}
+          bestaetigenText={t("Entfernen", "Remove")}
           art="gefahr"
           laeuft={laeuft}
           fehler={fehler}
@@ -211,9 +233,17 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
             <b>
               {zuEntfernen?.kennung} {zuEntfernen?.name}
             </b>{" "}
-            verschwindet aus deinem Messepass und deinem Viewer.
+            {t(
+              "verschwindet aus deinem Messepass und deinem Viewer.",
+              "will disappear from your trade fair pass and your viewer.",
+            )}
           </p>
-          <p>Um es wieder aufzunehmen, scanne den QR-Code am Exponat erneut.</p>
+          <p>
+            {t(
+              "Um es wieder aufzunehmen, scanne den QR-Code am Exponat erneut.",
+              "To add it again, scan the QR code on the exhibit once more.",
+            )}
+          </p>
         </Rueckfrage>
       </Abschnitt>
 
@@ -224,7 +254,7 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
           void navigate("/mein");
         }}
       >
-        Zurück
+        {t("Zurück", "Back")}
       </Knopf>
     </Rahmen>
   );
@@ -246,6 +276,7 @@ function Kachel({ titel, text, aufKlick }: { titel: string; text: string; aufKli
 // --- Stammdaten -----------------------------------------------------------------------
 
 export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const abruf = useAbruf<Besucher>("/api/mein");
   const [entwurf, setzeEntwurf] = useState<Record<string, string> | null>(null);
@@ -270,8 +301,11 @@ export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
       void navigate("/mein");
     } catch (ursache) {
       setzeFehler(
-        (ursache instanceof ApiFehler ? besucherFehlertext(ursache.code) : null) ??
-          "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
+        (ursache instanceof ApiFehler ? besucherFehlertext(ursache.code, t) : null) ??
+          t(
+            "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
+            "Saving did not work. Please try again.",
+          ),
       );
     } finally {
       setzeLaeuft(false);
@@ -281,7 +315,7 @@ export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
       <Seitenkopf>
-        <Ueberschrift>Deine Daten</Ueberschrift>
+        <Ueberschrift>{t("Deine Daten", "Your details")}</Ueberschrift>
       </Seitenkopf>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {werte !== null && (
@@ -299,7 +333,7 @@ export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
                 disabled={laeuft}
                 onClick={() => void speichere()}
               >
-                {laeuft ? "Speichert …" : "Speichern"}
+                {laeuft ? t("Speichert …", "Saving …") : t("Speichern", "Save")}
               </Knopf>
               <Knopf
                 art="rand"
@@ -309,7 +343,7 @@ export function MeinStammdaten({ aufAbmelden }: { aufAbmelden: () => void }) {
                   void navigate("/mein");
                 }}
               >
-                Abbrechen
+                {t("Abbrechen", "Cancel")}
               </Knopf>
             </Knopfleiste>
           </>
@@ -327,6 +361,7 @@ interface Galerie {
 }
 
 export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const besucher = useAbruf<Besucher>("/api/mein");
   const galerie = useAbruf<Galerie>("/api/mein/avatare");
@@ -347,7 +382,12 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
       });
       void navigate("/mein");
     } catch {
-      setzeFehler("Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.");
+      setzeFehler(
+        t(
+          "Das Speichern hat nicht geklappt. Bitte noch einmal versuchen.",
+          "Saving did not work. Please try again.",
+        ),
+      );
     } finally {
       setzeLaeuft(false);
     }
@@ -356,7 +396,7 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
       <Seitenkopf>
-        <Ueberschrift>Dein Bild</Ueberschrift>
+        <Ueberschrift>{t("Dein Bild", "Your picture")}</Ueberschrift>
       </Seitenkopf>
       <Zustand laedt={besucher.laedt || galerie.laedt} fehler={besucher.fehler ?? galerie.fehler}>
         {g !== null && (
@@ -375,7 +415,7 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
                 disabled={laeuft}
                 onClick={() => void speichere()}
               >
-                {laeuft ? "Speichert …" : "Speichern"}
+                {laeuft ? t("Speichert …", "Saving …") : t("Speichern", "Save")}
               </Knopf>
               <Knopf
                 art="rand"
@@ -385,7 +425,7 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
                   void navigate("/mein");
                 }}
               >
-                Abbrechen
+                {t("Abbrechen", "Cancel")}
               </Knopf>
             </Knopfleiste>
           </>
@@ -398,15 +438,16 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
 // --- Datenschutz ----------------------------------------------------------------------
 
 export function MeinDatenschutz({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { sprache, t } = useSprache();
   const navigate = useNavigate();
   const abruf = useAbruf<{ fassung: string; abschnitte: Datenschutzabschnitt[] }>(
-    "/api/mein/datenschutz",
+    `/api/mein/datenschutz?sprache=${sprache}`,
   );
 
   return (
     <Rahmen aufAbmelden={aufAbmelden}>
       <Seitenkopf>
-        <Ueberschrift>Datenschutzhinweis</Ueberschrift>
+        <Ueberschrift>{t("Datenschutzhinweis", "Privacy notice")}</Ueberschrift>
       </Seitenkopf>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {abruf.daten !== null && (
@@ -422,7 +463,7 @@ export function MeinDatenschutz({ aufAbmelden }: { aufAbmelden: () => void }) {
           void navigate("/mein");
         }}
       >
-        Zurück
+        {t("Zurück", "Back")}
       </Knopf>
     </Rahmen>
   );

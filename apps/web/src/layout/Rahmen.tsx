@@ -5,6 +5,7 @@ import { Knopf, cn } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
 import { Band, Fusszeile } from "../bausteine/band.js";
 import type { Ich } from "../lib/ich.js";
+import { Sprachwahl, useSprache } from "../lib/sprache.js";
 
 /**
  * Kopfzeile und Inhaltsspalte.
@@ -20,11 +21,11 @@ import type { Ich } from "../lib/ich.js";
  */
 
 const REITER_HAUPT = [
-  { pfad: "/", text: "Dashboard", genau: true },
-  { pfad: "/besucher", text: "Besucher" },
-  { pfad: "/exponate", text: "Exponate" },
-  { pfad: "/nutzer", text: "Nutzer" },
-  { pfad: "/globale-daten", text: "Globale Daten" },
+  { pfad: "/", text: "Dashboard", en: "Dashboard", genau: true },
+  { pfad: "/besucher", text: "Besucher", en: "Visitors" },
+  { pfad: "/exponate", text: "Exponate", en: "Exhibits" },
+  { pfad: "/nutzer", text: "Nutzer", en: "Users" },
+  { pfad: "/globale-daten", text: "Globale Daten", en: "Global data" },
 ];
 
 /**
@@ -33,15 +34,15 @@ const REITER_HAUPT = [
  * drei Strichen stehen sie weiter in einer Liste mit den anderen.
  */
 const REITER_MEHR = [
-  { pfad: "/api", text: "API" },
-  { pfad: "/monitoring", text: "Monitoring" },
-  { pfad: "/einstellungen", text: "Einstellungen" },
+  { pfad: "/api", text: "API", en: "API" },
+  { pfad: "/monitoring", text: "Monitoring", en: "Monitoring" },
+  { pfad: "/einstellungen", text: "Einstellungen", en: "Settings" },
 ];
 
 const REITER_ADMIN = [...REITER_HAUPT, ...REITER_MEHR];
 
 /** Ein Betreuer sieht nur seine Exponate und pflegt dort deren Inhalte. */
-const REITER_BETREUER = [{ pfad: "/exponate", text: "Exponate", genau: true }];
+const REITER_BETREUER = [{ pfad: "/exponate", text: "Exponate", en: "Exhibits", genau: true }];
 
 /**
  * Ein Reiter in der Kopfzeile, wie die Navigation von industrialdigitaltwin.org: grau, aktiv
@@ -58,6 +59,7 @@ function reiterZustand(aktiv: boolean): string {
 interface Reiter {
   pfad: string;
   text: string;
+  en: string;
   genau?: boolean;
 }
 
@@ -72,6 +74,7 @@ function istAktiv(pathname: string, r: Reiter): boolean {
 }
 
 export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const reiter = ich.rolle === "admin" ? REITER_ADMIN : REITER_BETREUER;
   const leiste = ich.rolle === "admin" ? REITER_HAUPT : REITER_BETREUER;
@@ -110,7 +113,10 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
             {ich.appName === "" ? "IDTA Passport" : ich.appName}
           </span>
 
-          <nav aria-label="Hauptnavigation" className="hidden h-full kopf:block">
+          <nav
+            aria-label={t("Hauptnavigation", "Main navigation")}
+            className="hidden h-full kopf:block"
+          >
             {/* Kein `overflow-x-auto`: die Zeile passt, und ein Scrollbalken versteckt. */}
             <div className="flex h-full">
               {leiste.map((r) => (
@@ -120,7 +126,7 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
                   end={r.genau === true}
                   className={({ isActive }) => cn(REITER_KLASSEN, reiterZustand(isActive))}
                 >
-                  {r.text}
+                  {t(r.text, r.en)}
                 </NavLink>
               ))}
               {mehr.length > 0 && <MehrMenue reiter={mehr} />}
@@ -130,8 +136,9 @@ export function Rahmen({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void
           {/* Ab `sm`: Name und Abmelden stehen offen in der Kopfzeile. */}
           <span className="ml-auto hidden min-w-0 items-center gap-3 sm:flex">
             <span className="min-w-0 truncate text-sm font-medium">{ich.name}</span>
-            <Knopf art="rand" className="h-[34px] px-3.5 text-[13px]" onClick={abmelden}>
-              Abmelden
+            <Sprachwahl />
+            <Knopf art="rand" className="h-[34px] shrink-0 px-3.5 text-[13px]" onClick={abmelden}>
+              {t("Abmelden", "Sign out")}
             </Knopf>
           </span>
 
@@ -171,6 +178,7 @@ function Hauptmenue({
   ich: Ich;
   aufAbmelden: () => void;
 }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -179,7 +187,7 @@ function Hauptmenue({
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          aria-label="Menü"
+          aria-label={t("Menü", "Menu")}
           className="flex size-10 items-center justify-center border border-linie text-text"
         >
           <svg
@@ -219,24 +227,28 @@ function Hauptmenue({
                   : "font-medium text-text-hinweis",
               )}
             >
-              {r.text}
+              {t(r.text, r.en)}
             </DropdownMenu.Item>
           ))}
 
           <DropdownMenu.Separator className="my-1 h-px bg-linie" />
+          {/* Unter `sm` steht die Sprachwahl nicht in der Kopfzeile, also hier. */}
+          <div className="px-2.5 py-1 sm:hidden">
+            <Sprachwahl />
+          </div>
 
           {/*
             Der Name steht hier als Beschriftung, nicht als Eintrag: er ist nichts zum
             Anklicken, und ein Label faengt keinen Tastaturfokus.
           */}
           <DropdownMenu.Label className="truncate px-4 pt-1 pb-2 text-xs text-text-hinweis">
-            Angemeldet als {ich.name}
+            {t("Angemeldet als", "Signed in as")} {ich.name}
           </DropdownMenu.Label>
           <DropdownMenu.Item
             onSelect={aufAbmelden}
             className="flex h-11 cursor-pointer items-center px-4 text-sm font-medium text-text outline-none select-none data-[highlighted]:bg-grund"
           >
-            Abmelden
+            {t("Abmelden", "Sign out")}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -251,6 +263,7 @@ function Hauptmenue({
  * steht dort deren Name statt „Mehr“, damit man sieht, wo man ist.
  */
 function MehrMenue({ reiter }: { reiter: Reiter[] }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const aktiv = reiter.find((r) => istAktiv(pathname, r));
@@ -262,7 +275,7 @@ function MehrMenue({ reiter }: { reiter: Reiter[] }) {
           type="button"
           className={cn(REITER_KLASSEN, "gap-1.5", reiterZustand(aktiv !== undefined))}
         >
-          {aktiv?.text ?? "Mehr"}
+          {aktiv === undefined ? t("Mehr", "More") : t(aktiv.text, aktiv.en)}
           <span aria-hidden="true" className="text-xs">
             ▾
           </span>
@@ -289,7 +302,7 @@ function MehrMenue({ reiter }: { reiter: Reiter[] }) {
                   : "font-medium text-text-hinweis",
               )}
             >
-              {r.text}
+              {t(r.text, r.en)}
             </DropdownMenu.Item>
           ))}
         </DropdownMenu.Content>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import { Blaetterleiste, useBlaettern, useSprungZuEintrag } from "../bausteine/blaettern.js";
 import {
   Abschnitt,
@@ -20,6 +20,8 @@ import {
 } from "../bausteine/basis.js";
 import { Rueckfrage, Schaufenster } from "../bausteine/dialog.js";
 import type { Ich } from "../lib/ich.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 type Rolle = "admin" | "betreuer" | "kiosk";
 
@@ -34,6 +36,7 @@ interface Nutzerzeile {
 }
 
 export function Nutzer({ ich }: { ich: Ich }) {
+  const { t } = useSprache();
   const abruf = useAbruf<Nutzerzeile[]>("/api/nutzer");
   const { seite, zuSeite, sichtbar, gesamt } = useBlaettern(abruf.daten ?? []);
   const springeZu = useSprungZuEintrag(abruf.daten ?? [], zuSeite);
@@ -54,25 +57,30 @@ export function Nutzer({ ich }: { ich: Ich }) {
   const [zuweisen, setzeZuweisen] = useState<Nutzerzeile | null>(null);
   const [zuLoeschen, setzeZuLoeschen] = useState<Nutzerzeile | null>(null);
 
-  function melde(ursache: unknown, ersatz: string) {
-    setzeFehler(ursache instanceof ApiFehler ? ursache.message : ersatz);
+  function melde(ursache: unknown, ersatz: [string, string]) {
+    setzeFehler(fehlertext(ursache, t, ersatz));
   }
 
   return (
     <>
       <Seitenkopf>
-        <Ueberschrift>Nutzer</Ueberschrift>
+        <Ueberschrift>{t("Nutzer", "Users")}</Ueberschrift>
       </Seitenkopf>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
       {startpasswort !== null && (
         <Flaeche className="flex flex-col gap-3 border-l-4 border-primaer p-6">
-          <h2 className="text-lg font-semibold">Startpasswort für {startpasswort.email}</h2>
+          <h2 className="text-lg font-semibold">
+            {t("Startpasswort für", "Initial password for")} {startpasswort.email}
+          </h2>
           <Monowert wert={startpasswort.wert} />
           <p className="text-[13px] text-text-hinweis">
-            Es wird <b>nur jetzt</b> angezeigt und nirgends gespeichert. Geht es verloren, setzt du
-            einfach ein neues.
+            {t("Es wird", "It is shown")} <b>{t("nur jetzt", "only now")}</b>{" "}
+            {t(
+              "angezeigt und nirgends gespeichert. Geht es verloren, setzt du einfach ein neues.",
+              "and stored nowhere. If it gets lost, simply set a new one.",
+            )}
           </p>
           <Knopf
             art="rand"
@@ -81,12 +89,12 @@ export function Nutzer({ ich }: { ich: Ich }) {
               setzeStartpasswort(null);
             }}
           >
-            Verstanden
+            {t("Verstanden", "Got it")}
           </Knopf>
         </Flaeche>
       )}
 
-      <Abschnitt titel="Nutzer anlegen">
+      <Abschnitt titel={t("Nutzer anlegen", "Add user")}>
         <form
           className="flex flex-wrap items-end gap-4"
           onSubmit={(ev) => {
@@ -104,12 +112,12 @@ export function Nutzer({ ich }: { ich: Ich }) {
                 springeZu(angelegt.id);
               })
               .catch((u: unknown) => {
-                melde(u, "Anlegen nicht möglich.");
+                melde(u, ["Anlegen nicht möglich.", "Could not create."]);
               });
           }}
         >
           <label className="flex min-w-[12rem] flex-1 flex-col gap-2 text-[13px] font-semibold">
-            Name
+            {t("Name", "Name")}
             <Feld
               required
               value={name}
@@ -119,7 +127,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
             />
           </label>
           <label className="flex min-w-[14rem] flex-1 flex-col gap-2 text-[13px] font-semibold">
-            E-Mail
+            {t("E-Mail", "Email")}
             <Feld
               type="email"
               required
@@ -130,7 +138,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
             />
           </label>
           <label className="flex flex-col gap-2 text-[13px] font-semibold">
-            Rolle
+            {t("Rolle", "Role")}
             <select
               value={rolle}
               onChange={(e) => {
@@ -138,8 +146,8 @@ export function Nutzer({ ich }: { ich: Ich }) {
               }}
               className="h-11 rounded-none border border-linie-feld bg-flaeche px-3 text-[15px]"
             >
-              <option value="betreuer">Betreuer</option>
-              <option value="admin">Admin</option>
+              <option value="betreuer">{t("Betreuer", "Stand staff")}</option>
+              <option value="admin">{t("Admin", "Admin")}</option>
               {/*
                 Das Selbstbedienungsgeraet am Stand. Es sieht keine Verwaltung, sondern nur
                 den Scan und danach die Daten des einen gescannten Besuchers.
@@ -148,10 +156,10 @@ export function Nutzer({ ich }: { ich: Ich }) {
                 den Routen heisst die Rolle weiterhin `kiosk`; das umzubenennen waere eine
                 Migration fuer einen Namen, den niemand sieht.
               */}
-              <option value="kiosk">Terminal</option>
+              <option value="kiosk">{t("Terminal", "Terminal")}</option>
             </select>
           </label>
-          <Knopf type="submit">Anlegen</Knopf>
+          <Knopf type="submit">{t("Anlegen", "Create")}</Knopf>
         </form>
       </Abschnitt>
 
@@ -160,12 +168,12 @@ export function Nutzer({ ich }: { ich: Ich }) {
           <table className="w-full border-collapse text-sm max-sm:block sm:min-w-[780px]">
             <thead className="max-sm:hidden">
               <tr>
-                <Kopfzelle>Name</Kopfzelle>
-                <Kopfzelle>E-Mail</Kopfzelle>
-                <Kopfzelle>Rolle</Kopfzelle>
-                <Kopfzelle>Exponate</Kopfzelle>
+                <Kopfzelle>{t("Name", "Name")}</Kopfzelle>
+                <Kopfzelle>{t("E-Mail", "Email")}</Kopfzelle>
+                <Kopfzelle>{t("Rolle", "Role")}</Kopfzelle>
+                <Kopfzelle>{t("Exponate", "Exhibits")}</Kopfzelle>
                 <Kopfzelle className="text-right">
-                  <span className="sr-only">Aktionen</span>
+                  <span className="sr-only">{t("Aktionen", "Actions")}</span>
                 </Kopfzelle>
               </tr>
             </thead>
@@ -175,25 +183,33 @@ export function Nutzer({ ich }: { ich: Ich }) {
                   <Zelle className="font-semibold">
                     <span className="flex items-center gap-2">
                       {n.name}
-                      {!n.aktiv && <Markierung text="GESPERRT" farbe="var(--color-fehler)" />}
+                      {!n.aktiv && (
+                        <Markierung text={t("GESPERRT", "LOCKED")} farbe="var(--color-fehler)" />
+                      )}
                     </span>
                   </Zelle>
-                  <Zelle titel="E-Mail" className="text-text-zweit">
+                  <Zelle titel={t("E-Mail", "Email")} className="text-text-zweit">
                     {n.email}
                   </Zelle>
-                  <Zelle titel="Rolle">
+                  <Zelle titel={t("Rolle", "Role")}>
                     {n.rolle === "admin" ? (
-                      <Markierung text="ADMIN" />
+                      <Markierung text={t("ADMIN", "ADMIN")} />
                     ) : n.rolle === "kiosk" ? (
-                      <Markierung text="TERMINAL" farbe="var(--color-primaer-dunkel)" />
+                      <Markierung
+                        text={t("TERMINAL", "TERMINAL")}
+                        farbe="var(--color-primaer-dunkel)"
+                      />
                     ) : (
-                      <Markierung text="BETREUER" farbe="var(--color-text-zweit)" />
+                      <Markierung
+                        text={t("BETREUER", "STAND STAFF")}
+                        farbe="var(--color-text-zweit)"
+                      />
                     )}
                   </Zelle>
-                  <Zelle titel="Exponate">
+                  <Zelle titel={t("Exponate", "Exhibits")}>
                     {n.rolle === "admin" ? (
                       // Ein Admin kommt an jedes Exponat, eine Zuweisung waere ohne Wirkung.
-                      <span className="text-text-hinweis">alle</span>
+                      <span className="text-text-hinweis">{t("alle", "all")}</span>
                     ) : (
                       <Knopf
                         art="still"
@@ -203,7 +219,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
                           setzeZuweisen(n);
                         }}
                       >
-                        {n.exponate.length} zuweisen
+                        {n.exponate.length} {t("zuweisen", "assign")}
                       </Knopf>
                     )}
                   </Zelle>
@@ -217,7 +233,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
                           setzePasswortFuer({ id: n.id, name: n.name, email: n.email });
                         }}
                       >
-                        Passwort
+                        {t("Passwort", "Password")}
                       </Knopf>
                       <Knopf
                         art="still"
@@ -234,11 +250,11 @@ export function Nutzer({ ich }: { ich: Ich }) {
                           })
                             .then(abruf.neu)
                             .catch((u: unknown) => {
-                              melde(u, "Nicht möglich.");
+                              melde(u, ["Nicht möglich.", "Not possible."]);
                             });
                         }}
                       >
-                        {n.aktiv ? "Deaktivieren" : "Aktivieren"}
+                        {n.aktiv ? t("Deaktivieren", "Deactivate") : t("Aktivieren", "Activate")}
                       </Knopf>
                       {/* Die eigene Zeile hat keinen Knopf; der Server lehnt es ohnehin ab. */}
                       {n.id !== ich.id && (
@@ -250,7 +266,7 @@ export function Nutzer({ ich }: { ich: Ich }) {
                             setzeZuLoeschen(n);
                           }}
                         >
-                          Löschen
+                          {t("Löschen", "Delete")}
                         </Knopf>
                       )}
                     </span>
@@ -290,8 +306,8 @@ export function Nutzer({ ich }: { ich: Ich }) {
         aufOffen={(o) => {
           if (!o) setzeFrage(null);
         }}
-        titel="Nutzer deaktivieren?"
-        bestaetigenText="Deaktivieren"
+        titel={t("Nutzer deaktivieren?", "Deactivate user?")}
+        bestaetigenText={t("Deaktivieren", "Deactivate")}
         art="gefahr"
         aufBestaetigen={() => {
           if (frage === null) return;
@@ -304,18 +320,23 @@ export function Nutzer({ ich }: { ich: Ich }) {
               abruf.neu();
             })
             .catch((u: unknown) => {
-              melde(u, "Nicht möglich.");
+              melde(u, ["Nicht möglich.", "Not possible."]);
               setzeFrage(null);
             });
         }}
       >
         <p>
-          <b>{frage?.name}</b> kann sich danach nicht mehr anmelden, und eine laufende Sitzung endet
-          bei der nächsten Anfrage.
+          <b>{frage?.name}</b>{" "}
+          {t(
+            "kann sich danach nicht mehr anmelden, und eine laufende Sitzung endet bei der nächsten Anfrage.",
+            "will no longer be able to sign in, and a running session ends with the next request.",
+          )}
         </p>
         <p>
-          Der Zugang bleibt bestehen und lässt sich jederzeit wieder aktivieren. Was er an seinen
-          Exponaten gepflegt hat, bleibt.
+          {t(
+            "Der Zugang bleibt bestehen und lässt sich jederzeit wieder aktivieren. Was er an seinen Exponaten gepflegt hat, bleibt.",
+            "The account remains and can be reactivated at any time. Whatever it maintained on its exhibits stays.",
+          )}
         </p>
       </Rueckfrage>
 
@@ -324,8 +345,8 @@ export function Nutzer({ ich }: { ich: Ich }) {
         aufOffen={(o) => {
           if (!o) setzeZuLoeschen(null);
         }}
-        titel="Nutzer löschen?"
-        bestaetigenText="Löschen"
+        titel={t("Nutzer löschen?", "Delete user?")}
+        bestaetigenText={t("Löschen", "Delete")}
         art="gefahr"
         aufBestaetigen={() => {
           if (zuLoeschen === null) return;
@@ -335,18 +356,23 @@ export function Nutzer({ ich }: { ich: Ich }) {
               abruf.neu();
             })
             .catch((u: unknown) => {
-              melde(u, "Löschen nicht möglich.");
+              melde(u, ["Löschen nicht möglich.", "Could not delete."]);
               setzeZuLoeschen(null);
             });
         }}
       >
         <p>
-          <b>{zuLoeschen?.name}</b> ({zuLoeschen?.email}) wird endgültig gelöscht und kann sich
-          nicht mehr anmelden. Das lässt sich nicht rückgängig machen.
+          <b>{zuLoeschen?.name}</b> ({zuLoeschen?.email}){" "}
+          {t(
+            "wird endgültig gelöscht und kann sich nicht mehr anmelden. Das lässt sich nicht rückgängig machen.",
+            "will be deleted permanently and can no longer sign in. This cannot be undone.",
+          )}
         </p>
         <p>
-          Was dieser Zugang an seinen Exponaten gepflegt hat, bleibt. Soll der Zugang nur
-          vorübergehend ruhen, ist Deaktivieren der umkehrbare Weg.
+          {t(
+            "Was dieser Zugang an seinen Exponaten gepflegt hat, bleibt. Soll der Zugang nur vorübergehend ruhen, ist Deaktivieren der umkehrbare Weg.",
+            "Whatever this account maintained on its exhibits stays. If the account should only pause for a while, deactivating is the reversible way.",
+          )}
         </p>
       </Rueckfrage>
     </>
@@ -374,6 +400,7 @@ function ExponatZuweisung({
   aufGespeichert: () => void;
   aufFehler: (text: string | null) => void;
 }) {
+  const { t } = useSprache();
   const abruf = useAbruf<{ id: string; kennung: string; name: string }[]>(
     nutzer === null ? null : "/api/exponate",
   );
@@ -398,7 +425,7 @@ function ExponatZuweisung({
       aufGespeichert();
       aufSchliessen();
     } catch (ursache) {
-      aufFehler(ursache instanceof ApiFehler ? ursache.message : "Zuweisen nicht möglich.");
+      aufFehler(fehlertext(ursache, t, ["Zuweisen nicht möglich.", "Could not assign."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -410,13 +437,17 @@ function ExponatZuweisung({
       aufOffen={(o) => {
         if (!o) aufSchliessen();
       }}
-      titel={nutzer === null ? "Exponate" : `Exponate von ${nutzer.name}`}
+      titel={
+        nutzer === null
+          ? t("Exponate", "Exhibits")
+          : t(`Exponate von ${nutzer.name}`, `Exhibits of ${nutzer.name}`)
+      }
     >
       <Zustand
         laedt={abruf.laedt}
         fehler={abruf.fehler}
         leer={abruf.daten !== null && abruf.daten.length === 0}
-        leerText="Es gibt noch keine Exponate."
+        leerText={t("Es gibt noch keine Exponate.", "There are no exhibits yet.")}
       >
         <ul className="flex max-h-[50dvh] flex-col overflow-y-auto">
           {abruf.daten?.map((e) => (
@@ -444,16 +475,18 @@ function ExponatZuweisung({
       </Zustand>
 
       <p className="text-[13px] text-text-hinweis">
-        Ein Betreuer sieht nur die hier gewählten Exponate und pflegt dort Dokumente, Links und
-        Ansprechpartner.
+        {t(
+          "Ein Betreuer sieht nur die hier gewählten Exponate und pflegt dort Dokumente, Links und Ansprechpartner.",
+          "Stand staff only see the exhibits chosen here and maintain documents, links and contacts there.",
+        )}
       </p>
 
       <div className="flex flex-wrap justify-end gap-3">
         <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
-          Abbrechen
+          {t("Abbrechen", "Cancel")}
         </Knopf>
         <Knopf disabled={laeuft} onClick={() => void speichern()}>
-          {laeuft ? "Wird gespeichert …" : "Speichern"}
+          {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
         </Knopf>
       </div>
     </Schaufenster>
@@ -484,6 +517,7 @@ function Passwortfenster({
   aufGesetzt: (email: string, wert: string) => void;
   aufFehler: (text: string | null) => void;
 }) {
+  const { t } = useSprache();
   const [wunsch, setzeWunsch] = useState("");
   const [laeuft, setzeLaeuft] = useState(false);
 
@@ -504,7 +538,10 @@ function Passwortfenster({
       aufGesetzt(nutzer.email, antwort.startpasswort);
     } catch (ursache) {
       aufFehler(
-        ursache instanceof ApiFehler ? ursache.message : "Passwort ließ sich nicht setzen.",
+        fehlertext(ursache, t, [
+          "Passwort ließ sich nicht setzen.",
+          "The password could not be set.",
+        ]),
       );
     } finally {
       setzeLaeuft(false);
@@ -519,17 +556,21 @@ function Passwortfenster({
       aufOffen={(o) => {
         if (!o) aufSchliessen();
       }}
-      titel={nutzer === null ? "Passwort" : `Passwort für ${nutzer.name}`}
+      titel={
+        nutzer === null
+          ? t("Passwort", "Password")
+          : t(`Passwort für ${nutzer.name}`, `Password for ${nutzer.name}`)
+      }
     >
       <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-2 text-[13px] font-semibold">
-          Neues Passwort
+          {t("Neues Passwort", "New password")}
           <Feld
             type="text"
             value={wunsch}
             autoComplete="off"
             spellCheck={false}
-            placeholder="leer lassen zum Erzeugen"
+            placeholder={t("leer lassen zum Erzeugen", "leave empty to generate")}
             onChange={(ev) => {
               setzeWunsch(ev.target.value);
             }}
@@ -537,8 +578,14 @@ function Passwortfenster({
         </label>
         <p className={cn("text-[13px]", zuKurz ? "text-fehler" : "text-text-hinweis")}>
           {zuKurz
-            ? `Mindestens ${String(MIN_PASSWORTLAENGE)} Zeichen, aktuell ${String(wunsch.length)}.`
-            : `Mindestens ${String(MIN_PASSWORTLAENGE)} Zeichen. Leer gelassen wird eines erzeugt.`}
+            ? t(
+                `Mindestens ${String(MIN_PASSWORTLAENGE)} Zeichen, aktuell ${String(wunsch.length)}.`,
+                `At least ${String(MIN_PASSWORTLAENGE)} characters, currently ${String(wunsch.length)}.`,
+              )
+            : t(
+                `Mindestens ${String(MIN_PASSWORTLAENGE)} Zeichen. Leer gelassen wird eines erzeugt.`,
+                `At least ${String(MIN_PASSWORTLAENGE)} characters. Left empty, one is generated.`,
+              )}
         </p>
         <div className="flex flex-wrap gap-2.5">
           <Knopf
@@ -547,7 +594,7 @@ function Passwortfenster({
               void setze(true);
             }}
           >
-            Setzen
+            {t("Setzen", "Set")}
           </Knopf>
           <Knopf
             art="rand"
@@ -556,7 +603,7 @@ function Passwortfenster({
               void setze(false);
             }}
           >
-            Erzeugen
+            {t("Erzeugen", "Generate")}
           </Knopf>
         </div>
       </div>

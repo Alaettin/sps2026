@@ -32,7 +32,8 @@ export function passstatus(db: Db, roheGuid: string): Passstatus {
 
 export async function registriere(db: Db, roh: Record<string, unknown>): Promise<void> {
   // --- Pruefen, bevor irgendetwas geschrieben oder gehasht wird ------------------------
-  const einwilligung = roh["einwilligung"] as { erteilt?: unknown; fassung?: unknown } | undefined;
+  const einwilligung = roh["einwilligung"] as
+    { erteilt?: unknown; fassung?: unknown; sprache?: unknown } | undefined;
   if (einwilligung?.erteilt !== true) {
     throw badRequest("einwilligung-fehlt", "Consent to the privacy notice is required.");
   }
@@ -41,6 +42,11 @@ export async function registriere(db: Db, roh: Record<string, unknown>): Promise
       "datenschutz-veraltet",
       "The privacy notice has changed. Please reload and read the current version.",
     );
+  }
+  // Die Sprache, in der zugestimmt wurde, seit dem 03.11.2026; beide Fassungen sind gleichwertig.
+  const sprache = einwilligung.sprache;
+  if (sprache !== "de" && sprache !== "en") {
+    throw badRequest("sprache-ungueltig", "Field einwilligung.sprache must be de or en.");
   }
 
   const passwort = roh["passwort"];
@@ -78,6 +84,7 @@ export async function registriere(db: Db, roh: Record<string, unknown>): Promise
         passwortHash: hash,
         einwilligungAm: Date.now(),
         einwilligungFassung: DATENSCHUTZ_FASSUNG,
+        einwilligungSprache: sprache,
       })
       .where(eq(besucher.guid, angelegt.guid))
       .run();

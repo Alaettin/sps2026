@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useAbruf } from "../lib/api.js";
 import { Abschnitt, Flaeche, Seitenkopf, Ueberschrift, Zustand } from "../bausteine/basis.js";
+import { useSprache } from "../lib/sprache.js";
 
 interface Dashboarddaten {
   kennzahlen: {
@@ -28,6 +29,7 @@ function Kennzahl({ text, wert }: { text: string; wert: number }) {
 }
 
 export function Dashboard() {
+  const { t } = useSprache();
   const { daten, laedt, fehler } = useAbruf<Dashboarddaten>("/api/dashboard");
   const groesster = Math.max(1, ...(daten?.jeExponat.map((e) => e.besuche) ?? [0]));
 
@@ -49,18 +51,29 @@ export function Dashboard() {
               in der Hauptnavigation, und ohne Namen ist die Kachel von ihrem Reiter weder für
               einen Screenreader noch für eine Prüfung zu unterscheiden.
             */}
-            <section aria-label="Kennzahlen" className="grid gap-4 sm:grid-cols-3">
-              <Kennzahl text="Besucher" wert={daten.kennzahlen.besucherGesamt} />
-              <Kennzahl text="Exponate" wert={daten.kennzahlen.exponateGesamt} />
-              <Kennzahl text="Personal" wert={daten.kennzahlen.personalGesamt} />
-              <Kennzahl text="Dokumente" wert={daten.kennzahlen.dokumenteGesamt} />
-              <Kennzahl text="Links" wert={daten.kennzahlen.linksGesamt} />
-              <Kennzahl text="Ansprechpartner" wert={daten.kennzahlen.ansprechpartnerGesamt} />
+            <section
+              aria-label={t("Kennzahlen", "Key figures")}
+              className="grid gap-4 sm:grid-cols-3"
+            >
+              <Kennzahl text={t("Besucher", "Visitors")} wert={daten.kennzahlen.besucherGesamt} />
+              <Kennzahl text={t("Exponate", "Exhibits")} wert={daten.kennzahlen.exponateGesamt} />
+              <Kennzahl text={t("Personal", "Staff")} wert={daten.kennzahlen.personalGesamt} />
+              <Kennzahl
+                text={t("Dokumente", "Documents")}
+                wert={daten.kennzahlen.dokumenteGesamt}
+              />
+              <Kennzahl text={t("Links", "Links")} wert={daten.kennzahlen.linksGesamt} />
+              <Kennzahl
+                text={t("Ansprechpartner", "Contacts")}
+                wert={daten.kennzahlen.ansprechpartnerGesamt}
+              />
             </section>
 
-            <Abschnitt titel="Aufnahmen je Exponat">
+            <Abschnitt titel={t("Aufnahmen je Exponat", "Additions per exhibit")}>
               {daten.jeExponat.length === 0 ? (
-                <p className="text-sm text-text-hinweis">Noch keine Exponate angelegt.</p>
+                <p className="text-sm text-text-hinweis">
+                  {t("Noch keine Exponate angelegt.", "No exhibits created yet.")}
+                </p>
               ) : (
                 <ul className="flex flex-col gap-3">
                   {daten.jeExponat.map((e) => (

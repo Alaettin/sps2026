@@ -4,6 +4,7 @@ import { ApiFehler, api } from "../lib/api.js";
 import { Feld, Fehlerhinweis, Knopf } from "../bausteine/basis.js";
 import { Logoreihe } from "../bausteine/logos.js";
 import { RECHTLICH } from "../bausteine/band.js";
+import { Sprachwahl, useSprache } from "../lib/sprache.js";
 
 /**
  * Anmeldung mit E-Mail und Passwort.
@@ -12,6 +13,7 @@ import { RECHTLICH } from "../bausteine/band.js";
  * Orga, und ein neues Startpasswort setzt ein Admin.
  */
 export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
+  const { t } = useSprache();
   const [email, setzeEmail] = useState("");
   const [passwort, setzePasswort] = useState("");
   const [fehler, setzeFehler] = useState<string | null>(null);
@@ -40,10 +42,13 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
       const status = ursache instanceof ApiFehler ? ursache.status : 0;
       setzeFehler(
         status === 429
-          ? "Zu viele Versuche. Bitte in einigen Minuten erneut probieren."
+          ? t(
+              "Zu viele Versuche. Bitte in einigen Minuten erneut probieren.",
+              "Too many attempts. Please try again in a few minutes.",
+            )
           : status === 0
-            ? "Keine Verbindung zum Dienst."
-            : "E-Mail oder Passwort ist nicht korrekt.",
+            ? t("Keine Verbindung zum Dienst.", "No connection to the service.")
+            : t("E-Mail oder Passwort ist nicht korrekt.", "Email or password is not correct."),
       );
     } finally {
       setzeLaeuft(false);
@@ -62,6 +67,10 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
         ist entfallen; die Logos stehen in der Karte.
       */}
       <span aria-hidden="true" className="punktmatrix absolute inset-0" />
+      {/* Die Sprache oben rechts, wo ein Besucher sie zuerst sucht. Seit dem 03.11.2026. */}
+      <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-8">
+        <Sprachwahl hell />
+      </div>
       <div className="relative mx-auto flex w-full max-w-spalte flex-1 flex-col items-center justify-center gap-8 px-4 py-12 sm:px-8 lg:flex-row lg:justify-between lg:gap-16">
         {/*
           Zwei Ebenen statt eines Absatzes, seit dem 02.11.2026: der eine Satz lief bei 640 px
@@ -72,10 +81,16 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
             IDTA Passport
           </p>
           <p className="text-xl leading-snug font-medium text-balance lg:text-[28px]">
-            Dein digitaler Messepass für die SPS 2026
+            {t(
+              "Dein digitaler Messepass für die SPS 2026",
+              "Your digital trade fair pass for SPS 2026",
+            )}
           </p>
           <p className="text-[15px] leading-relaxed text-balance text-white/80 lg:text-lg">
-            QR-Code am Exponat scannen, alle Infos später im Viewer.
+            {t(
+              "QR-Code am Exponat scannen, alle Infos später im Viewer.",
+              "Scan the QR code on an exhibit, find everything later in the viewer.",
+            )}
           </p>
         </div>
         <main className="relative flex w-full max-w-[420px] flex-col gap-7 bg-flaeche p-6 shadow-[0_18px_48px_rgba(27,29,38,0.13)] sm:p-10">
@@ -86,7 +101,7 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
           */}
             <Logoreihe art="anmeldung" />
             <h1 className="text-[32px] leading-tight font-medium tracking-[-0.01em] text-primaer">
-              Anmelden
+              {t("Anmelden", "Sign in")}
             </h1>
           </div>
 
@@ -94,7 +109,7 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
 
           <form className="flex flex-col gap-4.5" onSubmit={(e) => void absenden(e)}>
             <label className="flex flex-col gap-2 text-[13px] font-semibold">
-              E-Mail
+              {t("E-Mail", "Email")}
               <Feld
                 type="email"
                 autoComplete="username"
@@ -106,7 +121,7 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
               />
             </label>
             <label className="flex flex-col gap-2 text-[13px] font-semibold">
-              Passwort
+              {t("Passwort", "Password")}
               <Feld
                 type="password"
                 autoComplete="current-password"
@@ -118,7 +133,7 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
               />
             </label>
             <Knopf type="submit" className="mt-1.5 h-12 text-base" disabled={laeuft}>
-              {laeuft ? "Wird geprüft …" : "Anmelden"}
+              {laeuft ? t("Wird geprüft …", "Checking …") : t("Anmelden", "Sign in")}
             </Knopf>
           </form>
         </main>
@@ -132,12 +147,12 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
       <div className="relative mx-auto w-full max-w-spalte px-4 sm:px-8">
         <div className="flex flex-col gap-2 border-t border-white/20 py-5 text-[13px] text-white/80 sm:flex-row sm:items-center sm:justify-between">
           <span>© 2026 Industrial Digital Twin Association e.V.</span>
-          <nav aria-label="Rechtliche Hinweise">
+          <nav aria-label={t("Rechtliche Hinweise", "Legal information")}>
             <ul className="flex flex-wrap gap-x-5 gap-y-1">
               {RECHTLICH.map((l) => (
                 <li key={l.ziel}>
                   <Link className="transition-colors hover:text-white" to={l.ziel}>
-                    {l.text}
+                    {t(l.text, l.en)}
                   </Link>
                 </li>
               ))}

@@ -9,6 +9,7 @@ import { Kioskrahmen, Knopfleiste } from "./Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Das Tablet am Stand: **Besucher registrieren sich hier**, seit dem 23.10.2026.
@@ -51,6 +52,7 @@ function guidAus(inhalt: string, basis: string, nurAdresse: boolean): string | n
 // --- Scannen --------------------------------------------------------------------------
 
 export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -70,20 +72,27 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
     (inhalt: string) => {
       const guid = guidAus(inhalt, ich.viewerBaseUrl, true);
       if (guid === null) {
-        setzeFehler("Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.");
+        setzeFehler(
+          t(
+            "Das ist kein Konferenzpass. Bitte den QR-Code auf dem Pass zeigen.",
+            "This is not a conference pass. Please show the QR code on your pass.",
+          ),
+        );
         return;
       }
       oeffne(guid);
     },
-    [ich.viewerBaseUrl, oeffne],
+    [ich.viewerBaseUrl, oeffne, t],
   );
 
   return (
     <Kioskrahmen aufAbmelden={aufAbmelden} zeitsperre={false}>
-      <Ueberschrift>Pass scannen</Ueberschrift>
+      <Ueberschrift>{t("Pass scannen", "Scan pass")}</Ueberschrift>
       <p className="text-[17px] leading-relaxed text-text-zweit">
-        Halte den QR-Code deines Konferenzpasses vor die Kamera. Danach registrierst du dich in
-        wenigen Schritten.
+        {t(
+          "Halte den QR-Code deines Konferenzpasses vor die Kamera. Danach registrierst du dich in wenigen Schritten.",
+          "Hold the QR code of your conference pass in front of the camera. Then register in a few steps.",
+        )}
       </p>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
@@ -97,16 +106,24 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
               setzeKameraAus(true);
               setzeFehler(
                 art === "verweigert"
-                  ? "Die Kamera ist für diese Seite gesperrt. Bitte das Standpersonal ansprechen."
-                  : "Die Kamera lässt sich nicht starten. Bitte das Standpersonal ansprechen.",
+                  ? t(
+                      "Die Kamera ist für diese Seite gesperrt. Bitte das Standpersonal ansprechen.",
+                      "The camera is blocked for this page. Please ask the stand staff.",
+                    )
+                  : t(
+                      "Die Kamera lässt sich nicht starten. Bitte das Standpersonal ansprechen.",
+                      "The camera cannot be started. Please ask the stand staff.",
+                    ),
               );
             }}
           />
         </div>
       ) : (
         <Fehlerhinweis>
-          Die Kamera ist hier nicht verfügbar. Browser geben sie nur über HTTPS frei. Bitte das
-          Standpersonal ansprechen.
+          {t(
+            "Die Kamera ist hier nicht verfügbar. Browser geben sie nur über HTTPS frei. Bitte das Standpersonal ansprechen.",
+            "The camera is not available here. Browsers only allow it over HTTPS. Please ask the stand staff.",
+          )}
         </Fehlerhinweis>
       )}
 
@@ -117,17 +134,25 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
           const guid = guidAus(eingabe, ich.viewerBaseUrl, false);
           if (guid === null) {
             setzeFehler(
-              "Das ist keine gültige Passnummer. Bitte so eingeben, wie sie auf dem Pass steht.",
+              t(
+                "Das ist keine gültige Passnummer. Bitte so eingeben, wie sie auf dem Pass steht.",
+                "This is not a valid pass number. Please enter it exactly as shown on the pass.",
+              ),
             );
             return;
           }
           oeffne(guid);
         }}
       >
-        <h2 className="text-[15px] font-semibold">Kein QR-Code lesbar? GUID von Hand eingeben</h2>
+        <h2 className="text-[15px] font-semibold">
+          {t(
+            "Kein QR-Code lesbar? GUID von Hand eingeben",
+            "QR code not readable? Enter the GUID by hand",
+          )}
+        </h2>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex min-w-0 flex-1 flex-col gap-2 text-[14px] font-semibold">
-            GUID vom Pass
+            {t("GUID vom Pass", "GUID from the pass")}
             <Feld
               value={eingabe}
               onChange={(ev) => {
@@ -141,7 +166,7 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
             />
           </label>
           <Knopf type="submit" className="h-12 px-8" disabled={eingabe.trim() === "" || laeuft}>
-            Weiter
+            {t("Weiter", "Next")}
           </Knopf>
         </div>
       </form>
@@ -153,11 +178,11 @@ export function KioskScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
 
 type Schritt = "daten" | "passwort" | "bild" | "datenschutz" | "fertig";
 
-const SCHRITTE: { id: Exclude<Schritt, "fertig">; text: string }[] = [
-  { id: "daten", text: "Deine Daten" },
-  { id: "passwort", text: "Passwort" },
-  { id: "bild", text: "Bild" },
-  { id: "datenschutz", text: "Datenschutz" },
+const SCHRITTE: { id: Exclude<Schritt, "fertig">; text: string; en: string }[] = [
+  { id: "daten", text: "Deine Daten", en: "Your details" },
+  { id: "passwort", text: "Passwort", en: "Password" },
+  { id: "bild", text: "Bild", en: "Picture" },
+  { id: "datenschutz", text: "Datenschutz", en: "Privacy" },
 ];
 
 interface Datenschutz {
@@ -176,12 +201,14 @@ interface Galerie {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { sprache, t } = useSprache();
   const { guid = "" } = useParams();
   const navigate = useNavigate();
   const pass = useAbruf<{ status: "frei" | "registriert" }>(
     `/api/kiosk/pass/${encodeURIComponent(guid)}`,
   );
-  const datenschutz = useAbruf<Datenschutz>("/api/kiosk/datenschutz");
+  // In der Sprache, die gerade gilt; die Einwilligung nennt dieselbe Sprache.
+  const datenschutz = useAbruf<Datenschutz>(`/api/kiosk/datenschutz?sprache=${sprache}`);
   const galerie = useAbruf<Galerie>("/api/kiosk/avatare");
 
   const [schritt, setzeSchritt] = useState<Schritt>("daten");
@@ -196,6 +223,16 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
   const [laeuft, setzeLaeuft] = useState(false);
   const [schonRegistriert, setzeSchonRegistriert] = useState(false);
 
+  /*
+   * Wechselt die Sprache, gilt das Kaestchen nicht mehr: zugestimmt wird dem Text, der zu
+   * sehen war. Nach dem Ereignis zurueckgesetzt, nicht in einem Effekt.
+   */
+  const [sprachstand, setzeSprachstand] = useState(sprache);
+  if (sprachstand !== sprache) {
+    setzeSprachstand(sprache);
+    setzeEinverstanden(false);
+  }
+
   const zumScan = () => {
     void navigate("/kiosk", { replace: true });
   };
@@ -207,12 +244,17 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
 
   function weiterNachDaten() {
     if ((werte["vorname"] ?? "").trim() === "" || (werte["nachname"] ?? "").trim() === "") {
-      setzeFehler("Bitte Vorname und Nachname eintragen.");
+      setzeFehler(
+        t("Bitte Vorname und Nachname eintragen.", "Please enter first name and last name."),
+      );
       return;
     }
     if (!EMAIL.test((werte["email"] ?? "").trim())) {
       setzeFehler(
-        "Bitte eine gültige E-Mail-Adresse eintragen. Mit ihr meldest du dich später an.",
+        t(
+          "Bitte eine gültige E-Mail-Adresse eintragen. Mit ihr meldest du dich später an.",
+          "Please enter a valid email address. You will use it to sign in later.",
+        ),
       );
       return;
     }
@@ -222,11 +264,18 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
   function weiterNachPasswort() {
     const min = datenschutz.daten?.minPasswort ?? 8;
     if (passwort.length < min) {
-      setzeFehler(`Das Passwort braucht mindestens ${String(min)} Zeichen.`);
+      setzeFehler(
+        t(
+          `Das Passwort braucht mindestens ${String(min)} Zeichen.`,
+          `The password needs at least ${String(min)} characters.`,
+        ),
+      );
       return;
     }
     if (passwort !== wiederholung) {
-      setzeFehler("Die beiden Passwörter stimmen nicht überein.");
+      setzeFehler(
+        t("Die beiden Passwörter stimmen nicht überein.", "The two passwords do not match."),
+      );
       return;
     }
     gehe("bild");
@@ -245,7 +294,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
           ...werte,
           passwort,
           avatarDateiId: avatar,
-          einwilligung: { erteilt: true, fassung: d.fassung },
+          einwilligung: { erteilt: true, fassung: d.fassung, sprache },
         }),
       });
       setzeSchritt("fertig");
@@ -257,15 +306,25 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
         // Den aktuellen Text laden; die Einwilligung gilt nur für den, der gelesen wurde.
         setzeEinverstanden(false);
         datenschutz.neu();
-        setzeFehler("Der Datenschutzhinweis wurde geändert. Bitte lies ihn noch einmal.");
+        setzeFehler(
+          t(
+            "Der Datenschutzhinweis wurde geändert. Bitte lies ihn noch einmal.",
+            "The privacy notice has changed. Please read it again.",
+          ),
+        );
       } else if (code === "passwort-zu-kurz") {
         gehe("passwort");
-        setzeFehler("Das Passwort ist zu kurz.");
-      } else if (besucherFehlertext(code) !== null) {
+        setzeFehler(t("Das Passwort ist zu kurz.", "The password is too short."));
+      } else if (besucherFehlertext(code, t) !== null) {
         gehe("daten");
-        setzeFehler(besucherFehlertext(code));
+        setzeFehler(besucherFehlertext(code, t));
       } else {
-        setzeFehler("Die Registrierung hat nicht geklappt. Bitte noch einmal versuchen.");
+        setzeFehler(
+          t(
+            "Die Registrierung hat nicht geklappt. Bitte noch einmal versuchen.",
+            "Registration did not work. Please try again.",
+          ),
+        );
       }
     } finally {
       setzeLaeuft(false);
@@ -283,34 +342,47 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
       >
         {registriert ? (
           <>
-            <Ueberschrift>Dieser Pass ist schon registriert</Ueberschrift>
+            <Ueberschrift>
+              {t("Dieser Pass ist schon registriert", "This pass is already registered")}
+            </Ueberschrift>
             <p className="text-[17px] leading-relaxed text-text-zweit">
-              Deine Angaben kannst du ändern, wenn du dich mit deiner E-Mail-Adresse und deinem
-              Passwort in der App anmeldest.
+              {t(
+                "Deine Angaben kannst du ändern, wenn du dich mit deiner E-Mail-Adresse und deinem Passwort in der App anmeldest.",
+                "You can change your details by signing in to the app with your email address and password.",
+              )}
             </p>
             <Knopf className="h-14 self-start px-8 text-[17px]" onClick={zumScan}>
-              Zurück zum Scan
+              {t("Zurück zum Scan", "Back to scan")}
             </Knopf>
           </>
         ) : schritt === "fertig" ? (
           <>
-            <Ueberschrift>Registrierung abgeschlossen</Ueberschrift>
+            <Ueberschrift>{t("Registrierung abgeschlossen", "Registration complete")}</Ueberschrift>
             <p className="text-[17px] leading-relaxed text-text-zweit">
-              Danke, {werte["vorname"]}! Dein Pass ist jetzt aktiv. Melde dich unter{" "}
-              <b>{window.location.host}</b> mit <b>{werte["email"]}</b> und deinem Passwort an, um
-              deine Angaben zu ändern.
+              {t(
+                `Danke, ${werte["vorname"] ?? ""}! Dein Pass ist jetzt aktiv. Melde dich unter`,
+                `Thank you, ${werte["vorname"] ?? ""}! Your pass is now active. Sign in at`,
+              )}{" "}
+              <b>{window.location.host}</b> {t("mit", "with")} <b>{werte["email"]}</b>{" "}
+              {t(
+                "und deinem Passwort an, um deine Angaben zu ändern.",
+                "and your password to change your details.",
+              )}
             </p>
             <Knopf className="h-14 self-start px-8 text-[17px]" onClick={zumScan}>
-              Fertig
+              {t("Fertig", "Done")}
             </Knopf>
           </>
         ) : (
           <>
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold tracking-[0.14em] text-text-hinweis uppercase">
-                Schritt {nummer} von {SCHRITTE.length}
+                {t(
+                  `Schritt ${String(nummer)} von ${String(SCHRITTE.length)}`,
+                  `Step ${String(nummer)} of ${String(SCHRITTE.length)}`,
+                )}
               </span>
-              <ol className="flex flex-wrap gap-2" aria-label="Schritte">
+              <ol className="flex flex-wrap gap-2" aria-label={t("Schritte", "Steps")}>
                 {SCHRITTE.map((s, i) => (
                   <li
                     key={s.id}
@@ -323,7 +395,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                           : "bg-flaeche text-text-hinweis"
                     }`}
                   >
-                    {s.text}
+                    {t(s.text, s.en)}
                   </li>
                 ))}
               </ol>
@@ -333,9 +405,12 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
 
             {schritt === "daten" && (
               <>
-                <Ueberschrift>Deine Daten</Ueberschrift>
+                <Ueberschrift>{t("Deine Daten", "Your details")}</Ueberschrift>
                 <p className="text-[15px] text-text-zweit">
-                  Felder mit * sind Pflicht. Deine E-Mail-Adresse ist später deine Anmeldung.
+                  {t(
+                    "Felder mit * sind Pflicht. Deine E-Mail-Adresse ist später deine Anmeldung.",
+                    "Fields marked * are required. Your email address will be your sign-in.",
+                  )}
                 </p>
                 <Personenformular
                   werte={werte}
@@ -345,10 +420,10 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                 />
                 <Knopfleiste>
                   <Knopf className="h-14 px-8 text-[17px]" onClick={weiterNachDaten}>
-                    Weiter
+                    {t("Weiter", "Next")}
                   </Knopf>
                   <Knopf art="rand" className="h-14 px-8 text-[17px]" onClick={zumScan}>
-                    Abbrechen
+                    {t("Abbrechen", "Cancel")}
                   </Knopf>
                 </Knopfleiste>
               </>
@@ -356,14 +431,18 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
 
             {schritt === "passwort" && (
               <>
-                <Ueberschrift>Passwort festlegen</Ueberschrift>
+                <Ueberschrift>{t("Passwort festlegen", "Set password")}</Ueberschrift>
                 <Flaeche className="flex flex-col gap-5 p-7">
                   <p className="text-[15px] text-text-zweit">
-                    Mit deiner E-Mail-Adresse <b>{werte["email"]}</b> und diesem Passwort meldest du
-                    dich später an. Mindestens {datenschutz.daten?.minPasswort ?? 8} Zeichen.
+                    {t("Mit deiner E-Mail-Adresse", "With your email address")}{" "}
+                    <b>{werte["email"]}</b>{" "}
+                    {t(
+                      `und diesem Passwort meldest du dich später an. Mindestens ${String(datenschutz.daten?.minPasswort ?? 8)} Zeichen.`,
+                      `and this password you will sign in later. At least ${String(datenschutz.daten?.minPasswort ?? 8)} characters.`,
+                    )}
                   </p>
                   <label className="flex flex-col gap-2 text-[14px] font-semibold">
-                    Passwort
+                    {t("Passwort", "Password")}
                     <Feld
                       type="password"
                       autoComplete="new-password"
@@ -375,7 +454,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                     />
                   </label>
                   <label className="flex flex-col gap-2 text-[14px] font-semibold">
-                    Passwort wiederholen
+                    {t("Passwort wiederholen", "Repeat password")}
                     <Feld
                       type="password"
                       autoComplete="new-password"
@@ -389,7 +468,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                 </Flaeche>
                 <Knopfleiste>
                   <Knopf className="h-14 px-8 text-[17px]" onClick={weiterNachPasswort}>
-                    Weiter
+                    {t("Weiter", "Next")}
                   </Knopf>
                   <Knopf
                     art="rand"
@@ -398,7 +477,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                       gehe("daten");
                     }}
                   >
-                    Zurück
+                    {t("Zurück", "Back")}
                   </Knopf>
                 </Knopfleiste>
               </>
@@ -406,9 +485,12 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
 
             {schritt === "bild" && galerie.daten !== null && (
               <>
-                <Ueberschrift>Dein Bild</Ueberschrift>
+                <Ueberschrift>{t("Dein Bild", "Your picture")}</Ueberschrift>
                 <p className="text-[15px] text-text-zweit">
-                  Wähle ein Bild, das im Viewer erscheint. Du kannst es später ändern.
+                  {t(
+                    "Wähle ein Bild, das im Viewer erscheint. Du kannst es später ändern.",
+                    "Choose a picture to appear in the viewer. You can change it later.",
+                  )}
                 </p>
                 <Avatarwahl
                   standard={galerie.daten.standard}
@@ -423,7 +505,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                       gehe("datenschutz");
                     }}
                   >
-                    Weiter
+                    {t("Weiter", "Next")}
                   </Knopf>
                   <Knopf
                     art="rand"
@@ -432,7 +514,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                       gehe("passwort");
                     }}
                   >
-                    Zurück
+                    {t("Zurück", "Back")}
                   </Knopf>
                 </Knopfleiste>
               </>
@@ -440,13 +522,16 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
 
             {schritt === "datenschutz" && datenschutz.daten !== null && (
               <>
-                <Ueberschrift>Datenschutz</Ueberschrift>
+                <Ueberschrift>{t("Datenschutz", "Privacy")}</Ueberschrift>
                 {datenschutz.daten.entwurf && (
                   <p
                     role="note"
                     className="border-l-4 border-akzent bg-flaeche px-4 py-3 text-[14px] font-semibold"
                   >
-                    Entwurf: dieser Hinweis ist noch nicht freigegeben und enthält Platzhalter.
+                    {t(
+                      "Entwurf: dieser Hinweis ist noch nicht freigegeben und enthält Platzhalter.",
+                      "Draft: this notice has not been approved yet and contains placeholders.",
+                    )}
                   </p>
                 )}
                 <Flaeche className="max-h-[50dvh] overflow-y-auto p-7">
@@ -476,7 +561,9 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                     disabled={!einverstanden || laeuft}
                     onClick={() => void registriere()}
                   >
-                    {laeuft ? "Wird registriert …" : "Registrierung abschließen"}
+                    {laeuft
+                      ? t("Wird registriert …", "Registering …")
+                      : t("Registrierung abschließen", "Complete registration")}
                   </Knopf>
                   <Knopf
                     art="rand"
@@ -486,7 +573,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                       gehe("bild");
                     }}
                   >
-                    Zurück
+                    {t("Zurück", "Back")}
                   </Knopf>
                 </Knopfleiste>
               </>

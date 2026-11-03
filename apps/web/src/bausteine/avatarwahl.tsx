@@ -1,3 +1,4 @@
+import { useSprache } from "../lib/sprache.js";
 /**
  * Das Bildraster zur Avatarwahl: Standardbild und Galerie, das gewählte umrandet.
  *
@@ -20,6 +21,7 @@ export function Avatarwahl({
   /** Woher die Bilder kommen. Der Besucher hat eigene Wege, siehe `/api/mein/bild`. */
   bild?: (id: string) => string;
 }) {
+  const { t } = useSprache();
   return (
     <ul className={`grid gap-4 ${spalten}`}>
       {[standard, ...avatare].map((id) => (
@@ -27,7 +29,11 @@ export function Avatarwahl({
           <button
             type="button"
             aria-pressed={gewaehlt === id}
-            aria-label={id === standard ? "Standardbild" : "Bild auswählen"}
+            aria-label={
+              id === standard
+                ? t("Standardbild", "Default picture")
+                : t("Bild auswählen", "Choose picture")
+            }
             onClick={() => {
               aufWahl(id);
             }}

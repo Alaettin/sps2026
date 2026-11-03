@@ -1,8 +1,10 @@
 import { useState, type ChangeEvent } from "react";
-import { ApiFehler, api } from "../lib/api.js";
+import { api } from "../lib/api.js";
 import { bieteAlsDatei } from "../lib/download.js";
 import { Abschnitt, Fehlerhinweis, Knopf, knopfKlassen } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Sicherung und Auswertung, zwei Abschnitte der Einstellungen. Seit dem 19.10.2026.
@@ -26,16 +28,17 @@ interface Pruefergebnis {
   aktuell: Bestand;
 }
 
-const ZEILEN: [keyof Bestand, string][] = [
-  ["besucher", "Besucher"],
-  ["exponate", "Exponate"],
-  ["besuche", "Aufgenommene Exponate"],
-  ["dateien", "Dateien"],
-  ["globaleDaten", "Globale Daten"],
-  ["appNutzer", "Anmeldungen"],
+const ZEILEN: [keyof Bestand, string, string][] = [
+  ["besucher", "Besucher", "Visitors"],
+  ["exponate", "Exponate", "Exhibits"],
+  ["besuche", "Aufgenommene Exponate", "Added exhibits"],
+  ["dateien", "Dateien", "Files"],
+  ["globaleDaten", "Globale Daten", "Global data"],
+  ["appNutzer", "Anmeldungen", "Sign-ins"],
 ];
 
 export function Sicherung() {
+  const { t, datumLang } = useSprache();
   const [datei, setzeDatei] = useState<File | null>(null);
   const [pruefung, setzePruefung] = useState<Pruefergebnis | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -58,7 +61,7 @@ export function Sicherung() {
       setzeDatei(erste);
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler ? ursache.message : "Die Datei ließ sich nicht lesen.",
+        fehlertext(ursache, t, ["Die Datei ließ sich nicht lesen.", "The file could not be read."]),
       );
     } finally {
       setzeLaeuft(false);
@@ -81,7 +84,10 @@ export function Sicherung() {
       window.location.reload();
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler ? ursache.message : "Das Einspielen ist nicht durchgekommen.",
+        fehlertext(ursache, t, [
+          "Das Einspielen ist nicht durchgekommen.",
+          "The import did not go through.",
+        ]),
       );
       setzeLaeuft(false);
     }
@@ -96,7 +102,10 @@ export function Sicherung() {
       bieteAlsDatei(inhalt, dateiname);
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler ? ursache.message : "Die Auswertung ließ sich nicht laden.",
+        fehlertext(ursache, t, [
+          "Die Auswertung ließ sich nicht laden.",
+          "The evaluation could not be loaded.",
+        ]),
       );
     }
   }
@@ -105,11 +114,11 @@ export function Sicherung() {
     <>
       {fehler !== null && pruefung === null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-      <Abschnitt titel="Sicherung">
+      <Abschnitt titel={t("Sicherung", "Backup")}>
         <div className="flex flex-wrap gap-3">
           {/* Ein echter Link: der Browser lädt die Datei selbst und zeigt den Fortschritt. */}
           <a href="/api/sicherung" download className={knopfKlassen("primaer")}>
-            Export
+            {t("Export", "Export")}
           </a>
           <label
             className={knopfKlassen(
@@ -117,7 +126,7 @@ export function Sicherung() {
               laeuft ? "pointer-events-none opacity-50" : "cursor-pointer",
             )}
           >
-            Import
+            {t("Import", "Import")}
             <input
               type="file"
               accept=".zip,application/zip"
@@ -129,10 +138,10 @@ export function Sicherung() {
         </div>
       </Abschnitt>
 
-      <Abschnitt titel="Auswertung">
+      <Abschnitt titel={t("Auswertung", "Evaluation")}>
         <div>
           <Knopf art="rand" onClick={() => void auswertung()}>
-            Download CSV
+            {t("Download CSV", "Download CSV")}
           </Knopf>
         </div>
       </Abschnitt>
@@ -146,8 +155,8 @@ export function Sicherung() {
             setzeFehler(null);
           }
         }}
-        titel="Sicherung einspielen?"
-        bestaetigenText="Bestand ersetzen"
+        titel={t("Sicherung einspielen?", "Import backup?")}
+        bestaetigenText={t("Bestand ersetzen", "Replace data")}
         art="gefahr"
         tippwort="EINSPIELEN"
         laeuft={laeuft}
@@ -157,21 +166,26 @@ export function Sicherung() {
         {pruefung !== null && (
           <>
             <p>
-              Sicherung vom <b>{new Date(pruefung.sicherung.erstellt).toLocaleString("de-DE")}</b>,
-              Fassung {pruefung.sicherung.fassung}. Der aktuelle Bestand wird vollständig ersetzt:
+              {t("Sicherung vom", "Backup of")}{" "}
+              <b>{datumLang(new Date(pruefung.sicherung.erstellt))}</b>, {t("Fassung", "version")}{" "}
+              {pruefung.sicherung.fassung}.{" "}
+              {t(
+                "Der aktuelle Bestand wird vollständig ersetzt:",
+                "The current data will be replaced completely:",
+              )}
             </p>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-[0.08em] text-text-hinweis uppercase">
                   <th className="py-1 font-semibold" />
-                  <th className="py-1 text-right font-semibold">Jetzt</th>
-                  <th className="py-1 text-right font-semibold">Sicherung</th>
+                  <th className="py-1 text-right font-semibold">{t("Jetzt", "Now")}</th>
+                  <th className="py-1 text-right font-semibold">{t("Sicherung", "Backup")}</th>
                 </tr>
               </thead>
               <tbody>
-                {ZEILEN.map(([feld, text]) => (
+                {ZEILEN.map(([feld, text, en]) => (
                   <tr key={feld} className="border-t border-linie">
-                    <td className="py-1">{text}</td>
+                    <td className="py-1">{t(text, en)}</td>
                     <td className="py-1 text-right tabular-nums">{pruefung.aktuell[feld] ?? 0}</td>
                     <td className="py-1 text-right font-semibold tabular-nums">
                       {pruefung.sicherung.bestand[feld] ?? 0}
@@ -181,8 +195,10 @@ export function Sicherung() {
               </tbody>
             </table>
             <p>
-              Auch die Anmeldungen kommen aus der Sicherung. Fehlt dein Konto dort, wirst du danach
-              abgemeldet.
+              {t(
+                "Auch die Anmeldungen kommen aus der Sicherung. Fehlt dein Konto dort, wirst du danach abgemeldet.",
+                "The sign-ins also come from the backup. If your account is missing there, you will be signed out afterwards.",
+              )}
             </p>
           </>
         )}

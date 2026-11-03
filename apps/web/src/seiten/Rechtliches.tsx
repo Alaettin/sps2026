@@ -5,6 +5,7 @@ import { Flaeche, Knopf, Seitenkopf, Ueberschrift, Zustand, cn } from "../bauste
 import { Logoreihe } from "../bausteine/logos.js";
 import { Band, Fusszeile } from "../bausteine/band.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
+import { Sprachwahl, useSprache } from "../lib/sprache.js";
 
 /**
  * Impressum, Datenschutz und Cookie-Einstellungen, seit dem 02.11.2026 hinter der Fusszeile.
@@ -17,12 +18,14 @@ import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datensc
 const SPALTE = "mx-auto w-full max-w-[820px] px-6";
 
 function Rechtsseite({ titel, children }: { titel: string; children: ReactNode }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   return (
     <div className="flex min-h-screen flex-col bg-grund text-text">
       <header className="relative z-10 bg-flaeche shadow-kopf">
-        <div className={cn("flex h-[72px] items-center", SPALTE)}>
+        <div className={cn("flex h-[72px] items-center justify-between gap-4", SPALTE)}>
           <Logoreihe art="kopf" className="justify-start gap-5" />
+          <Sprachwahl />
         </div>
       </header>
       <Band />
@@ -44,7 +47,7 @@ function Rechtsseite({ titel, children }: { titel: string; children: ReactNode }
             else void navigate("/");
           }}
         >
-          Zurück
+          {t("Zurück", "Back")}
         </Knopf>
       </main>
       <Fusszeile />
@@ -63,85 +66,108 @@ function Titel({ children }: { children: ReactNode }) {
 /**
  * Anbieter des IDTA Passport ist die IDTA, den technischen Betrieb macht Neoception;
  * Entscheidung vom 02.11.2026. Die Angaben zur IDTA stammen aus industrialdigitaltwin.org/
- * impressum, die zu Neoception aus neoception.com/impressum (Stand 02.11.2026).
+ * impressum, die zu Neoception aus neoception.com/impressum (Stand 02.11.2026). Seit dem
+ * 03.11.2026 auch auf Englisch; Register und Namen bleiben, wie sie eingetragen sind.
  */
 export function Impressum() {
+  const { t } = useSprache();
   return (
-    <Rechtsseite titel="Impressum">
-      <Titel>Anbieter des IDTA Passport</Titel>
+    <Rechtsseite titel={t("Impressum", "Imprint")}>
+      <Titel>{t("Anbieter des IDTA Passport", "Provider of IDTA Passport")}</Titel>
       <Absatz>
         Industrial Digital Twin Association e.V. (IDTA)
         <br />
         Lyoner Straße 18
         <br />
-        60528 Frankfurt am Main
+        60528 Frankfurt am Main{t("", ", Germany")}
       </Absatz>
       <Absatz>
-        Telefon: <a href="tel:+496966031939">+49 69 6603 1939</a>
+        {t("Telefon:", "Phone:")} <a href="tel:+496966031939">+49 69 6603 1939</a>
         <br />
-        E-Mail: <a href="mailto:info@idtwin.org">info@idtwin.org</a>
+        {t("E-Mail:", "Email:")} <a href="mailto:info@idtwin.org">info@idtwin.org</a>
       </Absatz>
-      <Absatz>Vereinsregister beim Amtsgericht Frankfurt am Main Nr. VR 16747</Absatz>
-      <Absatz>Vertretungsberechtigter Vorstand:</Absatz>
+      <Absatz>
+        {t(
+          "Vereinsregister beim Amtsgericht Frankfurt am Main Nr. VR 16747",
+          "Register of associations at the Frankfurt am Main local court, no. VR 16747",
+        )}
+      </Absatz>
+      <Absatz>{t("Vertretungsberechtigter Vorstand:", "Board authorised to represent:")}</Absatz>
       <ul className="list-disc pl-6 text-text-zweit">
-        <li>Dr. Matthias Bölke (Vorstandsvorsitzender)</li>
-        <li>Dr. Horst Heinol-Heikkinen (Stellvertretender Vorstandsvorsitzender)</li>
-        <li>Karsten Schneider (Schatzmeister)</li>
+        <li>Dr. Matthias Bölke ({t("Vorstandsvorsitzender", "Chairman")})</li>
+        <li>
+          Dr. Horst Heinol-Heikkinen (
+          {t("Stellvertretender Vorstandsvorsitzender", "Deputy chairman")})
+        </li>
+        <li>Karsten Schneider ({t("Schatzmeister", "Treasurer")})</li>
       </ul>
-      <Absatz>Geschäftsführung: Dr. Christian Mosch</Absatz>
+      <Absatz>{t("Geschäftsführung:", "Managing director:")} Dr. Christian Mosch</Absatz>
       <Absatz>
-        Anschrift jeweils: Industrial Digital Twin Association e.V., Lyoner Straße 18, 60528
-        Frankfurt am Main.
+        {t("Anschrift jeweils:", "Address in each case:")} Industrial Digital Twin Association e.V.,
+        Lyoner Straße 18, 60528 Frankfurt am Main.
       </Absatz>
       <Absatz>
-        Inhaltlich verantwortlich gem. § 18 Abs. 2 MStV: Dr. Christian Mosch, Anschrift wie oben.
+        {t(
+          "Inhaltlich verantwortlich gem. § 18 Abs. 2 MStV: Dr. Christian Mosch, Anschrift wie oben.",
+          "Responsible for content under § 18(2) MStV: Dr. Christian Mosch, address as above.",
+        )}
       </Absatz>
 
       <hr className="border-linie" />
-      <Titel>Technischer Betrieb</Titel>
+      <Titel>{t("Technischer Betrieb", "Technical operation")}</Titel>
       <Absatz>
         Neoception GmbH
         <br />
         Mallaustraße 50-56
         <br />
-        68219 Mannheim
+        68219 Mannheim{t("", ", Germany")}
       </Absatz>
       <Absatz>
-        E-Mail: <a href="mailto:info@neoception.com">info@neoception.com</a>
+        {t("E-Mail:", "Email:")} <a href="mailto:info@neoception.com">info@neoception.com</a>
       </Absatz>
       <Absatz>
-        Registergericht: Amtsgericht Mannheim, HRB 726560
+        {t(
+          "Registergericht: Amtsgericht Mannheim, HRB 726560",
+          "Register court: Mannheim local court, HRB 726560",
+        )}
         <br />
-        Geschäftsführer: Dr.-Ing. Jörg Nagel, Michael Blüm
+        {t("Geschäftsführer:", "Managing directors:")} Dr.-Ing. Jörg Nagel, Michael Blüm
       </Absatz>
       <Absatz>
-        Neoception betreibt den IDTA Passport, die Plattform AXON und den Viewer im Auftrag der
-        IDTA.
+        {t(
+          "Neoception betreibt den IDTA Passport, die Plattform AXON und den Viewer im Auftrag der IDTA.",
+          "Neoception operates IDTA Passport, the AXON platform and the viewer on behalf of IDTA.",
+        )}
       </Absatz>
 
       <hr className="border-linie" />
-      <Titel>Inhalte der Exponate</Titel>
+      <Titel>{t("Inhalte der Exponate", "Exhibit content")}</Titel>
       <Absatz>
-        Dokumente, Links und Ansprechpartner zu den Exponaten stellen die jeweiligen Aussteller ein
-        und verantworten sie. Die IDTA übernimmt für ihre Aktualität, Richtigkeit und
-        Vollständigkeit keine Gewähr. Wird eine Rechtsverletzung bekannt, entfernen wir den Inhalt
-        umgehend.
+        {t(
+          "Dokumente, Links und Ansprechpartner zu den Exponaten stellen die jeweiligen Aussteller ein und verantworten sie. Die IDTA übernimmt für ihre Aktualität, Richtigkeit und Vollständigkeit keine Gewähr. Wird eine Rechtsverletzung bekannt, entfernen wir den Inhalt umgehend.",
+          "Documents, links and contacts for the exhibits are provided by the respective exhibitors, who are responsible for them. IDTA accepts no liability for their being up to date, correct and complete. If we become aware of an infringement, we remove the content immediately.",
+        )}
       </Absatz>
-      <Titel>Externe Links</Titel>
+      <Titel>{t("Externe Links", "External links")}</Titel>
       <Absatz>
-        Der IDTA Passport verweist auf Internetseiten Dritter, etwa in der Fußzeile oder in den
-        Links der Aussteller. Für deren Inhalte sind allein die jeweiligen Anbieter verantwortlich;
-        auf sie haben IDTA und Neoception keinen Einfluss.
+        {t(
+          "Der IDTA Passport verweist auf Internetseiten Dritter, etwa in der Fußzeile oder in den Links der Aussteller. Für deren Inhalte sind allein die jeweiligen Anbieter verantwortlich; auf sie haben IDTA und Neoception keinen Einfluss.",
+          "IDTA Passport links to third-party websites, for example in the footer or in the exhibitors' links. Their providers alone are responsible for their content; IDTA and Neoception have no influence over it.",
+        )}
       </Absatz>
-      <Titel>Bildmaterial</Titel>
+      <Titel>{t("Bildmaterial", "Images")}</Titel>
       <Absatz>
-        Das Foto der Fußzeile sowie die Logos der IDTA und der Plattform Industrie 4.0 stammen von
-        industrialdigitaltwin.org. Die Besucherbilder sind Grafiken aus einer festen Auswahl.
+        {t(
+          "Das Foto der Fußzeile sowie die Logos der IDTA und der Plattform Industrie 4.0 stammen von industrialdigitaltwin.org. Die Besucherbilder sind Grafiken aus einer festen Auswahl.",
+          "The footer photo and the logos of IDTA and Plattform Industrie 4.0 are taken from industrialdigitaltwin.org. The visitor pictures are graphics from a fixed selection.",
+        )}
       </Absatz>
-      <Titel>Kontakt</Titel>
+      <Titel>{t("Kontakt", "Contact")}</Titel>
       <Absatz>
-        Fragen zum IDTA Passport an <a href="mailto:info@idtwin.org">info@idtwin.org</a>, zum
-        Datenschutz an <a href="mailto:datenschutz@idtwin.org">datenschutz@idtwin.org</a>.
+        {t("Fragen zum IDTA Passport an", "Questions about IDTA Passport to")}{" "}
+        <a href="mailto:info@idtwin.org">info@idtwin.org</a>,{" "}
+        {t("zum Datenschutz an", "about data protection to")}{" "}
+        <a href="mailto:datenschutz@idtwin.org">datenschutz@idtwin.org</a>.
       </Absatz>
     </Rechtsseite>
   );
@@ -149,11 +175,12 @@ export function Impressum() {
 
 /** Derselbe Hinweis, dem Besucher am Terminal zustimmen, ohne Anmeldung lesbar. */
 export function Datenschutz() {
+  const { sprache, t } = useSprache();
   const abruf = useAbruf<{ fassung: string; abschnitte: Datenschutzabschnitt[] }>(
-    "/api/datenschutz",
+    `/api/datenschutz?sprache=${sprache}`,
   );
   return (
-    <Rechtsseite titel="Datenschutzhinweis">
+    <Rechtsseite titel={t("Datenschutzhinweis", "Privacy notice")}>
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {abruf.daten !== null && (
           <Datenschutztext abschnitte={abruf.daten.abschnitte} fassung={abruf.daten.fassung} />
@@ -168,27 +195,36 @@ export function Datenschutz() {
  * und ein Banner waere eine Einwilligung in nichts.
  */
 export function Cookies() {
+  const { t } = useSprache();
   return (
-    <Rechtsseite titel="Cookie-Einstellungen">
+    <Rechtsseite titel={t("Cookie-Einstellungen", "Cookie settings")}>
       <Absatz>
-        Der IDTA Passport setzt <b className="text-text">nur ein technisch notwendiges Cookie</b>:
-        das Sitzungscookie, das dich nach der Anmeldung angemeldet hält. Es entsteht erst mit der
-        Anmeldung, enthält keine Werbe- oder Analysedaten und ist für Skripte nicht lesbar. Es
-        verfällt nach 12 Stunden oder sobald du dich abmeldest.
+        {t("Der IDTA Passport setzt", "IDTA Passport sets")}{" "}
+        <b className="text-text">
+          {t("nur ein technisch notwendiges Cookie", "only one technically necessary cookie")}
+        </b>
+        {t(
+          ": das Sitzungscookie, das dich nach der Anmeldung angemeldet hält. Es entsteht erst mit der Anmeldung, enthält keine Werbe- oder Analysedaten und ist für Skripte nicht lesbar. Es verfällt nach 12 Stunden oder sobald du dich abmeldest.",
+          ": the session cookie that keeps you signed in. It is only created when you sign in, contains no advertising or analytics data and cannot be read by scripts. It expires after 12 hours or as soon as you sign out.",
+        )}
       </Absatz>
       <Absatz>
-        Analyse-, Tracking- oder Werbecookies gibt es nicht, auch keine Dienste von Drittanbietern,
-        die Cookies setzen. Deshalb gibt es hier nichts ein- oder auszuschalten.
+        {t(
+          "Analyse-, Tracking- oder Werbecookies gibt es nicht, auch keine Dienste von Drittanbietern, die Cookies setzen. Deshalb gibt es hier nichts ein- oder auszuschalten.",
+          "There are no analytics, tracking or advertising cookies, and no third-party services that set cookies. That is why there is nothing to switch on or off here.",
+        )}
       </Absatz>
       <Absatz>
-        Für das Standpersonal merkt sich der Browser im lokalen Speicher, ob in den Einstellungen
-        die Entwickleransicht eingeschaltet ist. Das ist eine Einstellung, die man selbst vornimmt,
-        und sie verlässt das Gerät nicht.
+        {t(
+          "Im lokalen Speicher des Browsers merkt sich die App die gewählte Sprache und, für das Standpersonal, ob in den Einstellungen die Entwickleransicht eingeschaltet ist. Beides sind Einstellungen, die man selbst vornimmt, und sie verlassen das Gerät nicht.",
+          "In the browser's local storage the app remembers the language you chose and, for stand staff, whether the developer view is switched on in the settings. Both are settings you make yourself, and they never leave the device.",
+        )}
       </Absatz>
       <Absatz>
-        Schriften und Bilder liefert der IDTA Passport selbst aus; beim Aufruf lädt er nichts von
-        Drittanbietern. Das Kamerabild beim Scannen eines QR-Codes wertet nur dein Browser aus, es
-        wird weder gespeichert noch übertragen.
+        {t(
+          "Schriften und Bilder liefert der IDTA Passport selbst aus; beim Aufruf lädt er nichts von Drittanbietern. Das Kamerabild beim Scannen eines QR-Codes wertet nur dein Browser aus, es wird weder gespeichert noch übertragen.",
+          "IDTA Passport serves its fonts and images itself; it loads nothing from third parties. When you scan a QR code, only your browser analyses the camera image; it is neither stored nor transmitted.",
+        )}
       </Absatz>
     </Rechtsseite>
   );

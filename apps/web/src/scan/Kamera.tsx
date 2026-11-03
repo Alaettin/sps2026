@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Der Kamerasucher.
@@ -31,6 +32,7 @@ export function Kamera({
   aufTreffer: (inhalt: string) => void;
   aufFehler: (art: Kamerafehler) => void;
 }) {
+  const { t } = useSprache();
   const video = useRef<HTMLVideoElement | null>(null);
   const scanner = useRef<QrScanner | null>(null);
   const [licht, setzeLicht] = useState(false);
@@ -180,7 +182,7 @@ export function Kamera({
             <path d="M9 8.5V11h2.5" />
             <path d="M15 17.5V15h-2.5" />
           </svg>
-          <span className="sr-only">Kamera wechseln</span>
+          <span className="sr-only">{t("Kamera wechseln", "Switch camera")}</span>
         </button>
       )}
 
@@ -200,7 +202,7 @@ export function Kamera({
           <span className="text-xl" aria-hidden="true">
             {licht ? "☀" : "☾"}
           </span>
-          <span className="sr-only">Taschenlampe</span>
+          <span className="sr-only">{t("Taschenlampe", "Torch")}</span>
         </button>
       )}
     </div>

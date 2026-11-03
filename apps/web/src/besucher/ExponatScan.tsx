@@ -11,6 +11,7 @@ import {
 } from "../bausteine/basis.js";
 import { Kamera, kameraMoeglich, type Kamerafehler } from "../scan/Kamera.js";
 import { Kioskrahmen } from "../kiosk/Kioskrahmen.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Der Besucher nimmt ein Exponat auf, seit dem 02.11.2026: QR-Code am Exponat scannen, fertig.
@@ -51,6 +52,7 @@ type Zustand =
   | { art: "fertig"; kennung: string; name: string; neu: boolean };
 
 export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
+  const { t } = useSprache();
   const navigate = useNavigate();
   const { code: ausAdresse } = useParams();
   const [zustand, setzeZustand] = useState<Zustand>({ art: "scannen" });
@@ -59,25 +61,34 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
   // Startet die Kamera nicht, bleibt nur ein schwarzer Kasten; dann blenden wir ihn aus.
   const [kameraAus, setzeKameraAus] = useState(false);
 
-  const nimmAuf = useCallback((code: string) => {
-    setzeFehler(null);
-    setzeZustand({ art: "laeuft" });
-    api<{ kennung: string; name: string; neu: boolean }>("/api/mein/besuche", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    })
-      .then((antwort) => {
-        setzeZustand({ art: "fertig", ...antwort });
+  const nimmAuf = useCallback(
+    (code: string) => {
+      setzeFehler(null);
+      setzeZustand({ art: "laeuft" });
+      api<{ kennung: string; name: string; neu: boolean }>("/api/mein/besuche", {
+        method: "POST",
+        body: JSON.stringify({ code }),
       })
-      .catch((ursache: unknown) => {
-        setzeZustand({ art: "scannen" });
-        setzeFehler(
-          ursache instanceof ApiFehler && ursache.status === 404
-            ? "Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen."
-            : "Das hat nicht geklappt. Bitte noch einmal versuchen.",
-        );
-      });
-  }, []);
+        .then((antwort) => {
+          setzeZustand({ art: "fertig", ...antwort });
+        })
+        .catch((ursache: unknown) => {
+          setzeZustand({ art: "scannen" });
+          setzeFehler(
+            ursache instanceof ApiFehler && ursache.status === 404
+              ? t(
+                  "Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen.",
+                  "We don't recognise this code. Please scan the QR code on the exhibit.",
+                )
+              : t(
+                  "Das hat nicht geklappt. Bitte noch einmal versuchen.",
+                  "That did not work. Please try again.",
+                ),
+          );
+        });
+    },
+    [t],
+  );
 
   /*
    * Kam der Code über die Adresse, einmal aufnehmen. Der Ref hält den zweiten Aufruf ab, den
@@ -90,36 +101,48 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
     schonGesendet.current = true;
     const code = codeAus(ausAdresse, false);
     if (code === null) {
-      setzeFehler("Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen.");
+      setzeFehler(
+        t(
+          "Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen.",
+          "We don't recognise this code. Please scan the QR code on the exhibit.",
+        ),
+      );
       return;
     }
     nimmAuf(code);
-  }, [ausAdresse, nimmAuf]);
+  }, [ausAdresse, nimmAuf, t]);
 
   const ausQr = useCallback(
     (inhalt: string) => {
       const code = codeAus(inhalt, true);
       if (code === null) {
-        setzeFehler("Das ist kein QR-Code eines Exponats.");
+        setzeFehler(t("Das ist kein QR-Code eines Exponats.", "This is not an exhibit QR code."));
         return;
       }
       nimmAuf(code);
     },
-    [nimmAuf],
+    [nimmAuf, t],
   );
 
   if (zustand.art === "fertig") {
     return (
       <Kioskrahmen aufAbmelden={aufAbmelden} besucher>
         <Flaeche className="flex flex-col gap-4 p-7">
-          <Ueberschrift>{zustand.neu ? "Exponat aufgenommen" : "Schon aufgenommen"}</Ueberschrift>
+          <Ueberschrift>
+            {zustand.neu
+              ? t("Exponat aufgenommen", "Exhibit added")
+              : t("Schon aufgenommen", "Already added")}
+          </Ueberschrift>
           <p className="text-[17px] leading-relaxed text-text-zweit">
             <b className="text-text">
               {zustand.kennung} {zustand.name}
             </b>{" "}
             {zustand.neu
-              ? "steht jetzt in deinem Messepass. Dokumente, Links und Ansprechpartner findest du im Viewer."
-              : "stand schon in deinem Messepass."}
+              ? t(
+                  "steht jetzt in deinem Messepass. Dokumente, Links und Ansprechpartner findest du im Viewer.",
+                  "is now in your trade fair pass. You will find documents, links and contacts in the viewer.",
+                )
+              : t("stand schon in deinem Messepass.", "was already in your trade fair pass.")}
           </p>
           <div className="flex flex-wrap gap-3">
             <Knopf
@@ -128,7 +151,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
                 void navigate("/mein/scan", { replace: true });
               }}
             >
-              Weiteres Exponat scannen
+              {t("Weiteres Exponat scannen", "Scan another exhibit")}
             </Knopf>
             <Knopf
               art="rand"
@@ -136,7 +159,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
                 void navigate("/mein/exponate");
               }}
             >
-              Zu meinen Exponaten
+              {t("Zu meinen Exponaten", "To my exhibits")}
             </Knopf>
           </div>
         </Flaeche>
@@ -152,10 +175,12 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
       */}
       <Seitenkopf>
         <div className="flex min-w-0 flex-col gap-2">
-          <Ueberschrift>Exponat scannen</Ueberschrift>
+          <Ueberschrift>{t("Exponat scannen", "Scan exhibit")}</Ueberschrift>
           <p className="text-[17px] leading-relaxed text-text-zweit">
-            Halte die Kamera auf den QR-Code am Exponat. Es landet mit allen Infos in deinem
-            Messepass.
+            {t(
+              "Halte die Kamera auf den QR-Code am Exponat. Es landet mit allen Infos in deinem Messepass.",
+              "Point the camera at the QR code on the exhibit. It goes into your trade fair pass with all its information.",
+            )}
           </p>
         </div>
       </Seitenkopf>
@@ -173,16 +198,24 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
                 setzeKameraAus(true);
                 setzeFehler(
                   art === "verweigert"
-                    ? "Die Kamera ist für diese Seite gesperrt. Gib sie in den Einstellungen des Browsers frei, oder scanne den QR-Code mit der Kamera-App deines Handys."
-                    : "Die Kamera lässt sich nicht starten. Scanne den QR-Code mit der Kamera-App deines Handys.",
+                    ? t(
+                        "Die Kamera ist für diese Seite gesperrt. Gib sie in den Einstellungen des Browsers frei, oder scanne den QR-Code mit der Kamera-App deines Handys.",
+                        "The camera is blocked for this page. Allow it in the browser settings, or scan the QR code with your phone's camera app.",
+                      )
+                    : t(
+                        "Die Kamera lässt sich nicht starten. Scanne den QR-Code mit der Kamera-App deines Handys.",
+                        "The camera cannot be started. Scan the QR code with your phone's camera app.",
+                      ),
                 );
               }}
             />
           </div>
         ) : (
           <Fehlerhinweis>
-            Die Kamera ist hier nicht verfügbar. Scanne den QR-Code mit der Kamera-App deines
-            Handys.
+            {t(
+              "Die Kamera ist hier nicht verfügbar. Scanne den QR-Code mit der Kamera-App deines Handys.",
+              "The camera is not available here. Scan the QR code with your phone's camera app.",
+            )}
           </Fehlerhinweis>
         ))}
 
@@ -192,16 +225,26 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
           ev.preventDefault();
           const code = codeAus(eingabe, false);
           if (code === null) {
-            setzeFehler("Das ist kein gültiger Code. Bitte so eingeben, wie er am Exponat steht.");
+            setzeFehler(
+              t(
+                "Das ist kein gültiger Code. Bitte so eingeben, wie er am Exponat steht.",
+                "This is not a valid code. Please enter it exactly as shown on the exhibit.",
+              ),
+            );
             return;
           }
           nimmAuf(code);
         }}
       >
-        <h2 className="text-[15px] font-semibold">Kein QR-Code lesbar? Code von Hand eingeben</h2>
+        <h2 className="text-[15px] font-semibold">
+          {t(
+            "Kein QR-Code lesbar? Code von Hand eingeben",
+            "QR code not readable? Enter the code by hand",
+          )}
+        </h2>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex w-full min-w-0 flex-col gap-2 text-[14px] font-semibold sm:w-auto sm:flex-1">
-            Code vom Exponat
+            {t("Code vom Exponat", "Code from the exhibit")}
             <Feld
               value={eingabe}
               onChange={(ev) => {
@@ -218,7 +261,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
             className="h-12 w-full px-8 sm:w-auto"
             disabled={eingabe.trim() === "" || zustand.art === "laeuft"}
           >
-            Aufnehmen
+            {t("Aufnehmen", "Add")}
           </Knopf>
         </div>
       </form>
@@ -230,7 +273,7 @@ export function MeinExponatScan({ aufAbmelden }: { aufAbmelden: () => void }) {
           void navigate("/mein/exponate");
         }}
       >
-        Zurück
+        {t("Zurück", "Back")}
       </Knopf>
     </Kioskrahmen>
   );

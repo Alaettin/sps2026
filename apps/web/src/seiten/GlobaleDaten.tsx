@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
   Fehlerhinweis,
@@ -14,6 +14,8 @@ import {
   Zustand,
 } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Globale Daten: Datenpunkte, die der Konnektor jedem Besucher gleich ausliefert.
@@ -34,6 +36,7 @@ interface Eintrag {
 }
 
 export function GlobaleDaten() {
+  const { t } = useSprache();
   const abruf = useAbruf<Eintrag[]>("/api/globale-daten");
   const [name, setzeName] = useState("");
   const [art, setzeArt] = useState<"text" | "datei">("text");
@@ -52,7 +55,7 @@ export function GlobaleDaten() {
       setzeName("");
       abruf.neu();
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Anlegen nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Anlegen nicht möglich.", "Could not create."]));
     }
   }
 
@@ -63,15 +66,18 @@ export function GlobaleDaten() {
   return (
     <>
       <Seitenkopf>
-        <Ueberschrift>Globale Daten</Ueberschrift>
+        <Ueberschrift>{t("Globale Daten", "Global data")}</Ueberschrift>
       </Seitenkopf>
       <p className="text-sm text-text-zweit">
-        Gelten für jeden Besucher gleich. Neue Datenpunkte müssen in Axon gemappt werden.
+        {t(
+          "Gelten für jeden Besucher gleich. Neue Datenpunkte müssen in Axon gemappt werden.",
+          "Apply equally to every visitor. New data points must be mapped in Axon.",
+        )}
       </p>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
-      <Abschnitt titel="Datenpunkt anlegen">
+      <Abschnitt titel={t("Datenpunkt anlegen", "Add data point")}>
         <form
           className="flex flex-wrap items-end gap-4"
           onSubmit={(e) => {
@@ -80,7 +86,7 @@ export function GlobaleDaten() {
           }}
         >
           <label className="flex min-w-[14rem] flex-1 flex-col gap-2 text-[13px] font-semibold">
-            Name
+            {t("Name", "Name")}
             <Feld
               required
               value={name}
@@ -90,7 +96,9 @@ export function GlobaleDaten() {
             />
           </label>
           <fieldset className="flex items-center gap-4 text-sm">
-            <legend className="sr-only">Art</legend>
+            <legend className="sr-only">{t("Art", "Kind")}</legend>
+            {/* Die Arten sind Werte fuer den Server, die Beschriftung steht darunter. */}
+            {/* eslint-disable-next-line i18next/no-literal-string */}
             {(["text", "datei"] as const).map((a) => (
               <label key={a} className="flex min-h-11 cursor-pointer items-center gap-2">
                 <input
@@ -102,11 +110,11 @@ export function GlobaleDaten() {
                   }}
                   className="size-5 accent-primaer"
                 />
-                {a === "text" ? "Text" : "Datei"}
+                {a === "text" ? t("Text", "Text") : t("Datei", "File")}
               </label>
             ))}
           </fieldset>
-          <Knopf type="submit">Anlegen</Knopf>
+          <Knopf type="submit">{t("Anlegen", "Create")}</Knopf>
         </form>
       </Abschnitt>
 
@@ -114,7 +122,7 @@ export function GlobaleDaten() {
         laedt={abruf.laedt && liste === null}
         fehler={abruf.fehler}
         leer={liste !== null && liste.length === 0}
-        leerText="Noch keine globalen Daten."
+        leerText={t("Noch keine globalen Daten.", "No global data yet.")}
       >
         <ul className="flex flex-col gap-3">
           {liste?.map((e) => (
@@ -136,8 +144,11 @@ export function GlobaleDaten() {
         aufOffen={(o) => {
           if (!o) setzeZuLoeschen(null);
         }}
-        titel={`${zuLoeschen?.propertyId ?? ""} löschen?`}
-        bestaetigenText="Löschen"
+        titel={t(
+          `${zuLoeschen?.propertyId ?? ""} löschen?`,
+          `Delete ${zuLoeschen?.propertyId ?? ""}?`,
+        )}
+        bestaetigenText={t("Löschen", "Delete")}
         art="gefahr"
         aufBestaetigen={() => {
           const ziel = zuLoeschen;
@@ -148,13 +159,16 @@ export function GlobaleDaten() {
               abruf.neu();
             })
             .catch((u: unknown) => {
-              setzeFehler(u instanceof ApiFehler ? u.message : "Löschen nicht möglich.");
+              setzeFehler(fehlertext(u, t, ["Löschen nicht möglich.", "Could not delete."]));
             });
         }}
       >
         <p>
-          <b>{zuLoeschen?.name}</b> verschwindet für alle Besucher. Ein Mapping in Axon greift
-          danach ins Leere; die Nummer wird nicht wieder vergeben.
+          <b>{zuLoeschen?.name}</b>{" "}
+          {t(
+            "verschwindet für alle Besucher. Ein Mapping in Axon greift danach ins Leere; die Nummer wird nicht wieder vergeben.",
+            "will disappear for all visitors. A mapping in Axon will then point to nothing; the number is not reused.",
+          )}
         </p>
       </Rueckfrage>
     </>
@@ -172,17 +186,18 @@ function Karte({
   aufFehler: (text: string | null) => void;
   aufLoeschen: () => void;
 }) {
+  const { t } = useSprache();
   const [text, setzeText] = useState(e.text ?? "");
   const [laeuft, setzeLaeuft] = useState(false);
   const [gespeichert, setzeGespeichert] = useState(false);
 
   useEffect(() => {
     if (!gespeichert) return;
-    const t = setTimeout(() => {
+    const uhr = setTimeout(() => {
       setzeGespeichert(false);
     }, 3000);
     return () => {
-      clearTimeout(t);
+      clearTimeout(uhr);
     };
   }, [gespeichert]);
 
@@ -197,7 +212,7 @@ function Karte({
       if (neu !== undefined) aufGespeichert(neu);
       setzeGespeichert(true);
     } catch (ursache) {
-      aufFehler(ursache instanceof ApiFehler ? ursache.message : "Speichern nicht möglich.");
+      aufFehler(fehlertext(ursache, t, ["Speichern nicht möglich.", "Could not save."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -215,7 +230,7 @@ function Karte({
       const hoch = await api<{ id: string }>("/api/dateien", { method: "POST", body: formular });
       await setze({ dateiId: hoch.id });
     } catch (ursache) {
-      aufFehler(ursache instanceof ApiFehler ? ursache.message : "Hochladen nicht möglich.");
+      aufFehler(fehlertext(ursache, t, ["Hochladen nicht möglich.", "Could not upload."]));
       setzeLaeuft(false);
     }
   }
@@ -230,11 +245,11 @@ function Karte({
           <div className="flex items-center gap-3">
             <Monowert wert={e.propertyId} />
             <Markierung
-              text={e.art === "text" ? "TEXT" : "DATEI"}
+              text={e.art === "text" ? t("TEXT", "TEXT") : t("DATEI", "FILE")}
               farbe="var(--color-text-hinweis)"
             />
             <Knopf art="still" className="ml-auto h-9 px-3 text-[13px]" onClick={aufLoeschen}>
-              Löschen
+              {t("Löschen", "Delete")}
             </Knopf>
           </div>
           <span className="text-[15px] font-semibold break-words">{e.name}</span>
@@ -249,7 +264,7 @@ function Karte({
             }}
           >
             <textarea
-              aria-label={`Text für ${e.propertyId}`}
+              aria-label={t(`Text für ${e.propertyId}`, `Text for ${e.propertyId}`)}
               value={text}
               rows={3}
               onChange={(ev) => {
@@ -260,10 +275,10 @@ function Karte({
             />
             <div className="flex items-center gap-3">
               <Knopf type="submit" disabled={laeuft}>
-                {laeuft ? "Wird gespeichert …" : "Speichern"}
+                {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
               </Knopf>
               <span role="status" className="text-sm font-semibold text-primaer-dunkel">
-                {gespeichert && "Gespeichert"}
+                {gespeichert && t("Gespeichert", "Saved")}
               </span>
             </div>
           </form>
@@ -273,7 +288,7 @@ function Karte({
               (istBild ? (
                 <img
                   src={`/api/dateien/${e.dateiId}`}
-                  alt={`Vorschau ${e.propertyId}`}
+                  alt={t(`Vorschau ${e.propertyId}`, `Preview ${e.propertyId}`)}
                   className="size-24 border border-linie object-contain"
                 />
               ) : (
@@ -283,7 +298,7 @@ function Karte({
                   rel="noreferrer"
                   className="text-sm font-semibold text-primaer-dunkel"
                 >
-                  {e.dateiname ?? "Datei"} öffnen ↗
+                  {t(`${e.dateiname ?? "Datei"} öffnen`, `Open ${e.dateiname ?? "file"}`)} ↗
                 </a>
               ))}
             {/* Das Feld ist `sr-only`, das Label trägt das Aussehen, wie beim CSV-Import. */}
@@ -293,7 +308,9 @@ function Karte({
                 laeuft ? "pointer-events-none opacity-50" : "cursor-pointer",
               )}
             >
-              {e.dateiId === null ? "Datei hochladen" : "Datei ersetzen"}
+              {e.dateiId === null
+                ? t("Datei hochladen", "Upload file")
+                : t("Datei ersetzen", "Replace file")}
               <input
                 type="file"
                 className="sr-only"
@@ -302,7 +319,7 @@ function Karte({
               />
             </label>
             <span role="status" className="text-sm font-semibold text-primaer-dunkel">
-              {gespeichert && "Gespeichert"}
+              {gespeichert && t("Gespeichert", "Saved")}
             </span>
           </div>
         )}

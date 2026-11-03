@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
-import { ApiFehler, api } from "../lib/api.js";
-import { ANSPRECHPARTNERFELDER, GRUPPEN, felderDerGruppe } from "../lib/personenfelder.js";
+import { api } from "../lib/api.js";
+import {
+  ANSPRECHPARTNERFELDER,
+  GRUPPEN,
+  feldtext,
+  felderDerGruppe,
+  gruppentext,
+} from "../lib/personenfelder.js";
 import { Fehlerhinweis, Feld, Knopf } from "./basis.js";
 import { Schaufenster } from "./dialog.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Ein Ansprechpartner **an einem Exponat**, seit dem 02.11.2026: die Felder plus der Platz.
@@ -42,6 +50,7 @@ export function KontaktFormular({
   aufSchliessen: () => void;
   aufGespeichert: () => void;
 }) {
+  const { t } = useSprache();
   const [werte, setzeWerte] = useState<Record<string, string>>({});
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -79,7 +88,7 @@ export function KontaktFormular({
       aufGespeichert();
       aufSchliessen();
     } catch (ursache) {
-      setzeFehler(ursache instanceof ApiFehler ? ursache.message : "Speichern nicht möglich.");
+      setzeFehler(fehlertext(ursache, t, ["Speichern nicht möglich.", "Could not save."]));
     } finally {
       setzeLaeuft(false);
     }
@@ -94,7 +103,11 @@ export function KontaktFormular({
       aufOffen={(o) => {
         if (!o) aufSchliessen();
       }}
-      titel={kontakt === "neu" ? "Ansprechpartner anlegen" : "Ansprechpartner bearbeiten"}
+      titel={
+        kontakt === "neu"
+          ? t("Ansprechpartner anlegen", "Add contact")
+          : t("Ansprechpartner bearbeiten", "Edit contact")
+      }
     >
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
 
@@ -109,11 +122,11 @@ export function KontaktFormular({
           {GRUPPEN.map((gruppe) => (
             <fieldset key={gruppe} className="contents">
               <legend className="col-span-full pt-2 text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
-                {gruppe}
+                {gruppentext(gruppe, t)}
               </legend>
               {felderDerGruppe(gruppe, ANSPRECHPARTNERFELDER).map((f) => (
                 <label key={f.name} className="flex flex-col gap-2 text-[13px] font-semibold">
-                  {f.text}
+                  {feldtext(f, t)}
                   <Feld
                     type={f.typ ?? "text"}
                     required={f.pflicht === true}
@@ -130,10 +143,10 @@ export function KontaktFormular({
 
         <div className="flex flex-wrap justify-end gap-3">
           <Knopf art="rand" onClick={aufSchliessen} disabled={laeuft}>
-            Abbrechen
+            {t("Abbrechen", "Cancel")}
           </Knopf>
           <Knopf type="submit" disabled={!vollstaendig || laeuft}>
-            {laeuft ? "Wird gespeichert …" : "Speichern"}
+            {laeuft ? t("Wird gespeichert …", "Saving …") : t("Speichern", "Save")}
           </Knopf>
         </div>
       </form>

@@ -277,3 +277,79 @@ test("das Terminal meldet sich über den Knopf ab, Abbrechen lässt es angemelde
   expect((await seite.request.get("/api/auth/ich")).status()).toBe(401);
   await kontext.close();
 });
+
+/**
+ * **Englisch am Terminal**, seit dem 03.11.2026. Ein Gerät mit englischem Browser startet
+ * englisch; die Einwilligung wird mit der Sprache gespeichert, in der der Text zu lesen war.
+ */
+test.describe("auf Englisch", () => {
+  test.use({ locale: "en-US" });
+
+  test("ein Besucher registriert sich auf Englisch, die Einwilligung trägt en", async ({
+    page,
+    request,
+  }) => {
+    const guid = neueGuid();
+    const email = `${guid.toLowerCase()}@example.invalid`;
+    try {
+      await page.goto("/kiosk");
+      await expect(page.getByRole("heading", { name: "Scan pass" })).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+      await page.goto(`/kiosk/${guid}`);
+      await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
+      await page.getByLabel("First name").fill("Rita");
+      await page.getByLabel("Last name").fill("Registered");
+      await page.getByLabel("Email").fill(email);
+      await page.getByRole("button", { name: "Next" }).click();
+
+      await expect(page.getByRole("heading", { name: "Set password" })).toBeVisible();
+      await page.getByLabel("Password", { exact: true }).fill("secret-123");
+      await page.getByLabel("Repeat password").fill("secret-123");
+      await page.getByRole("button", { name: "Next" }).click();
+
+      await expect(page.getByRole("heading", { name: "Your picture" })).toBeVisible();
+      await page.getByRole("button", { name: "Next" }).click();
+
+      await expect(page.getByRole("heading", { name: "Privacy" })).toBeVisible();
+      await expect(page.getByText("Controller", { exact: true })).toBeVisible();
+      await expect(page.getByText(/I have read the privacy notice/)).toBeVisible();
+      // Zugestimmt wird dem Text, der zu sehen ist: ein Sprachwechsel nimmt den Haken zurück.
+      await page.getByRole("checkbox").check();
+      await page.getByRole("button", { name: "Deutsch" }).click();
+      await expect(page.getByText("Verantwortlicher", { exact: true })).toBeVisible();
+      await expect(page.getByRole("checkbox")).not.toBeChecked();
+      await page.getByRole("button", { name: "English" }).click();
+      await expect(page.getByText("Controller", { exact: true })).toBeVisible();
+      await page.getByRole("checkbox").check();
+      await page.getByRole("button", { name: "Complete registration" }).click();
+      await expect(page.getByRole("heading", { name: "Registration complete" })).toBeVisible();
+
+      await alsAdmin(request);
+      const gespeichert = (await (await request.get(`/api/besucher/${guid}`)).json()) as {
+        einwilligungSprache: string | null;
+      };
+      expect(gespeichert.einwilligungSprache).toBe("en");
+    } finally {
+      await raeumeAuf(request, guid);
+    }
+  });
+
+  test("Eingaben überleben einen Sprachwechsel, die Zeitsperre setzt die Sprache zurück", async ({
+    page,
+  }) => {
+    const guid = neueGuid();
+    await page.clock.install();
+    await page.goto(`/kiosk/${guid}`);
+    await page.getByLabel("First name").fill("Wechsel");
+    await page.getByRole("button", { name: "Deutsch" }).click();
+    await expect(page.getByRole("heading", { name: "Deine Daten" })).toBeVisible();
+    // Die Eingabe überlebt den Wechsel.
+    await expect(page.getByLabel("Vorname")).toHaveValue("Wechsel");
+
+    // Nach Ablauf der Zeitsperre gilt wieder die Sprache des Geräts.
+    await page.clock.runFor(96_000);
+    await expect(page).toHaveURL(/\/kiosk$/);
+    await expect(page.getByRole("heading", { name: "Scan pass" })).toBeVisible();
+  });
+});

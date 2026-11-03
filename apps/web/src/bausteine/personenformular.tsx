@@ -1,5 +1,12 @@
 import { Feld, Flaeche } from "./basis.js";
-import { GRUPPEN, felderDerGruppe, pflichtBeimBesucher } from "../lib/personenfelder.js";
+import {
+  GRUPPEN,
+  feldtext,
+  felderDerGruppe,
+  gruppentext,
+  pflichtBeimBesucher,
+} from "../lib/personenfelder.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Die Personenfelder eines Besuchers, je Gruppe eine Fläche, für Bildschirme im Stehen.
@@ -14,6 +21,7 @@ export function Personenformular({
   werte: Record<string, string>;
   aufAenderung: (feld: string, wert: string) => void;
 }) {
+  const { t } = useSprache();
   return (
     <>
       {/*
@@ -23,13 +31,13 @@ export function Personenformular({
       {GRUPPEN.map((gruppe) => (
         <Flaeche key={gruppe} className="flex flex-col gap-5 p-7">
           <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
-            {gruppe}
+            {gruppentext(gruppe, t)}
           </h2>
           <div className="grid gap-5 sm:grid-cols-2">
             {felderDerGruppe(gruppe).map((f) => (
               <label key={f.name} className="flex flex-col gap-2 text-[14px] font-semibold">
                 <span>
-                  {f.text}
+                  {feldtext(f, t)}
                   {pflichtBeimBesucher(f) && (
                     <span aria-hidden="true" className="text-fehler">
                       {" "}
@@ -37,7 +45,9 @@ export function Personenformular({
                     </span>
                   )}
                 </span>
-                {pflichtBeimBesucher(f) && <span className="sr-only">Pflichtfeld</span>}
+                {pflichtBeimBesucher(f) && (
+                  <span className="sr-only">{t("Pflichtfeld", "Required")}</span>
+                )}
                 <Feld
                   type={f.typ ?? "text"}
                   required={pflichtBeimBesucher(f)}

@@ -78,7 +78,7 @@ function rumpf(guid: string, aenderung: Record<string, unknown> = {}): Record<st
     email: `${guid.toLowerCase()}@example.invalid`,
     passwort: "geheim-123",
     avatarDateiId: null,
-    einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG },
+    einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG, sprache: "de" },
     ...aenderung,
   };
 }
@@ -223,6 +223,7 @@ describe("Kiosk: Registrierung", () => {
       firma: "Neu GmbH",
       avatarDateiId: bild,
       einwilligungFassung: DATENSCHUTZ_FASSUNG,
+      einwilligungSprache: "de",
     });
     expect(typeof b["einwilligungAm"]).toBe("number");
     expect(await pass(s, kiosk, "SPS2026-0042")).toEqual({ status: "registriert" });
@@ -268,6 +269,18 @@ describe("Kiosk: Registrierung", () => {
         409,
         "datenschutz-veraltet",
       ],
+      [
+        "ohne Sprache",
+        { einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG } },
+        400,
+        "sprache-ungueltig",
+      ],
+      [
+        "fremde Sprache",
+        { einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG, sprache: "fr" } },
+        400,
+        "sprache-ungueltig",
+      ],
       ["Passwort zu kurz", { passwort: "kurz" }, 400, "passwort-zu-kurz"],
       ["ohne E-Mail", { email: undefined }, 400, "pflicht-fehlt"],
       ["E-Mail vergeben", { email: vergeben.toUpperCase() }, 409, "email-vergeben"],
@@ -306,6 +319,56 @@ describe("Kiosk: Registrierung", () => {
         "Deine Rechte",
       ]),
     );
+  });
+
+  it("speichert die Sprache der Einwilligung, auf Englisch en", async () => {
+    const { s, admin, kiosk } = await konten();
+    const antwort = await registriere(
+      s,
+      kiosk,
+      rumpf("SPS2026-0043", {
+        einwilligung: { erteilt: true, fassung: DATENSCHUTZ_FASSUNG, sprache: "en" },
+      }),
+    );
+    expect(antwort.statusCode).toBe(201);
+    const b = (
+      await s.app.inject({ url: "/api/besucher/SPS2026-0043", headers: { cookie: admin } })
+    ).json<Record<string, unknown>>();
+    expect(b["einwilligungSprache"]).toBe("en");
+  });
+
+  it("liefert den Hinweis auf Englisch mit denselben Abschnitten und derselben Fassung", async () => {
+    const { s, kiosk } = await konten();
+    const hole = async (sprache: string) =>
+      (
+        await s.app.inject({
+          url: `/api/kiosk/datenschutz?sprache=${sprache}`,
+          headers: { cookie: kiosk },
+        })
+      ).json<{
+        fassung: string;
+        abschnitte: { titel: string; absaetze: string[] }[];
+        einwilligungstext: string;
+      }>();
+    const de = await hole("de");
+    const en = await hole("en");
+    expect(en.fassung).toBe(de.fassung);
+    expect(en.einwilligungstext).toMatch(/withdraw/);
+    expect(en.abschnitte.map((a) => a.titel)).toEqual([
+      "Controller",
+      "What data we process",
+      "Purpose",
+      "Legal basis",
+      "Who sees your data",
+      "How long",
+      "Your rights",
+    ]);
+    // Gleich gebaut: je Abschnitt gleich viele Absaetze wie im Deutschen.
+    expect(en.abschnitte.map((a) => a.absaetze.length)).toEqual(
+      de.abschnitte.map((a) => a.absaetze.length),
+    );
+    // Unbekannte Sprache faellt auf Deutsch zurueck.
+    expect((await hole("fr")).abschnitte[0]?.titel).toBe("Verantwortlicher");
   });
 
   // Seit Fassung 2026-11-02.3 befuellt; ein neuer Platzhalter faellt hier auf.

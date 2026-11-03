@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
-import { ApiFehler, api, useAbruf } from "../lib/api.js";
+import { api, useAbruf } from "../lib/api.js";
 import { Fehlerhinweis, Flaeche, Knopf, Zustand, knopfKlassen } from "../bausteine/basis.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 import { alsJpeg } from "../lib/bild.js";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /**
  * Die Avatare, die am Selbstbedienungs-Tablet zur Auswahl stehen.
@@ -37,11 +39,11 @@ const HOECHSTE_QUELLE = 1024 * 1024;
  * "ist 1 MB gross. Hoechstens 1 MB", und das liest sich wie ein Fehler des Programms statt
  * wie eine Grenze.
  */
-function groesse(bytes: number): string {
+function groesse(bytes: number, gebiet: string): string {
   const mb = bytes / 1024 / 1024;
   if (mb < 1) return `${String(Math.round(bytes / 1024))} KB`;
-  // `toFixed` liefert einen Punkt; in einer deutschen Oberflaeche gehoert dort ein Komma hin.
-  return `${mb.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
+  // `toFixed` liefert immer einen Punkt; im Deutschen gehoert dort ein Komma hin.
+  return `${mb.toLocaleString(gebiet, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 }
 
 interface Zeile {
@@ -106,6 +108,7 @@ async function verkleinere(datei: File): Promise<Blob> {
 }
 
 export function Avatarverwaltung() {
+  const { t, gebiet } = useSprache();
   const abruf = useAbruf<Stand>("/api/avatare");
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -124,8 +127,10 @@ export function Avatarverwaltung() {
     const zuGross = gewaehlt.find((d) => d.size > HOECHSTE_QUELLE);
     if (zuGross !== undefined) {
       setzeFehler(
-        `„${zuGross.name}" ist ${groesse(zuGross.size)} groß. ` +
-          `Höchstens ${groesse(HOECHSTE_QUELLE)} je Datei.`,
+        t(
+          `„${zuGross.name}" ist ${groesse(zuGross.size, gebiet)} groß. Höchstens ${groesse(HOECHSTE_QUELLE, gebiet)} je Datei.`,
+          `“${zuGross.name}” is ${groesse(zuGross.size, gebiet)}. At most ${groesse(HOECHSTE_QUELLE, gebiet)} per file.`,
+        ),
       );
       return;
     }
@@ -142,9 +147,10 @@ export function Avatarverwaltung() {
       abruf.neu();
     } catch (ursache) {
       setzeFehler(
-        ursache instanceof ApiFehler
-          ? ursache.message
-          : "Das Bild ließ sich nicht verarbeiten. Bitte ein anderes versuchen.",
+        fehlertext(ursache, t, [
+          "Das Bild ließ sich nicht verarbeiten. Bitte ein anderes versuchen.",
+          "The picture could not be processed. Please try another one.",
+        ]),
       );
     } finally {
       setzeLaeuft(false);
@@ -163,7 +169,7 @@ export function Avatarverwaltung() {
       await api("/api/avatare/reihenfolge", { method: "PATCH", body: JSON.stringify({ ids }) });
       abruf.neu();
     } catch {
-      setzeFehler("Die Reihenfolge ließ sich nicht speichern.");
+      setzeFehler(t("Die Reihenfolge ließ sich nicht speichern.", "The order could not be saved."));
     }
   }
 
@@ -175,7 +181,7 @@ export function Avatarverwaltung() {
       abruf.neu();
     } catch {
       setzeZuLoeschen(null);
-      setzeFehler("Das Bild ließ sich nicht entfernen.");
+      setzeFehler(t("Das Bild ließ sich nicht entfernen.", "The picture could not be removed."));
     }
   }
 
@@ -188,7 +194,7 @@ export function Avatarverwaltung() {
       */}
       <details className="group">
         <summary className="flex cursor-pointer list-none items-center gap-3 p-6">
-          <h2 className="text-lg font-semibold">Avatare</h2>
+          <h2 className="text-lg font-semibold">{t("Avatare", "Avatars")}</h2>
           <span className="text-[13px] text-text-hinweis">{alle.length}</span>
           <span aria-hidden="true" className="ml-auto text-text-hinweis group-open:hidden">
             ▸
@@ -201,7 +207,7 @@ export function Avatarverwaltung() {
         <div className="flex flex-col gap-5 px-6 pb-6">
           <div className="flex flex-wrap items-center gap-3">
             <label className={knopfKlassen("primaer", "cursor-pointer")}>
-              {laeuft ? "Lädt …" : "Bild hinzufügen"}
+              {laeuft ? t("Lädt …", "Loading …") : t("Bild hinzufügen", "Add picture")}
               <input
                 ref={feld}
                 type="file"
@@ -213,7 +219,10 @@ export function Avatarverwaltung() {
               />
             </label>
             <span className="text-[13px] text-text-hinweis">
-              Höchstens {groesse(HOECHSTE_QUELLE)} je Datei
+              {t(
+                `Höchstens ${groesse(HOECHSTE_QUELLE, gebiet)} je Datei`,
+                `At most ${groesse(HOECHSTE_QUELLE, gebiet)} per file`,
+              )}
             </span>
           </div>
 
@@ -230,11 +239,11 @@ export function Avatarverwaltung() {
                 <li className="flex flex-col gap-1">
                   <img
                     src={`/api/dateien/${standard}`}
-                    alt="Standardbild"
+                    alt={t("Standardbild", "Default picture")}
                     className="aspect-square w-full object-cover outline outline-1 outline-linie"
                   />
                   <span className="text-[11px] font-semibold tracking-[0.08em] text-text-hinweis uppercase">
-                    Standard
+                    {t("Standard", "Default")}
                   </span>
                 </li>
               )}
@@ -251,7 +260,10 @@ export function Avatarverwaltung() {
                       <Knopf
                         art="still"
                         className="h-8 w-8 px-0 text-[13px]"
-                        aria-label={`Avatar ${String(i + 1)} nach vorn`}
+                        aria-label={t(
+                          `Avatar ${String(i + 1)} nach vorn`,
+                          `Move avatar ${String(i + 1)} forward`,
+                        )}
                         disabled={i === 0}
                         onClick={() => void verschiebe(i, i - 1)}
                       >
@@ -260,7 +272,10 @@ export function Avatarverwaltung() {
                       <Knopf
                         art="still"
                         className="h-8 w-8 px-0 text-[13px]"
-                        aria-label={`Avatar ${String(i + 1)} nach hinten`}
+                        aria-label={t(
+                          `Avatar ${String(i + 1)} nach hinten`,
+                          `Move avatar ${String(i + 1)} back`,
+                        )}
                         disabled={i === alle.length - 1}
                         onClick={() => void verschiebe(i, i + 1)}
                       >
@@ -270,7 +285,10 @@ export function Avatarverwaltung() {
                     <Knopf
                       art="still"
                       className="h-8 w-8 px-0"
-                      aria-label={`Avatar ${String(i + 1)} entfernen`}
+                      aria-label={t(
+                        `Avatar ${String(i + 1)} entfernen`,
+                        `Remove avatar ${String(i + 1)}`,
+                      )}
                       onClick={() => {
                         setzeFehler(null);
                         setzeZuLoeschen(a.dateiId);
@@ -295,16 +313,20 @@ export function Avatarverwaltung() {
         aufOffen={(o) => {
           if (!o) setzeZuLoeschen(null);
         }}
-        titel="Avatar entfernen?"
-        bestaetigenText="Entfernen"
+        titel={t("Avatar entfernen?", "Remove avatar?")}
+        bestaetigenText={t("Entfernen", "Remove")}
         art="gefahr"
         aufBestaetigen={() => {
           if (zuLoeschen !== null) void loesche(zuLoeschen);
         }}
       >
-        <p>Das Bild steht nicht mehr zur Auswahl.</p>
         <p>
-          Besucher, die es tragen, bekommen wieder das <b>Standardbild</b>.
+          {t("Das Bild steht nicht mehr zur Auswahl.", "The picture will no longer be available.")}
+        </p>
+        <p>
+          {t("Besucher, die es tragen, bekommen wieder das", "Visitors using it get the")}{" "}
+          <b>{t("Standardbild", "default picture")}</b>
+          {t(".", " again.")}
         </p>
       </Rueckfrage>
     </Flaeche>

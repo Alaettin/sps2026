@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import bildFusszeile from "../assets/idta/bild-footer.jpg";
 import mitglied from "../assets/idta/mitglied.svg";
 import plattformI40 from "../assets/idta/plattform-industrie-4-0.png";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Die zwei blauen Flaechen nach industrialdigitaltwin.org: das Band unter der Kopfzeile und
@@ -27,13 +28,31 @@ export function Band() {
 
 const EXTERN = { target: "_blank", rel: "noopener noreferrer" } as const;
 
+/** Auf Englisch die englischen Seiten der IDTA, wie deren eigene Fusszeile unter `/en/`. */
 const NUETZLICH = [
-  { text: "Mitglied werden", ziel: "https://industrialdigitaltwin.org/ueber-idta/mitglied-werden" },
-  { text: "Kontakt", ziel: "https://industrialdigitaltwin.org/kontakt" },
-  { text: "Use Cases", ziel: "https://industrialdigitaltwin.org/use-cases" },
+  {
+    text: "Mitglied werden",
+    en: "Become a member",
+    ziel: "https://industrialdigitaltwin.org/ueber-idta/mitglied-werden",
+    zielEn: "https://industrialdigitaltwin.org/en/about-idta/become-a-member-en",
+  },
+  {
+    text: "Kontakt",
+    en: "Contact",
+    ziel: "https://industrialdigitaltwin.org/kontakt",
+    zielEn: "https://industrialdigitaltwin.org/en/contact",
+  },
+  {
+    text: "Use Cases",
+    en: "Use Cases",
+    ziel: "https://industrialdigitaltwin.org/use-cases",
+    zielEn: "https://industrialdigitaltwin.org/en/use-cases",
+  },
   {
     text: "Newsletter abonnieren",
+    en: "Subscribe to newsletter",
     ziel: "https://tff74802a.emailsys1a.net/3/7950/2c74420202/subscribe/form.html?_g=1699349471",
+    zielEn: "https://tff74802a.emailsys1a.net/3/7950/2c74420202/subscribe/form.html?_g=1699349471",
   },
 ];
 
@@ -42,9 +61,9 @@ const NUETZLICH = [
  * Linkzeile der Anmeldung nutzt sie.
  */
 export const RECHTLICH = [
-  { text: "Impressum", ziel: "/impressum" },
-  { text: "Datenschutz", ziel: "/datenschutz" },
-  { text: "Cookie-Einstellungen", ziel: "/cookies" },
+  { text: "Impressum", en: "Imprint", ziel: "/impressum" },
+  { text: "Datenschutz", en: "Privacy", ziel: "/datenschutz" },
+  { text: "Cookie-Einstellungen", en: "Cookie settings", ziel: "/cookies" },
 ];
 
 const SOZIAL = [
@@ -86,6 +105,7 @@ const TITEL =
  * `e2e/logos.ts` zaehlt genau jenes, um doppelte Kopfzeilen zu finden.
  */
 export function Fusszeile() {
+  const { sprache, t } = useSprache();
   return (
     <footer
       className="relative bg-cover bg-center bg-no-repeat px-4 pt-8 pb-4 md:px-8"
@@ -112,12 +132,12 @@ export function Fusszeile() {
               Lyoner Straße 18 60528 Frankfurt am Main
             </p>
             <p>
-              Telefon:{" "}
+              {t("Telefon:", "Phone:")}{" "}
               <a className={LINK} href="tel:+496966031939">
                 +49 69 6603 1939
               </a>
               <br />
-              E-Mail:{" "}
+              {t("E-Mail:", "Email:")}{" "}
               <a className={LINK} href="mailto:info@idtwin.org">
                 info@idtwin.org
               </a>
@@ -132,18 +152,21 @@ export function Fusszeile() {
           </a>
         </div>
 
-        <nav aria-label="Nützliche Links" className="mb-6 w-full sm:w-1/2 sm:pl-4 md:w-1/4 md:px-8">
-          <h3 className={TITEL}>Nützliche Links</h3>
+        <nav
+          aria-label={t("Nützliche Links", "Useful links")}
+          className="mb-6 w-full sm:w-1/2 sm:pl-4 md:w-1/4 md:px-8"
+        >
+          <h3 className={TITEL}>{t("Nützliche Links", "Useful links")}</h3>
           <ul>
             {NUETZLICH.map((l, i) => (
               <li key={l.ziel} className="mb-2">
                 <a
                   className={`${LINK} ${i === 0 ? "inline-flex items-center gap-2" : ""}`}
-                  href={l.ziel}
+                  href={sprache === "de" ? l.ziel : l.zielEn}
                   {...EXTERN}
                 >
                   {i === 0 && <img src={mitglied} alt="" className="h-[19px] w-[26px]" />}
-                  {l.text}
+                  {t(l.text, l.en)}
                 </a>
               </li>
             ))}
@@ -151,15 +174,15 @@ export function Fusszeile() {
         </nav>
 
         <nav
-          aria-label="Rechtliche Hinweise"
+          aria-label={t("Rechtliche Hinweise", "Legal information")}
           className="mb-6 w-full sm:w-1/2 sm:pr-4 md:w-1/4 md:px-8"
         >
-          <h3 className={TITEL}>Rechtliche Hinweise</h3>
+          <h3 className={TITEL}>{t("Rechtliche Hinweise", "Legal information")}</h3>
           <ul>
             {RECHTLICH.map((l) => (
               <li key={l.ziel} className="mb-2">
                 <Link className={LINK} to={l.ziel}>
-                  {l.text}
+                  {t(l.text, l.en)}
                 </Link>
               </li>
             ))}
@@ -180,7 +203,7 @@ export function Fusszeile() {
               <a
                 href={s.ziel}
                 {...EXTERN}
-                aria-label={`IDTA auf ${s.name}`}
+                aria-label={t(`IDTA auf ${s.name}`, `IDTA on ${s.name}`)}
                 className="flex h-4 w-4 items-center text-[#c7c7c7] transition-colors duration-300 hover:text-white"
               >
                 <svg aria-hidden="true" className="h-4 w-4" viewBox={s.box}>

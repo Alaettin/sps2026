@@ -24,6 +24,7 @@ import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
 import { Cookies, Datenschutz, Impressum } from "./seiten/Rechtliches.js";
+import { useSprache } from "./lib/sprache.js";
 
 /**
  * Die Seiten hinter der Fusszeile, seit dem 02.11.2026. **In jedem Baum ausser dem des
@@ -45,6 +46,7 @@ const RECHTSSEITEN = (
  * abweist, und eine geaenderte Rolle griffe erst nach dem Neuladen.
  */
 export function App() {
+  const { t } = useSprache();
   const [ich, setzeIch] = useState<Ich | null>(null);
   const [geprueft, setzeGeprueft] = useState(false);
 
@@ -81,7 +83,7 @@ export function App() {
   if (!geprueft) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-grund">
-        <p className="text-sm text-text-hinweis">Wird geladen …</p>
+        <p className="text-sm text-text-hinweis">{t("Wird geladen …", "Loading …")}</p>
       </div>
     );
   }

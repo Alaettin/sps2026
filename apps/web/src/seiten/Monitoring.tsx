@@ -11,6 +11,7 @@ import {
   Zustand,
 } from "../bausteine/basis.js";
 import { Blaetterleiste, useBlaettern } from "../bausteine/blaettern.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Was Axon über die Konnektor-API abgefragt hat.
@@ -45,8 +46,8 @@ interface Stand {
 }
 
 /** Datum und Uhrzeit, ohne Jahr: die Veranstaltung dauert drei Tage. */
-function zeitpunkt(ms: number): string {
-  return new Date(ms).toLocaleString("de-DE", {
+function zeitpunkt(ms: number, gebiet: string): string {
+  return new Date(ms).toLocaleString(gebiet, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -69,6 +70,7 @@ function Kachel({ titel, wert, hinweis }: { titel: string; wert: string; hinweis
 }
 
 export function Monitoring() {
+  const { t, gebiet } = useSprache();
   const abruf = useAbruf<Stand>("/api/monitoring");
   const daten = abruf.daten;
   const { seite, zuSeite, sichtbar, gesamt } = useBlaettern(daten?.eintraege ?? []);
@@ -78,28 +80,40 @@ export function Monitoring() {
       <Seitenkopf>
         <Ueberschrift>Monitoring</Ueberschrift>
         <Knopf art="rand" onClick={abruf.neu}>
-          Aktualisieren
+          {t("Aktualisieren", "Refresh")}
         </Knopf>
       </Seitenkopf>
 
       <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
         {daten !== null && (
           <>
-            <section aria-label="Kennzahlen" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <section
+              aria-label={t("Kennzahlen", "Key figures")}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
               <Kachel
-                titel="Abgefragt"
+                titel={t("Abgefragt", "Requested")}
                 wert={`${String(daten.abgefragt)} / ${String(daten.besucherGesamt)}`}
-                hinweis="Besucher mit mindestens einem Abruf"
+                hinweis={t(
+                  "Besucher mit mindestens einem Abruf",
+                  "Visitors with at least one request",
+                )}
               />
-              <Kachel titel="Abrufe gesamt" wert={String(daten.abrufeGesamt)} />
               <Kachel
-                titel="Unbekannte GUIDs"
+                titel={t("Abrufe gesamt", "Total requests")}
+                wert={String(daten.abrufeGesamt)}
+              />
+              <Kachel
+                titel={t("Unbekannte GUIDs", "Unknown GUIDs")}
                 wert={String(daten.unbekannteAbrufe)}
-                hinweis="Axon fragte nach etwas, das es hier nicht gibt"
+                hinweis={t(
+                  "Axon fragte nach etwas, das es hier nicht gibt",
+                  "Axon asked for something that does not exist here",
+                )}
               />
               <Kachel
-                titel="Zuletzt"
-                wert={daten.letzter === null ? "–" : zeitpunkt(daten.letzter)}
+                titel={t("Zuletzt", "Latest")}
+                wert={daten.letzter === null ? "–" : zeitpunkt(daten.letzter, gebiet)}
               />
             </section>
 
@@ -107,19 +121,22 @@ export function Monitoring() {
               laedt={false}
               fehler={null}
               leer={daten.eintraege.length === 0}
-              leerText="Noch kein Abruf über die Konnektor-API. Sobald Axon eine GUID abfragt, steht sie hier."
+              leerText={t(
+                "Noch kein Abruf über die Konnektor-API. Sobald Axon eine GUID abfragt, steht sie hier.",
+                "No request via the connector API yet. As soon as Axon requests a GUID, it appears here.",
+              )}
             >
               <Tabellenflaeche>
                 <table className="w-full border-collapse text-sm max-sm:block sm:min-w-[780px]">
                   <thead className="max-sm:hidden">
                     <tr>
                       <Kopfzelle>GUID</Kopfzelle>
-                      <Kopfzelle>Name</Kopfzelle>
+                      <Kopfzelle>{t("Name", "Name")}</Kopfzelle>
                       <Kopfzelle>Hierarchy</Kopfzelle>
                       <Kopfzelle>Values</Kopfzelle>
                       <Kopfzelle>Documents</Kopfzelle>
-                      <Kopfzelle>Gesamt</Kopfzelle>
-                      <Kopfzelle>Zuletzt</Kopfzelle>
+                      <Kopfzelle>{t("Gesamt", "Total")}</Kopfzelle>
+                      <Kopfzelle>{t("Zuletzt", "Latest")}</Kopfzelle>
                     </tr>
                   </thead>
                   <tbody className="max-sm:block">
@@ -138,11 +155,11 @@ export function Monitoring() {
                         <Zelle titel="Documents" className="text-text-zweit">
                           {a.dokumente}
                         </Zelle>
-                        <Zelle titel="Gesamt" className="font-semibold">
+                        <Zelle titel={t("Gesamt", "Total")} className="font-semibold">
                           {a.gesamt}
                         </Zelle>
-                        <Zelle titel="Zuletzt" className="text-text-zweit">
-                          {zeitpunkt(a.zuletzt)}
+                        <Zelle titel={t("Zuletzt", "Latest")} className="text-text-zweit">
+                          {zeitpunkt(a.zuletzt, gebiet)}
                         </Zelle>
                       </Reihe>
                     ))}

@@ -33,7 +33,8 @@ describe("Migration auf Besuche und Kontakte je Exponat", () => {
 
     db.exec(`
       insert into exponate (id, kennung, name) values ('e1', 'E01', 'Eins'), ('e2', 'E02', 'Zwei');
-      insert into besucher (guid, vorname, nachname, email) values ('B1', 'A', 'B', 'a@x'), ('B2', 'C', 'D', 'c@x');
+      insert into besucher (guid, vorname, nachname, email, einwilligung_am, einwilligung_fassung)
+        values ('B1', 'A', 'B', 'a@x', 500, '2026-10-23.1'), ('B2', 'C', 'D', 'c@x', null, null);
       insert into dateien (id, pfad, mime_type, groesse, original_name, sha256)
         values ('f1', 'p', 'application/pdf', 1, 'a.pdf', 'h'), ('f2', 'q', 'image/png', 1, 'b.png', 'i');
       insert into nachrichten (id, besucher_guid, platz, titel, bild_datei_id) values ('n1', 'B2', 1, 'Hallo', 'f2');
@@ -80,6 +81,13 @@ describe("Migration auf Besuche und Kontakte je Exponat", () => {
     // 0006: die Nachrichten und ihre Bilddatei sind fort, das Dokument bleibt.
     expect(tabellen).not.toContain("nachrichten");
     expect(db.prepare("select id from dateien").all()).toEqual([{ id: "f1" }]);
+    // 0007: wer vorher zugestimmt hat, sah den deutschen Text; ohne Einwilligung bleibt es leer.
+    expect(
+      db.prepare("select guid, einwilligung_sprache as s from besucher order by guid").all(),
+    ).toEqual([
+      { guid: "B1", s: "de" },
+      { guid: "B2", s: null },
+    ]);
     db.close();
   });
 });

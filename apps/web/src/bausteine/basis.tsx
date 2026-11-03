@@ -2,6 +2,8 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import { useSprache } from "../lib/sprache.js";
+import { fehlertext } from "../lib/fehler.js";
 
 /** Klassen zusammenfuehren, spaetere Tailwind-Klassen gewinnen. */
 export function cn(...werte: ClassValue[]): string {
@@ -310,16 +312,17 @@ export function Markierung({
  * Haken, der auch bei Misserfolg kommt, ist schlimmer als gar keiner.
  */
 export function Monowert({ wert, kurz }: { wert: string; kurz?: boolean }) {
+  const { t } = useSprache();
   const anzeige = kurz === true && wert.length > 14 ? `${wert.slice(0, 11)}…` : wert;
   const [stand, setzeStand] = useState<"ruht" | "kopiert" | "geht-nicht">("ruht");
 
   useEffect(() => {
     if (stand === "ruht") return;
-    const t = setTimeout(() => {
+    const uhr = setTimeout(() => {
       setzeStand("ruht");
     }, 1500);
     return () => {
-      clearTimeout(t);
+      clearTimeout(uhr);
     };
   }, [stand]);
 
@@ -330,7 +333,7 @@ export function Monowert({ wert, kurz }: { wert: string; kurz?: boolean }) {
       </code>
       <button
         type="button"
-        aria-label="In die Zwischenablage kopieren"
+        aria-label={t("In die Zwischenablage kopieren", "Copy to clipboard")}
         className="flex size-8 items-center justify-center text-text-hinweis hover:text-text"
         onClick={() => {
           const schreiben = navigator.clipboard?.writeText(wert);
@@ -381,9 +384,16 @@ export function Monowert({ wert, kurz }: { wert: string; kurz?: boolean }) {
 
       {/* `role="status"` meldet den Wechsel auch Bildschirmlesern, ohne den Fokus zu nehmen. */}
       <span role="status" className="text-xs font-semibold">
-        {stand === "kopiert" && <span className="text-primaer-dunkel">Kopiert</span>}
+        {stand === "kopiert" && (
+          <span className="text-primaer-dunkel">{t("Kopiert", "Copied")}</span>
+        )}
         {stand === "geht-nicht" && (
-          <span className="text-fehler">Kopieren geht hier nicht, bitte markieren</span>
+          <span className="text-fehler">
+            {t(
+              "Kopieren geht hier nicht, bitte markieren",
+              "Copying is not possible here, please select",
+            )}
+          </span>
         )}
       </span>
     </span>
@@ -422,12 +432,25 @@ export function Zustand({
   leerText?: string;
   children: ReactNode;
 }) {
-  if (laedt) return <p className="py-10 text-center text-sm text-text-hinweis">Wird geladen …</p>;
-  if (fehler !== null) return <Fehlerhinweis>{fehler.message}</Fehlerhinweis>;
+  const { t } = useSprache();
+  if (laedt) {
+    return (
+      <p className="py-10 text-center text-sm text-text-hinweis">
+        {t("Wird geladen …", "Loading …")}
+      </p>
+    );
+  }
+  if (fehler !== null) {
+    return (
+      <Fehlerhinweis>
+        {fehlertext(fehler, t, ["Laden nicht möglich.", "Could not load."])}
+      </Fehlerhinweis>
+    );
+  }
   if (leer === true) {
     return (
       <p className="py-10 text-center text-sm text-text-hinweis">
-        {leerText ?? "Nichts vorhanden."}
+        {leerText ?? t("Nichts vorhanden.", "Nothing here yet.")}
       </p>
     );
   }

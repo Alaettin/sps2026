@@ -118,6 +118,8 @@ export const besucher = sqliteTable(
      */
     einwilligungAm: integer("einwilligung_am"),
     einwilligungFassung: text("einwilligung_fassung"),
+    /** `de` oder `en`: die Sprache des Textes, dem zugestimmt wurde. Seit dem 03.11.2026. */
+    einwilligungSprache: text("einwilligung_sprache"),
     angelegt: integer("angelegt").notNull().default(jetzt),
     geaendert: integer("geaendert").notNull().default(jetzt),
   },

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 import { Feld, Fehlerhinweis, Knopf } from "./basis.js";
+import { useSprache } from "../lib/sprache.js";
 
 /**
  * Rueckfrage vor einer Handlung, die sich nicht zurueckholen laesst.
@@ -56,6 +57,7 @@ export function Rueckfrage({
   fehler?: string | null;
   aufBestaetigen: () => void;
 }) {
+  const { t } = useSprache();
   const [getippt, setzeGetippt] = useState("");
   const freigegeben = tippwort === undefined || getippt === tippwort;
 
@@ -87,7 +89,9 @@ export function Rueckfrage({
 
           {tippwort !== undefined && (
             <label className="flex flex-col gap-2 text-[13px] font-semibold text-text">
-              Zum Bestätigen <code className="font-mono">{tippwort}</code> eintippen
+              {t("Zum Bestätigen", "To confirm, type")}{" "}
+              <code className="font-mono">{tippwort}</code>
+              {t(" eintippen", "")}
               <Feld
                 value={getippt}
                 onChange={(e) => {
@@ -95,7 +99,10 @@ export function Rueckfrage({
                 }}
                 autoComplete="off"
                 spellCheck={false}
-                aria-label={`Zum Bestätigen ${tippwort} eintippen`}
+                aria-label={t(
+                  `Zum Bestätigen ${tippwort} eintippen`,
+                  `Type ${tippwort} to confirm`,
+                )}
               />
             </label>
           )}
@@ -103,11 +110,11 @@ export function Rueckfrage({
           <div className="flex flex-wrap justify-end gap-3 max-sm:sticky max-sm:bottom-0 max-sm:-mx-6 max-sm:-mb-6 max-sm:justify-stretch max-sm:border-t max-sm:border-linie max-sm:bg-flaeche max-sm:p-4 max-sm:[&>*]:flex-1">
             <RadixDialog.Close asChild>
               <Knopf art="rand" disabled={laeuft}>
-                Abbrechen
+                {t("Abbrechen", "Cancel")}
               </Knopf>
             </RadixDialog.Close>
             <Knopf art={art} disabled={!freigegeben || laeuft} onClick={aufBestaetigen}>
-              {laeuft ? "Läuft …" : bestaetigenText}
+              {laeuft ? t("Läuft …", "Working …") : bestaetigenText}
             </Knopf>
           </div>
         </RadixDialog.Content>
@@ -147,6 +154,7 @@ export function Schaufenster({
   fliessend?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useSprache();
   return (
     <RadixDialog.Root open={offen} onOpenChange={aufOffen}>
       <RadixDialog.Portal>
@@ -164,7 +172,7 @@ export function Schaufenster({
             <RadixDialog.Close asChild>
               <button
                 type="button"
-                aria-label="Schließen"
+                aria-label={t("Schließen", "Close")}
                 className="flex size-9 shrink-0 items-center justify-center text-text-hinweis hover:text-text"
               >
                 <svg

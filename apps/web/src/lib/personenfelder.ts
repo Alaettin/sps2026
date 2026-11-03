@@ -15,6 +15,8 @@ export type Feldgruppe = "Person" | "Firma" | "Anschrift" | "Kontakt";
 export interface Personenfeld {
   name: string;
   text: string;
+  /** Die Beschriftung auf Englisch, seit dem 03.11.2026. */
+  en: string;
   gruppe: Feldgruppe;
   /**
    * `true`: ueberall Pflicht. `"besucher"`: nur beim Besucher, dort ist die E-Mail sein Login;
@@ -27,18 +29,25 @@ export interface Personenfeld {
 }
 
 export const PERSONENFELDER: Personenfeld[] = [
-  { name: "titel", text: "Titel", gruppe: "Person" },
-  { name: "vorname", text: "Vorname", gruppe: "Person", pflicht: true },
-  { name: "nachname", text: "Nachname", gruppe: "Person", pflicht: true },
-  { name: "alias", text: "Alias", gruppe: "Person", nurBesucher: true },
-  { name: "firma", text: "Firma", gruppe: "Firma" },
-  { name: "position", text: "Position", gruppe: "Firma" },
-  { name: "strasse", text: "Straße", gruppe: "Anschrift" },
-  { name: "plz", text: "PLZ", gruppe: "Anschrift" },
-  { name: "ort", text: "Ort", gruppe: "Anschrift" },
-  { name: "land", text: "Land", gruppe: "Anschrift" },
-  { name: "email", text: "E-Mail", gruppe: "Kontakt", typ: "email", pflicht: "besucher" },
-  { name: "website", text: "Website", gruppe: "Kontakt" },
+  { name: "titel", text: "Titel", en: "Title", gruppe: "Person" },
+  { name: "vorname", text: "Vorname", en: "First name", gruppe: "Person", pflicht: true },
+  { name: "nachname", text: "Nachname", en: "Last name", gruppe: "Person", pflicht: true },
+  { name: "alias", text: "Alias", en: "Alias", gruppe: "Person", nurBesucher: true },
+  { name: "firma", text: "Firma", en: "Company", gruppe: "Firma" },
+  { name: "position", text: "Position", en: "Position", gruppe: "Firma" },
+  { name: "strasse", text: "Straße", en: "Street", gruppe: "Anschrift" },
+  { name: "plz", text: "PLZ", en: "Postcode", gruppe: "Anschrift" },
+  { name: "ort", text: "Ort", en: "City", gruppe: "Anschrift" },
+  { name: "land", text: "Land", en: "Country", gruppe: "Anschrift" },
+  {
+    name: "email",
+    text: "E-Mail",
+    en: "Email",
+    gruppe: "Kontakt",
+    typ: "email",
+    pflicht: "besucher",
+  },
+  { name: "website", text: "Website", en: "Website", gruppe: "Kontakt" },
 ];
 
 /** Pflicht in einer Besuchermaske (Verwaltung, Terminal, eigener Bereich). */
@@ -47,21 +56,44 @@ export function pflichtBeimBesucher(f: Personenfeld): boolean {
 }
 
 /**
- * Die deutschen Meldungen zu den Fehlern, die ein Besucherdatensatz beim Speichern bekommen
- * kann. `null`, wenn der Code keiner davon ist.
+ * Die Meldungen zu den Fehlern, die ein Besucherdatensatz beim Speichern bekommen kann.
+ * `null`, wenn der Code keiner davon ist.
  */
-export function besucherFehlertext(code: string | undefined): string | null {
+export function besucherFehlertext(
+  code: string | undefined,
+  t: (de: string, en: string) => string,
+): string | null {
   switch (code) {
     case "pflicht-fehlt":
     case "feld-fehlt":
-      return "Vorname, Nachname und E-Mail dürfen nicht leer sein.";
+      return t(
+        "Vorname, Nachname und E-Mail dürfen nicht leer sein.",
+        "First name, last name and email must not be empty.",
+      );
     case "email-ungueltig":
-      return "Die E-Mail-Adresse ist ungültig.";
+      return t("Die E-Mail-Adresse ist ungültig.", "The email address is not valid.");
     case "email-vergeben":
-      return "Diese E-Mail-Adresse ist schon vergeben.";
+      return t("Diese E-Mail-Adresse ist schon vergeben.", "This email address is already in use.");
     default:
       return null;
   }
+}
+
+/** Die Beschriftung eines Feldes in der aktuellen Sprache. */
+export function feldtext(f: Personenfeld, t: (de: string, en: string) => string): string {
+  return t(f.text, f.en);
+}
+
+const GRUPPENTEXT: Record<Feldgruppe, string> = {
+  Person: "Person",
+  Firma: "Company",
+  Anschrift: "Address",
+  Kontakt: "Contact",
+};
+
+/** Die Ueberschrift einer Gruppe in der aktuellen Sprache. */
+export function gruppentext(g: Feldgruppe, t: (de: string, en: string) => string): string {
+  return t(g, GRUPPENTEXT[g]);
 }
 
 /** In Anzeigereihenfolge, damit keine Maske eine eigene Folge erfindet. */

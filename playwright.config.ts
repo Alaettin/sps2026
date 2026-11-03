@@ -33,6 +33,12 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:3230",
+    /*
+     * **Deutsch als Browsersprache**, seit dem 03.11.2026. Die App startet in der Sprache des
+     * Browsers; ohne diese Zeile meldet Chromium `en-US`, und jeder Test, der deutsche Texte
+     * sucht, liefe auf Englisch. Die englischen Faelle setzen `locale` selbst.
+     */
+    locale: "de-DE",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },

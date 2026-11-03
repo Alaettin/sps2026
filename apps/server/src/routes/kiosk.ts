@@ -2,10 +2,10 @@ import type { FastifyInstance } from "fastify";
 import type { Kontext } from "../kontext.js";
 import { avatarAuswahl } from "../services/selbstbedienung.js";
 import {
-  ABSCHNITTE,
   DATENSCHUTZ_FASSUNG,
-  EINWILLIGUNGSTEXT,
+  datenschutzText,
   istEntwurf,
+  spracheAus,
 } from "../services/datenschutz.js";
 import { MIN_BESUCHERPASSWORT, passstatus, registriere } from "../services/registrierung.js";
 
@@ -30,13 +30,17 @@ export function kioskRoutes(app: FastifyInstance, ctx: Kontext): void {
     async (req) => ({ status: passstatus(ctx.db, req.params.guid) }),
   );
 
-  app.get("/api/kiosk/datenschutz", { preHandler: app.verlangeKiosk }, () => ({
-    fassung: DATENSCHUTZ_FASSUNG,
-    abschnitte: ABSCHNITTE,
-    einwilligungstext: EINWILLIGUNGSTEXT,
-    entwurf: istEntwurf(),
-    minPasswort: MIN_BESUCHERPASSWORT,
-  }));
+  // `?sprache=en` liefert die englische Fassung, sonst die deutsche.
+  app.get<{ Querystring: { sprache?: string } }>(
+    "/api/kiosk/datenschutz",
+    { preHandler: app.verlangeKiosk },
+    (req) => ({
+      fassung: DATENSCHUTZ_FASSUNG,
+      ...datenschutzText(spracheAus(req.query.sprache)),
+      entwurf: istEntwurf(),
+      minPasswort: MIN_BESUCHERPASSWORT,
+    }),
+  );
 
   // Nur Ids; die Bilder holt das Tablet ueber `/api/dateien/:id`.
   app.get("/api/kiosk/avatare", { preHandler: app.verlangeKiosk }, () => avatarAuswahl(ctx.db));

@@ -3,7 +3,7 @@ import { badRequest, forbidden, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { entferneBesuch, meineExponate, nimmAuf } from "../services/besuche.js";
 import { findeDatei } from "../services/dateien.js";
-import { ABSCHNITTE, DATENSCHUTZ_FASSUNG } from "../services/datenschutz.js";
+import { DATENSCHUTZ_FASSUNG, datenschutzText, spracheAus } from "../services/datenschutz.js";
 import {
   aendereSelbst,
   avatarAuswahl,
@@ -36,10 +36,14 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
   );
 
   // Derselbe Hinweis, dem der Besucher zugestimmt hat, zum Nachlesen und fuer den Widerruf.
-  app.get("/api/mein/datenschutz", { preHandler: app.verlangeBesucher }, () => ({
-    fassung: DATENSCHUTZ_FASSUNG,
-    abschnitte: ABSCHNITTE,
-  }));
+  app.get<{ Querystring: { sprache?: string } }>(
+    "/api/mein/datenschutz",
+    { preHandler: app.verlangeBesucher },
+    (req) => ({
+      fassung: DATENSCHUTZ_FASSUNG,
+      abschnitte: datenschutzText(spracheAus(req.query.sprache)).abschnitte,
+    }),
+  );
 
   app.get("/api/mein/avatare", { preHandler: app.verlangeBesucher }, () => avatarAuswahl(ctx.db));
 
