@@ -56,9 +56,22 @@ test("Viewer-Link im Menü, Kontakt per Pass-Adresse aufnehmen und entfernen", a
   const { viewerBaseUrl } = (await (await page.request.get("/api/auth/ich")).json()) as {
     viewerBaseUrl: string;
   };
-  const viewer = page.getByRole("link", { name: /Mein Viewer/ });
+  // Seit dem 03.11.2026 ein Knopf statt der ausgeschriebenen Adresse.
+  const viewer = page.getByRole("link", { name: "Viewer öffnen" });
   await expect(viewer).toHaveAttribute("href", `${viewerBaseUrl}${a.guid}`);
   await expect(viewer).toHaveAttribute("target", "_blank");
+  await expect(page.getByText(`${viewerBaseUrl}${a.guid}`)).toHaveCount(0);
+  // Der Datenschutzhinweis steht nur noch in der Fusszeile.
+  await expect(page.getByRole("button", { name: /Datenschutzhinweis/ })).toHaveCount(0);
+  // Das eigene Bild: rund und groesser als die 80 px von vorher.
+  const avatar = page.getByRole("img", { name: "Dein Bild" });
+  await expect(avatar).toBeVisible();
+  const form = await avatar.evaluate((e) => ({
+    breite: e.getBoundingClientRect().width,
+    radius: getComputedStyle(e).borderTopLeftRadius,
+  }));
+  expect(form.breite).toBeGreaterThanOrEqual(96);
+  expect(parseFloat(form.radius)).toBeGreaterThanOrEqual(form.breite / 2);
   await keinUeberlauf(page, "Besuchermenü");
 
   await page.getByRole("button", { name: /^Kontakte/ }).click();

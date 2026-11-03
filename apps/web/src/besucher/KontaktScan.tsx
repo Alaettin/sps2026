@@ -45,8 +45,12 @@ export function MeinKontaktScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: (
   const [zustand, setzeZustand] = useState<Zustand>({ art: "scannen" });
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [eingabe, setzeEingabe] = useState("");
-  // Startet die Kamera nicht, bleibt nur ein schwarzer Kasten; dann blenden wir ihn aus.
-  const [kameraAus, setzeKameraAus] = useState(false);
+  /*
+   * Startet die Kamera nicht, bleibt nur ein schwarzer Kasten; dann blenden wir ihn aus und sagen
+   * warum. **Ein eigener Zustand, nicht `fehler`**: die Kamera meldet ihr Versagen irgendwann,
+   * auch nach der Antwort des Servers, und überschrieb dann deren Meldung (03.11.2026).
+   */
+  const [kameraHinweis, setzeKameraHinweis] = useState<string | null>(null);
 
   const nimmAuf = useCallback(
     (guid: string) => {
@@ -142,16 +146,16 @@ export function MeinKontaktScan({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: (
       </Seitenkopf>
 
       {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}
+      {kameraHinweis !== null && <Fehlerhinweis>{kameraHinweis}</Fehlerhinweis>}
 
-      {!kameraAus &&
+      {kameraHinweis === null &&
         (kameraMoeglich() ? (
           <div className="overflow-hidden bg-black">
             <Kamera
               pausiert={zustand.art === "laeuft"}
               aufTreffer={ausQr}
               aufFehler={(art: Kamerafehler) => {
-                setzeKameraAus(true);
-                setzeFehler(
+                setzeKameraHinweis(
                   art === "verweigert"
                     ? t(
                         "Die Kamera ist für diese Seite gesperrt. Gib sie in den Einstellungen des Browsers frei, oder gib die Passnummer unten von Hand ein.",

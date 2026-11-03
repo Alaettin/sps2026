@@ -14,7 +14,6 @@ import { Monitoring } from "./seiten/Monitoring.js";
 import { KioskRegistrierung, KioskScan } from "./kiosk/Kiosk.js";
 import {
   MeinAvatar,
-  MeinDatenschutz,
   MeinExponate,
   MeinKontakte,
   MeinMenue,
@@ -137,7 +136,6 @@ export function App() {
           />
           <Route path="/mein/stammdaten" element={<MeinStammdaten aufAbmelden={abmelden} />} />
           <Route path="/mein/avatar" element={<MeinAvatar aufAbmelden={abmelden} />} />
-          <Route path="/mein/datenschutz" element={<MeinDatenschutz aufAbmelden={abmelden} />} />
           <Route path="/mein/exponate" element={<MeinExponate aufAbmelden={abmelden} />} />
           <Route path="/mein/scan" element={<MeinExponatScan aufAbmelden={abmelden} />} />
           <Route path="/mein/scan/:code" element={<MeinExponatScan aufAbmelden={abmelden} />} />

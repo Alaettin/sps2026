@@ -13,21 +13,25 @@ afterEach(async () => {
 });
 
 describe("Oeffentlicher Datenschutzhinweis", () => {
-  it("antwortet ohne Sitzung mit demselben Text wie im Besucherbereich", async () => {
+  it("antwortet ohne Sitzung mit der geltenden Fassung", async () => {
     stand = await starte(ADMIN);
-    const s = stand;
-    const offen = await s.app.inject({ url: "/api/datenschutz" });
+    const offen = await stand.app.inject({ url: "/api/datenschutz" });
     expect(offen.statusCode).toBe(200);
     expect(offen.headers["set-cookie"]).toBeUndefined();
+    expect(offen.json<{ fassung: string }>().fassung).toBe(DATENSCHUTZ_FASSUNG);
+  });
 
+  /** Seit dem 03.11.2026 entfallen; der Besucher liest den Text hinter der Fusszeile. */
+  it("bietet im Besucherbereich keinen eigenen Datenschutz-Endpunkt mehr", async () => {
+    stand = await starte(ADMIN);
+    const s = stand;
     const keks = await melde(s, "admin@idta-passport.de", "startpasswort-123");
     const besucher = await alsBesucher(s, keks);
     const mein = await s.app.inject({
       url: "/api/mein/datenschutz",
       headers: { cookie: besucher.keks },
     });
-    expect(offen.json()).toEqual(mein.json());
-    expect(offen.json<{ fassung: string }>().fassung).toBe(DATENSCHUTZ_FASSUNG);
+    expect(mein.statusCode).toBe(404);
   });
 });
 

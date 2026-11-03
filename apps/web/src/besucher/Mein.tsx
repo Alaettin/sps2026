@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
+import { ExternalLink } from "lucide-react";
 import { ApiFehler, api, useAbruf } from "../lib/api.js";
 import {
   Abschnitt,
   Fehlerhinweis,
-  Flaeche,
   Knopf,
+  knopfKlassen,
   Seitenkopf,
   Ueberschrift,
   Zustand,
@@ -14,7 +15,6 @@ import { PERSONENFELDER, besucherFehlertext, mitTitel } from "../lib/personenfel
 import { Kioskrahmen, Knopfleiste } from "../kiosk/Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
-import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
 import { Rueckfrage } from "../bausteine/dialog.js";
 import { useSprache } from "../lib/sprache.js";
 import { fehlertext } from "../lib/fehler.js";
@@ -23,8 +23,9 @@ import { viewerAdresse } from "../lib/pass.js";
 
 /**
  * Der Bereich des angemeldeten Besuchers, seit dem 23.10.2026: Begrüßung, Daten ändern, Bild
- * aussuchen, Datenschutzhinweis nachlesen, seit dem 03.11.2026 Kontakte sammeln. Die GUID steht nirgends in der Adresse; der Server
- * nimmt sie aus der Sitzung (`/api/mein`).
+ * aussuchen, seit dem 03.11.2026 Kontakte sammeln. Die GUID steht nirgends in der Adresse; der
+ * Server nimmt sie aus der Sitzung (`/api/mein`). Den Datenschutzhinweis gibt es seit dem
+ * 03.11.2026 nur noch hinter dem Link „Datenschutz“ in der Fußzeile; derselbe Text, eine Stelle.
  */
 
 interface Besucher extends Record<string, string | null> {
@@ -60,7 +61,7 @@ export function MeinMenue({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
                 <img
                   src={bild(b.avatarDateiId)}
                   alt={t("Dein Bild", "Your picture")}
-                  className="size-20 shrink-0 object-cover"
+                  className="size-24 shrink-0 rounded-full object-cover sm:size-28"
                 />
               )}
               <div className="flex min-w-0 flex-col">
@@ -73,11 +74,13 @@ export function MeinMenue({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
                 {/* Seit dem 03.11.2026: dieselbe Adresse wie im QR-Code des Passes. */}
                 <a
                   href={viewerAdresse(ich.viewerBaseUrl, b.guid)}
+                  title={viewerAdresse(ich.viewerBaseUrl, b.guid)}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1 text-[13px] font-semibold break-all text-primaer-dunkel"
+                  className={knopfKlassen("rand", "mt-3 h-9 self-start px-3 text-[14px]")}
                 >
-                  {t("Mein Viewer", "My viewer")}: {viewerAdresse(ich.viewerBaseUrl, b.guid)} ↗
+                  <ExternalLink className="size-4" aria-hidden />
+                  {t("Viewer öffnen", "Open viewer")}
                 </a>
               </div>
             </Seitenkopf>
@@ -125,16 +128,6 @@ export function MeinMenue({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => v
                 }}
               />
             </div>
-
-            <button
-              type="button"
-              className="self-start text-[14px] font-semibold text-primaer-dunkel underline underline-offset-2"
-              onClick={() => {
-                void navigate("/mein/datenschutz");
-              }}
-            >
-              {t("Datenschutzhinweis und Widerruf", "Privacy notice and withdrawal")}
-            </button>
           </>
         )}
       </Zustand>
@@ -600,40 +593,6 @@ export function MeinAvatar({ aufAbmelden }: { aufAbmelden: () => void }) {
           </>
         )}
       </Zustand>
-    </Rahmen>
-  );
-}
-
-// --- Datenschutz ----------------------------------------------------------------------
-
-export function MeinDatenschutz({ aufAbmelden }: { aufAbmelden: () => void }) {
-  const { sprache, t } = useSprache();
-  const navigate = useNavigate();
-  const abruf = useAbruf<{ fassung: string; abschnitte: Datenschutzabschnitt[] }>(
-    `/api/mein/datenschutz?sprache=${sprache}`,
-  );
-
-  return (
-    <Rahmen aufAbmelden={aufAbmelden}>
-      <Seitenkopf>
-        <Ueberschrift>{t("Datenschutzhinweis", "Privacy notice")}</Ueberschrift>
-      </Seitenkopf>
-      <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
-        {abruf.daten !== null && (
-          <Flaeche className="p-7">
-            <Datenschutztext abschnitte={abruf.daten.abschnitte} fassung={abruf.daten.fassung} />
-          </Flaeche>
-        )}
-      </Zustand>
-      <Knopf
-        art="rand"
-        className="self-start"
-        onClick={() => {
-          void navigate("/mein");
-        }}
-      >
-        {t("Zurück", "Back")}
-      </Knopf>
     </Rahmen>
   );
 }

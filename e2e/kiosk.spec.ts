@@ -172,7 +172,11 @@ test("ein Besucher registriert sich und meldet sich danach selbst an", async ({
     await besucher.getByLabel("Passwort").fill("geheim-123");
     await besucher.getByRole("button", { name: "Anmelden" }).click();
     await expect(besucher.getByRole("heading", { name: /Hallo Rita Registriert/ })).toBeVisible();
-    await besucher.getByRole("button", { name: /Datenschutzhinweis/ }).click();
+    // Seit dem 03.11.2026 über die Fusszeile.
+    await besucher
+      .getByRole("navigation", { name: "Rechtliche Hinweise" })
+      .getByRole("link", { name: "Datenschutz", exact: true })
+      .click();
     await expect(besucher.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
     await kontext.close();
   } finally {

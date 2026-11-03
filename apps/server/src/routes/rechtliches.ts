@@ -4,7 +4,8 @@ import { DATENSCHUTZ_FASSUNG, datenschutzText, spracheAus } from "../services/da
 /**
  * Der Datenschutzhinweis **ohne Anmeldung**, fuer die Seite `/datenschutz` hinter der
  * Fusszeile, seit dem 02.11.2026. Derselbe Text und dieselbe Fassung wie unter
- * `/api/mein/datenschutz` und `/api/kiosk/datenschutz`; er enthaelt nichts Persoenliches.
+ * `/api/kiosk/datenschutz`; er enthaelt nichts Persoenliches. Seit dem 03.11.2026 liest ihn
+ * auch der angemeldete Besucher hier, `/api/mein/datenschutz` ist entfallen.
  * `?sprache=en` liefert die englische Fassung.
  */
 export function rechtlichesRoutes(app: FastifyInstance): void {

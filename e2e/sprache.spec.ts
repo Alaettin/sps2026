@@ -131,7 +131,7 @@ test.describe("als Besucher", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("heading", { name: /Hello Sam Speaker/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Exhibits/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /My viewer/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open viewer" })).toBeVisible();
     await page.getByRole("button", { name: /^Contacts/ }).click();
     await expect(page.getByRole("heading", { name: "My contacts (0)" })).toBeVisible();
     await page.getByRole("button", { name: "Back" }).click();
@@ -141,7 +141,12 @@ test.describe("als Besucher", () => {
     await expect(page.getByRole("heading", { name: "My exhibits (0)" })).toBeVisible();
     await page.getByRole("button", { name: "Back" }).click();
 
-    await page.getByRole("button", { name: /Privacy notice/ }).click();
+    // Seit dem 03.11.2026 über die Fusszeile, der eigene Knopf im Menü ist entfallen.
+    await page
+      .getByRole("navigation", { name: "Legal information" })
+      .getByRole("link", { name: "Privacy", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/privacy$/);
     await expect(page.getByRole("heading", { name: "Privacy notice" })).toBeVisible();
     await expect(page.getByText("Controller", { exact: true })).toBeVisible();
 

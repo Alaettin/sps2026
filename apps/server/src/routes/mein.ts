@@ -5,7 +5,6 @@ import type { Kontext } from "../kontext.js";
 import { entferneBesuch, meineExponate, nimmAuf } from "../services/besuche.js";
 import { entferneKontakt, meineKontakte, nimmKontaktAuf } from "../services/besucherkontakte.js";
 import { findeDatei } from "../services/dateien.js";
-import { DATENSCHUTZ_FASSUNG, datenschutzText, spracheAus } from "../services/datenschutz.js";
 import {
   aendereSelbst,
   avatarAuswahl,
@@ -35,16 +34,6 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
     "/api/mein",
     { preHandler: app.verlangeBesucher },
     async (req) => aendereSelbst(ctx.db, guid(req), req.body ?? {}),
-  );
-
-  // Derselbe Hinweis, dem der Besucher zugestimmt hat, zum Nachlesen und fuer den Widerruf.
-  app.get<{ Querystring: { sprache?: string } }>(
-    "/api/mein/datenschutz",
-    { preHandler: app.verlangeBesucher },
-    (req) => ({
-      fassung: DATENSCHUTZ_FASSUNG,
-      abschnitte: datenschutzText(spracheAus(req.query.sprache)).abschnitte,
-    }),
   );
 
   app.get("/api/mein/avatare", { preHandler: app.verlangeBesucher }, () => avatarAuswahl(ctx.db));
