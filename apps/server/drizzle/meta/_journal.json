@@ -57,6 +57,13 @@
       "when": 1793696979108,
       "tag": "0007_blushing_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793713040222,
+      "tag": "0008_noisy_fantastic_four",
+      "breakpoints": true
     }
   ]
 }

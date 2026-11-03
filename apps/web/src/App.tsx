@@ -16,10 +16,12 @@ import {
   MeinAvatar,
   MeinDatenschutz,
   MeinExponate,
+  MeinKontakte,
   MeinMenue,
   MeinStammdaten,
 } from "./besucher/Mein.js";
 import { MeinExponatScan } from "./besucher/ExponatScan.js";
+import { MeinKontaktScan } from "./besucher/KontaktScan.js";
 import { ExponatDetail } from "./seiten/ExponatDetail.js";
 import { Exponate } from "./seiten/Exponate.js";
 import { Nutzer } from "./seiten/Nutzer.js";
@@ -124,7 +126,15 @@ export function App() {
           der Server nimmt sie aus der Sitzung. Jede andere Adresse landet in seinem Menü.
         */
         <Routes>
-          <Route path="/mein" element={<MeinMenue aufAbmelden={abmelden} />} />
+          <Route path="/mein" element={<MeinMenue ich={ich} aufAbmelden={abmelden} />} />
+          <Route
+            path="/mein/kontakte"
+            element={<MeinKontakte ich={ich} aufAbmelden={abmelden} />}
+          />
+          <Route
+            path="/mein/kontakte/scan"
+            element={<MeinKontaktScan ich={ich} aufAbmelden={abmelden} />}
+          />
           <Route path="/mein/stammdaten" element={<MeinStammdaten aufAbmelden={abmelden} />} />
           <Route path="/mein/avatar" element={<MeinAvatar aufAbmelden={abmelden} />} />
           <Route path="/mein/datenschutz" element={<MeinDatenschutz aufAbmelden={abmelden} />} />

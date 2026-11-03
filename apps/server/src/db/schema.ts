@@ -247,6 +247,31 @@ export const besuche = sqliteTable(
   ],
 );
 
+/**
+ * Welche anderen Besucher ein Besucher als Kontakt gesammelt hat, seit dem 03.11.2026.
+ *
+ * Er scannt den QR-Code auf dem Pass des anderen, also dessen Viewer-Adresse. **Nur die
+ * Verknuepfung steht hier**, Name und Firma kommen beim Lesen aus `besucher`: aendert der
+ * andere seine Daten, sieht der Sammler den neuen Stand, und loescht ihn das Personal,
+ * verschwindet er auch aus den Listen. Einseitig: der Gescannte erfaehrt davon nichts.
+ */
+export const besucherKontakte = sqliteTable(
+  "besucher_kontakte",
+  {
+    besitzerGuid: text("besitzer_guid")
+      .notNull()
+      .references(() => besucher.guid, { onDelete: "cascade" }),
+    kontaktGuid: text("kontakt_guid")
+      .notNull()
+      .references(() => besucher.guid, { onDelete: "cascade" }),
+    zeitpunkt: integer("zeitpunkt").notNull().default(jetzt),
+  },
+  (t) => [
+    unique("besucher_kontakte_paar").on(t.besitzerGuid, t.kontaktGuid),
+    index("besucher_kontakte_kontakt_idx").on(t.kontaktGuid),
+  ],
+);
+
 // --- Einstellungen zur Laufzeit ------------------------------------------------------
 
 /**

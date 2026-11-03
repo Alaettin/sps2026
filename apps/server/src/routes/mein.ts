@@ -1,7 +1,9 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { readSession } from "../auth/session.js";
 import { badRequest, forbidden, unauthorized } from "../errors.js";
 import type { Kontext } from "../kontext.js";
 import { entferneBesuch, meineExponate, nimmAuf } from "../services/besuche.js";
+import { entferneKontakt, meineKontakte, nimmKontaktAuf } from "../services/besucherkontakte.js";
 import { findeDatei } from "../services/dateien.js";
 import { DATENSCHUTZ_FASSUNG, datenschutzText, spracheAus } from "../services/datenschutz.js";
 import {
@@ -81,6 +83,49 @@ export function meinRoutes(app: FastifyInstance, ctx: Kontext): void {
     { preHandler: app.verlangeBesucher },
     async (req, reply) => {
       entferneBesuch(ctx.db, guid(req), req.params.exponatId);
+      void reply.code(204);
+      return null;
+    },
+  );
+
+  /**
+   * Der Besucher scannt den Pass eines anderen und nimmt ihn als Kontakt auf, seit dem
+   * 03.11.2026. Die Oberflaeche liest die GUID aus der Viewer-Adresse im QR-Code.
+   *
+   * **Begrenzt je Sitzung**, weil Passnummern fortlaufend sind und die Antwort den Namen
+   * nennt: ohne Grenze liesse sich die Besucherliste der Messe durchprobieren. Nicht je IP,
+   * denn am Stand haengen alle Handys im selben WLAN.
+   */
+  app.post<{ Body: { guid?: unknown } }>(
+    "/api/mein/kontakte",
+    {
+      preHandler: app.verlangeBesucher,
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: "1 minute",
+          keyGenerator: (req: FastifyRequest) => readSession(req)?.sub ?? req.ip,
+        },
+      },
+    },
+    async (req) => {
+      const kontakt = req.body?.guid;
+      if (typeof kontakt !== "string") throw badRequest("guid-fehlt", "Field guid is required.");
+      return nimmKontaktAuf(ctx.db, guid(req), kontakt);
+    },
+  );
+
+  /** Die eigenen Kontakte, fuer den Kasten „Kontakte“. */
+  app.get("/api/mein/kontakte", { preHandler: app.verlangeBesucher }, async (req) =>
+    meineKontakte(ctx.db, guid(req)),
+  );
+
+  /** Nimmt einen Kontakt heraus. Trifft nur die eigene Liste. */
+  app.delete<{ Params: { guid: string } }>(
+    "/api/mein/kontakte/:guid",
+    { preHandler: app.verlangeBesucher },
+    async (req, reply) => {
+      entferneKontakt(ctx.db, guid(req), req.params.guid);
       void reply.code(204);
       return null;
     },

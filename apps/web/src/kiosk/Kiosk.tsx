@@ -10,6 +10,7 @@ import { Avatarwahl } from "../bausteine/avatarwahl.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
 import { useSprache } from "../lib/sprache.js";
+import { guidAus } from "../lib/pass.js";
 
 /**
  * Das Tablet am Stand: **Besucher registrieren sich hier**, seit dem 23.10.2026.
@@ -24,30 +25,6 @@ import { useSprache } from "../lib/sprache.js";
  * fremde, noch freie Passnummer belegt. Der echte Inhaber sieht dann „schon registriert“, und
  * das Personal kann den Datensatz löschen.
  */
-
-/** Dasselbe Muster wie `pruefeGuid` im Server. */
-const GUID_MUSTER = /^[A-Za-z0-9_-]{1,50}$/;
-
-/**
- * Die GUID aus einer Pass-Adresse (`…/SPS2026-0001`), oder `null`.
- *
- * Kamera und Handeingabe nutzen dieselbe Auswertung, damit beide Wege zum selben Ergebnis
- * kommen. Von Hand darf auch die GUID allein stehen; ein QR-Code muss die ganze Adresse sein,
- * sonst liefe jeder Werbe-QR-Code in eine Serverabfrage.
- */
-function guidAus(inhalt: string, basis: string, nurAdresse: boolean): string | null {
-  const text = inhalt.trim();
-  let guid: string;
-  if (text.startsWith(basis)) {
-    // Der hintere Teil der Adresse ist die GUID.
-    guid = decodeURIComponent(text.slice(basis.length).split(/[/?#]/)[0] ?? "");
-  } else if (nurAdresse) {
-    return null;
-  } else {
-    guid = text;
-  }
-  return GUID_MUSTER.test(guid) ? guid : null;
-}
 
 // --- Scannen --------------------------------------------------------------------------
 

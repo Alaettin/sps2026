@@ -18,10 +18,12 @@ import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datensc
 import { Rueckfrage } from "../bausteine/dialog.js";
 import { useSprache } from "../lib/sprache.js";
 import { fehlertext } from "../lib/fehler.js";
+import type { Ich } from "../lib/ich.js";
+import { viewerAdresse } from "../lib/pass.js";
 
 /**
  * Der Bereich des angemeldeten Besuchers, seit dem 23.10.2026: Begrüßung, Daten ändern, Bild
- * aussuchen, Datenschutzhinweis nachlesen. Die GUID steht nirgends in der Adresse; der Server
+ * aussuchen, Datenschutzhinweis nachlesen, seit dem 03.11.2026 Kontakte sammeln. Die GUID steht nirgends in der Adresse; der Server
  * nimmt sie aus der Sitzung (`/api/mein`).
  */
 
@@ -42,7 +44,7 @@ function Rahmen({ aufAbmelden, children }: { aufAbmelden: () => void; children: 
 
 // --- Menü -----------------------------------------------------------------------------
 
-export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
+export function MeinMenue({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void }) {
   const { t } = useSprache();
   const navigate = useNavigate();
   const abruf = useAbruf<Besucher>("/api/mein");
@@ -68,6 +70,15 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 <span className="text-[15px] text-text-hinweis">
                   {b.firma ?? t("ohne Firma", "no company")}
                 </span>
+                {/* Seit dem 03.11.2026: dieselbe Adresse wie im QR-Code des Passes. */}
+                <a
+                  href={viewerAdresse(ich.viewerBaseUrl, b.guid)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 text-[13px] font-semibold break-all text-primaer-dunkel"
+                >
+                  {t("Mein Viewer", "My viewer")}: {viewerAdresse(ich.viewerBaseUrl, b.guid)} ↗
+                </a>
               </div>
             </Seitenkopf>
 
@@ -81,6 +92,16 @@ export function MeinMenue({ aufAbmelden }: { aufAbmelden: () => void }) {
                 )}
                 aufKlick={() => {
                   void navigate("/mein/exponate");
+                }}
+              />
+              <Kachel
+                titel={t("Kontakte", "Contacts")}
+                text={t(
+                  "Pässe anderer Besucher scannen und deine Kontakte ansehen.",
+                  "Scan other visitors' passes and see your contacts.",
+                )}
+                aufKlick={() => {
+                  void navigate("/mein/kontakte");
                 }}
               />
               <Kachel
@@ -242,6 +263,154 @@ export function MeinExponate({ aufAbmelden }: { aufAbmelden: () => void }) {
             {t(
               "Um es wieder aufzunehmen, scanne den QR-Code am Exponat erneut.",
               "To add it again, scan the QR code on the exhibit once more.",
+            )}
+          </p>
+        </Rueckfrage>
+      </Abschnitt>
+
+      <Knopf
+        art="rand"
+        className="self-start"
+        onClick={() => {
+          void navigate("/mein");
+        }}
+      >
+        {t("Zurück", "Back")}
+      </Knopf>
+    </Rahmen>
+  );
+}
+
+interface MeinKontakt {
+  guid: string;
+  titel: string | null;
+  vorname: string;
+  nachname: string;
+  firma: string | null;
+  zeitpunkt: number;
+}
+
+/**
+ * Die Unterseite „Kontakte“, seit dem 03.11.2026, gebaut wie „Exponate“: Knopf zum Scannen,
+ * die gesammelten Besucher mit Link in ihren Viewer, jeder mit Rückfrage entfernbar.
+ */
+export function MeinKontakte({ ich, aufAbmelden }: { ich: Ich; aufAbmelden: () => void }) {
+  const { t, datum } = useSprache();
+  const navigate = useNavigate();
+  const abruf = useAbruf<MeinKontakt[]>("/api/mein/kontakte");
+  const [zuEntfernen, setzeZuEntfernen] = useState<MeinKontakt | null>(null);
+  const [laeuft, setzeLaeuft] = useState(false);
+  const [fehler, setzeFehler] = useState<string | null>(null);
+  const liste = abruf.daten ?? [];
+  const name = (k: MeinKontakt) => `${mitTitel(k.titel, k.vorname)} ${k.nachname}`;
+
+  async function entferne() {
+    if (zuEntfernen === null) return;
+    setzeLaeuft(true);
+    setzeFehler(null);
+    try {
+      await api(`/api/mein/kontakte/${encodeURIComponent(zuEntfernen.guid)}`, {
+        method: "DELETE",
+      });
+      setzeZuEntfernen(null);
+      abruf.neu();
+    } catch (ursache) {
+      setzeFehler(fehlertext(ursache, t, ["Entfernen nicht möglich.", "Could not remove."]));
+    } finally {
+      setzeLaeuft(false);
+    }
+  }
+
+  return (
+    <Rahmen aufAbmelden={aufAbmelden}>
+      <Seitenkopf>
+        <Ueberschrift>{t("Kontakte", "Contacts")}</Ueberschrift>
+        <Knopf
+          onClick={() => {
+            void navigate("/mein/kontakte/scan");
+          }}
+        >
+          {t("Kontakt scannen", "Scan contact")}
+        </Knopf>
+      </Seitenkopf>
+
+      <Abschnitt
+        titel={
+          <>
+            {t(`Meine Kontakte (${String(liste.length)})`, `My contacts (${String(liste.length)})`)}
+          </>
+        }
+      >
+        <Zustand laedt={abruf.laedt} fehler={abruf.fehler}>
+          {liste.length === 0 ? (
+            <p className="text-[15px] text-text-hinweis">
+              {t(
+                "Noch kein Kontakt gespeichert. Scanne den QR-Code auf dem Pass eines anderen Besuchers.",
+                "No contact saved yet. Scan the QR code on another visitor's pass.",
+              )}
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {liste.map((k) => (
+                <li
+                  key={k.guid}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-linie py-3 last:border-b-0"
+                >
+                  <span className="flex min-w-[12rem] flex-1 flex-col">
+                    <span className="text-[15px] font-semibold">{name(k)}</span>
+                    {k.firma !== null && (
+                      <span className="text-[14px] text-text-zweit">{k.firma}</span>
+                    )}
+                    <span className="text-[13px] text-text-hinweis">
+                      {t("aufgenommen", "added")} {datum(k.zeitpunkt)}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <a
+                      href={viewerAdresse(ich.viewerBaseUrl, k.guid)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[13px] font-semibold text-primaer-dunkel"
+                    >
+                      {t("Viewer öffnen", "Open viewer")} ↗
+                    </a>
+                    <Knopf
+                      art="still"
+                      className="h-9 px-3 text-[13px]"
+                      onClick={() => {
+                        setzeFehler(null);
+                        setzeZuEntfernen(k);
+                      }}
+                    >
+                      {t("Entfernen", "Remove")}
+                    </Knopf>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Zustand>
+
+        <Rueckfrage
+          offen={zuEntfernen !== null}
+          aufOffen={(o) => {
+            if (!o) setzeZuEntfernen(null);
+          }}
+          titel={t("Kontakt entfernen?", "Remove contact?")}
+          bestaetigenText={t("Entfernen", "Remove")}
+          art="gefahr"
+          laeuft={laeuft}
+          fehler={fehler}
+          aufBestaetigen={() => void entferne()}
+        >
+          <p>
+            <b>{zuEntfernen !== null && name(zuEntfernen)}</b>{" "}
+            {t("verschwindet aus deiner Kontaktliste.", "will disappear from your contact list.")}
+          </p>
+          <p>
+            {t(
+              "Um den Kontakt wieder aufzunehmen, scanne seinen Pass erneut.",
+              "To add the contact again, scan their pass once more.",
             )}
           </p>
         </Rueckfrage>

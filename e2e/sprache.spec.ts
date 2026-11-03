@@ -131,6 +131,10 @@ test.describe("als Besucher", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("heading", { name: /Hello Sam Speaker/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Exhibits/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /My viewer/ })).toBeVisible();
+    await page.getByRole("button", { name: /^Contacts/ }).click();
+    await expect(page.getByRole("heading", { name: "My contacts (0)" })).toBeVisible();
+    await page.getByRole("button", { name: "Back" }).click();
     await keinUeberlauf(page, "Besuchermenü englisch");
 
     await page.getByRole("button", { name: /Exhibits/ }).click();

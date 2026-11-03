@@ -42,6 +42,11 @@ const TEXTE: Record<string, [string, string]> = {
     "Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen.",
     "We don't recognise this code. Please scan the QR code on the exhibit.",
   ],
+  "pass-nicht-registriert": [
+    "Dieser Pass ist nicht registriert. Nur registrierte Besucher lassen sich als Kontakt speichern.",
+    "This pass is not registered. Only registered visitors can be saved as contacts.",
+  ],
+  "kontakt-selbst": ["Das ist dein eigener Pass.", "This is your own pass."],
   "exponat-unbekannt": ["Dieses Exponat gibt es nicht.", "This exhibit does not exist."],
   "besucher-unbekannt": ["Diesen Besucher gibt es nicht.", "This visitor does not exist."],
   "nutzer-unbekannt": ["Diesen Nutzer gibt es nicht.", "This user does not exist."],
