@@ -25,11 +25,14 @@ test.afterEach(async () => {
 });
 
 /**
- * Ein Link der Fusszeile, genau beim Namen: das Impressum nennt `datenschutz@idtwin.org`, und
- * ohne `exact` traefe „Datenschutz“ auch diesen Link.
+ * Ein Link der „Rechtlichen Hinweise“, in der Fusszeile oder in der Linkzeile der Anmeldung,
+ * genau beim Namen: das Impressum nennt `datenschutz@idtwin.org`, und ohne `exact` traefe
+ * „Datenschutz“ auch diesen Link.
  */
 function fussLink(page: Page, name: string) {
-  return page.locator("footer").getByRole("link", { name, exact: true });
+  return page
+    .getByRole("navigation", { name: "Rechtliche Hinweise" })
+    .getByRole("link", { name, exact: true });
 }
 
 /** Fusszeile da, Foto geladen, Links wie in der Vorlage, kein waagerechter Überlauf. */
@@ -88,11 +91,24 @@ async function pruefeFusszeile(page: Page, wo: string) {
   expect(await page.evaluate(() => window.scrollX), `Überlauf auf ${wo}`).toBe(0);
 }
 
-test("Anmeldung trägt die IDTA-Fusszeile, die Rechtsseiten öffnen ohne Anmeldung", async ({
+test("Anmeldung trägt nur die Linkzeile, die Rechtsseiten öffnen ohne Anmeldung", async ({
   page,
 }) => {
   await page.goto("/anmeldung");
-  await pruefeFusszeile(page, "Anmeldung");
+  // Seit dem 03.11.2026 keine grosse Fusszeile auf der Anmeldung, nur die schmale Linkzeile.
+  await expect(page.locator("footer")).toHaveCount(0);
+  for (const [name, ziel] of [
+    ["Impressum", "/impressum"],
+    ["Datenschutz", "/datenschutz"],
+    ["Cookie-Einstellungen", "/cookies"],
+  ] as const) {
+    await expect(fussLink(page, name)).toBeVisible();
+    await expect(fussLink(page, name)).toHaveAttribute("href", ziel);
+  }
+  await page.evaluate(() => {
+    window.scrollTo(10_000, window.scrollY);
+  });
+  expect(await page.evaluate(() => window.scrollX)).toBe(0);
 
   await fussLink(page, "Impressum").click();
   await expect(page).toHaveURL(/\/impressum$/);

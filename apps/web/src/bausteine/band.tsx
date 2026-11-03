@@ -37,8 +37,11 @@ const NUETZLICH = [
   },
 ];
 
-/** Bei der IDTA fuehren diese drei auf deren Seiten; hier auf die eigenen der App. */
-const RECHTLICH = [
+/**
+ * Bei der IDTA fuehren diese drei auf deren Seiten; hier auf die eigenen der App. Auch die
+ * Linkzeile der Anmeldung nutzt sie.
+ */
+export const RECHTLICH = [
   { text: "Impressum", ziel: "/impressum" },
   { text: "Datenschutz", ziel: "/datenschutz" },
   { text: "Cookie-Einstellungen", ziel: "/cookies" },

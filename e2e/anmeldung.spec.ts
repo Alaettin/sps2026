@@ -84,6 +84,17 @@ test("der blaue Hintergrund füllt den Sichtbereich in jeder Fenstergröße", as
   }
 });
 
+/** Seit dem 03.11.2026 ohne grosse Fusszeile: auf dem Desktop ist die Anmeldung ein Bildschirm. */
+test("die Anmeldung passt bei 1440 x 900 ohne senkrechtes Scrollen", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/anmeldung");
+  await expect(page.getByRole("button", { name: "Anmelden" })).toBeVisible();
+  await page.evaluate(() => {
+    window.scrollTo(0, 99_999);
+  });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test("die Anmeldemaske nennt die Konferenz-Orga nicht mehr", async ({ page }) => {
   await page.goto("/anmeldung");
   await expect(page.getByRole("button", { name: "Anmelden" })).toBeVisible();
