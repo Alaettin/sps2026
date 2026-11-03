@@ -58,12 +58,13 @@ const NUETZLICH = [
 
 /**
  * Bei der IDTA fuehren diese drei auf deren Seiten; hier auf die eigenen der App. Auch die
- * Linkzeile der Anmeldung nutzt sie.
+ * Linkzeile der Anmeldung nutzt sie. Seit dem 03.11.2026 mit englischer Adresse (`App.tsx`
+ * kennt beide); `/cookies` gilt in beiden Sprachen.
  */
 export const RECHTLICH = [
-  { text: "Impressum", en: "Imprint", ziel: "/impressum" },
-  { text: "Datenschutz", en: "Privacy", ziel: "/datenschutz" },
-  { text: "Cookie-Einstellungen", en: "Cookie settings", ziel: "/cookies" },
+  { text: "Impressum", en: "Imprint", ziel: "/impressum", zielEn: "/imprint" },
+  { text: "Datenschutz", en: "Privacy", ziel: "/datenschutz", zielEn: "/privacy" },
+  { text: "Cookie-Einstellungen", en: "Cookie settings", ziel: "/cookies", zielEn: "/cookies" },
 ];
 
 const SOZIAL = [
@@ -181,7 +182,7 @@ export function Fusszeile() {
           <ul>
             {RECHTLICH.map((l) => (
               <li key={l.ziel} className="mb-2">
-                <Link className={LINK} to={l.ziel}>
+                <Link className={LINK} to={sprache === "de" ? l.ziel : l.zielEn}>
                   {t(l.text, l.en)}
                 </Link>
               </li>

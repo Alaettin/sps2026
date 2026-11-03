@@ -151,7 +151,7 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
             <ul className="flex flex-wrap gap-x-5 gap-y-1">
               {RECHTLICH.map((l) => (
                 <li key={l.ziel}>
-                  <Link className="transition-colors hover:text-white" to={l.ziel}>
+                  <Link className="transition-colors hover:text-white" to={t(l.ziel, l.zielEn)}>
                     {t(l.text, l.en)}
                   </Link>
                 </li>

@@ -143,6 +143,13 @@ test("Anmeldung trägt nur die Linkzeile, die Rechtsseiten öffnen ohne Anmeldun
   // Zurück führt den Weg zurück, hier auf den Datenschutz.
   await page.getByRole("button", { name: "Zurück" }).click();
   await expect(page).toHaveURL(/\/datenschutz$/);
+
+  // Die englischen Adressen gelten auch hier; die Sprache bleibt die des Umschalters.
+  await page.goto("/imprint");
+  await expect(page).toHaveURL(/\/imprint$/);
+  await expect(page.getByRole("heading", { name: "Impressum" })).toBeVisible();
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Datenschutzhinweis" })).toBeVisible();
 });
 
 test("Der Besucherbereich trägt die Fusszeile, die Rechtsseiten bleiben angemeldet erreichbar", async ({

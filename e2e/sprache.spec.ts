@@ -68,13 +68,41 @@ test.describe("ohne Anmeldung", () => {
       "https://industrialdigitaltwin.org/en/about-idta/become-a-member-en",
     );
 
+    // Seit dem 03.11.2026 zeigen die Links auf Englisch auf die englischen Adressen.
+    await expect(fuss.getByRole("link", { name: "Privacy", exact: true })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
     await fuss.getByRole("link", { name: "Imprint", exact: true }).click();
+    await expect(page).toHaveURL(/\/imprint$/);
     await expect(page.getByRole("heading", { name: "Imprint" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Technical operation" })).toBeVisible();
 
     await fuss.getByRole("link", { name: "Cookie settings", exact: true }).click();
     await expect(page.getByText("only one technically necessary cookie")).toBeVisible();
     await keinUeberlauf(page, "Cookie-Seite englisch");
+  });
+
+  test("englische Adressen öffnen die Rechtsseiten direkt, auch auf der Anmeldung verlinkt", async ({
+    page,
+  }) => {
+    await page.goto("/anmeldung");
+    const zeile = page.getByRole("navigation", { name: "Legal information" });
+    await expect(zeile.getByRole("link", { name: "Imprint", exact: true })).toHaveAttribute(
+      "href",
+      "/imprint",
+    );
+    await expect(zeile.getByRole("link", { name: "Privacy", exact: true })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+
+    await page.goto("/imprint");
+    await expect(page).toHaveURL(/\/imprint$/);
+    await expect(page.getByRole("heading", { name: "Imprint" })).toBeVisible();
+    await page.goto("/privacy");
+    await expect(page).toHaveURL(/\/privacy$/);
+    await expect(page.getByRole("heading", { name: "Privacy notice" })).toBeVisible();
   });
 });
 

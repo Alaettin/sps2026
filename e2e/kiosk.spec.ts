@@ -54,7 +54,16 @@ async function bisZumDatenschutz(page: Page, guid: string, email: string): Promi
 }
 
 test("die Verwaltung bleibt unerreichbar und landet wieder beim Scan", async ({ page }) => {
-  for (const pfad of ["/nutzer", "/besucher", "/", "/monitoring", "/mein", "/impressum"]) {
+  for (const pfad of [
+    "/nutzer",
+    "/besucher",
+    "/",
+    "/monitoring",
+    "/mein",
+    "/impressum",
+    "/imprint",
+    "/privacy",
+  ]) {
     await page.goto(pfad);
     await expect(page, `${pfad} war erreichbar`).toHaveURL(/\/kiosk$/);
   }

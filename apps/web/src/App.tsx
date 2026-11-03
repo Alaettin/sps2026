@@ -28,12 +28,15 @@ import { useSprache } from "./lib/sprache.js";
 
 /**
  * Die Seiten hinter der Fusszeile, seit dem 02.11.2026. **In jedem Baum ausser dem des
- * Terminals**, damit dieselbe Adresse abgemeldet wie angemeldet gilt.
+ * Terminals**, damit dieselbe Adresse abgemeldet wie angemeldet gilt. Seit dem 03.11.2026
+ * auch unter englischer Adresse; die Sprache der Seite folgt weiter dem Umschalter.
  */
 const RECHTSSEITEN = (
   <>
     <Route path="/impressum" element={<Impressum />} />
+    <Route path="/imprint" element={<Impressum />} />
     <Route path="/datenschutz" element={<Datenschutz />} />
+    <Route path="/privacy" element={<Datenschutz />} />
     <Route path="/cookies" element={<Cookies />} />
   </>
 );
