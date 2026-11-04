@@ -1,7 +1,8 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { besucher, besucherKontakte } from "../db/schema.js";
-import { badRequest, notFound } from "../errors.js";
+import { badRequest, conflict, notFound } from "../errors.js";
+import { MAX_BESUCHERKONTAKTE } from "../modell/felder.js";
 import { pruefeGuid } from "./besucher.js";
 
 /**
@@ -38,12 +39,39 @@ export function nimmKontaktAuf(db: Db, guid: string, roheGuid: string) {
     .get();
   if (k === undefined) throw notFound("pass-nicht-registriert", "This pass is not registered.");
 
-  const ergebnis = db
-    .insert(besucherKontakte)
-    .values({ besitzerGuid: guid, kontaktGuid, zeitpunkt: Date.now() })
-    .onConflictDoNothing()
-    .run();
-  return { ...k, neu: ergebnis.changes > 0 };
+  /*
+   * **Hoechstens `MAX_BESUCHERKONTAKTE`**, seit dem 04.11.2026: so viele Plaetze hat der
+   * Konnektor. Zaehlen und Einfuegen in einer Transaktion, sonst kaeme bei zwei gleichzeitigen
+   * Scans der 51. durch. Ein schon vorhandener Kontakt zaehlt nicht als neu und geht immer.
+   */
+  const neu = db.transaction((tx) => {
+    const vorhanden = tx
+      .select({ guid: besucherKontakte.kontaktGuid })
+      .from(besucherKontakte)
+      .where(
+        and(eq(besucherKontakte.besitzerGuid, guid), eq(besucherKontakte.kontaktGuid, kontaktGuid)),
+      )
+      .get();
+    if (vorhanden !== undefined) return false;
+    const anzahl =
+      tx
+        .select({ n: count() })
+        .from(besucherKontakte)
+        .where(eq(besucherKontakte.besitzerGuid, guid))
+        .get()?.n ?? 0;
+    if (anzahl >= MAX_BESUCHERKONTAKTE) {
+      throw conflict(
+        "kontakte-voll",
+        `At most ${String(MAX_BESUCHERKONTAKTE)} contacts per visitor.`,
+        { grenze: MAX_BESUCHERKONTAKTE },
+      );
+    }
+    tx.insert(besucherKontakte)
+      .values({ besitzerGuid: guid, kontaktGuid, zeitpunkt: Date.now() })
+      .run();
+    return true;
+  });
+  return { ...k, neu };
 }
 
 /**

@@ -30,6 +30,8 @@ import {
   visitorFeld,
 } from "./felder.js";
 import { kontakteVonExponat } from "../services/kontakte.js";
+import { meineKontakte } from "../services/besucherkontakte.js";
+import { MAX_BESUCHERKONTAKTE, besucherKontaktName, besucherKontaktViewer } from "./felder.js";
 
 /**
  * Was ein Besucher an Werten hat, in der Form der Konnektor-Spezifikation.
@@ -128,7 +130,7 @@ function personenwert(
  * was es gerade hat (seit dem 02.11.2026). Alles andere wird ausgelassen, was die Spec
  * ausdruecklich erlaubt.
  */
-export function sammleWerte(db: Db, guid: string): RohWert[] {
+export function sammleWerte(db: Db, guid: string, viewerBasis: string): RohWert[] {
   const person = db.select().from(besucher).where(eq(besucher.guid, guid)).get();
   if (person === undefined) return [];
 
@@ -170,6 +172,27 @@ export function sammleWerte(db: Db, guid: string): RohWert[] {
       werte.push({ propertyId: globalId(g.nummer), text: null, dateiId: g.dateiId });
     }
   }
+
+  /*
+   * **Die gescannten Kontakte**, seit dem 04.11.2026: in der Folge der Aufnahme, wie die Liste
+   * unter `/mein/kontakte`, hoechstens `MAX_BESUCHERKONTAKTE`. Der Platz ist die Position; wird
+   * ein Kontakt entfernt, ruecken die folgenden nach, damit der Viewer keine Luecken zeigt.
+   * Name ohne Titel (Vorgabe: Vorname und Nachname), Link wie im QR-Code des Kontakts.
+   */
+  meineKontakte(db, guid)
+    .slice(0, MAX_BESUCHERKONTAKTE)
+    .forEach((k, i) => {
+      werte.push({
+        propertyId: besucherKontaktName(i + 1),
+        text: `${k.vorname} ${k.nachname}`,
+        dateiId: null,
+      });
+      werte.push({
+        propertyId: besucherKontaktViewer(i + 1),
+        text: `${viewerBasis}${k.guid}`,
+        dateiId: null,
+      });
+    });
 
   /*
    * **Live seit dem 02.11.2026**: je aufgenommenem Exponat alles, was es gerade hat. Was der

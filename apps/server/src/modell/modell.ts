@@ -2,6 +2,9 @@ import { asc } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { exponate, globaleDaten } from "../db/schema.js";
 import {
+  MAX_BESUCHERKONTAKTE,
+  besucherKontaktName,
+  besucherKontaktViewer,
   MAX_DOKUMENTE,
   MAX_KONTAKTE,
   MAX_LINKS,
@@ -80,6 +83,18 @@ export function baueModell(db: Db): DataModelProperty[] {
   }
   felder.push(eintrag(VISITOR_ALIAS, "Besucher Alias", PROPERTY_TYPE.property));
   felder.push(eintrag(VISITOR_AVATAR, "Besucher Foto", PROPERTY_TYPE.document));
+  // Die gescannten Kontakte, alle Plaetze auch leer, damit einmal gemappt wird.
+  for (let p = 1; p <= MAX_BESUCHERKONTAKTE; p++) {
+    const nr = platzNr(p);
+    felder.push(
+      eintrag(besucherKontaktName(p), `Besucher Kontakt ${nr} Name`, PROPERTY_TYPE.property),
+      eintrag(
+        besucherKontaktViewer(p),
+        `Besucher Kontakt ${nr} Viewer-Link`,
+        PROPERTY_TYPE.property,
+      ),
+    );
+  }
 
   /*
    * **Die globalen Daten**, fuer alle Besucher dieselben. Anders als die festen Plaetze nur die
@@ -156,5 +171,5 @@ export function baueModell(db: Db): DataModelProperty[] {
 export const FELDER_JE_EXPONAT =
   2 + MAX_DOKUMENTE * 3 + MAX_LINKS * 2 + MAX_KONTAKTE * AUSGEGEBENE_PERSONENFELDER;
 
-/** Zahl der Besucherdatenpunkte: Titel, Personenfelder, Alias, Foto. */
-export const FELDER_BESUCHER = 1 + AUSGEGEBENE_PERSONENFELDER + 1 + 1;
+/** Zahl der Besucherdatenpunkte: Titel, Personenfelder, Alias, Foto, je Kontakt Name und Link. */
+export const FELDER_BESUCHER = 1 + AUSGEGEBENE_PERSONENFELDER + 1 + 1 + MAX_BESUCHERKONTAKTE * 2;

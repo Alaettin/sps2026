@@ -5,7 +5,7 @@ import { besucher } from "../db/schema.js";
 import type { Kontext } from "../kontext.js";
 import { baueModell } from "../modell/modell.js";
 import { leseAnfrage, nachAussen, sammleWerte } from "../modell/werte.js";
-import { anmeldungVerlangt } from "../services/einstellungen.js";
+import { anmeldungVerlangt, viewerBasisUrl } from "../services/einstellungen.js";
 import { zaehleAbruf, zaehleUnbekannt, type Abrufart } from "../services/abrufe.js";
 import { pruefeBasic } from "./basic.js";
 import {
@@ -199,7 +199,7 @@ export function konnektorApiRoutes(app: FastifyInstance, ctx: Kontext): void {
       const gefragt = anfrage.mitSprache.length + anfrage.ohneSprache.length;
       if (gefragt > HOECHSTZAHL_FELDER) throw zuVieleFelder(HOECHSTZAHL_FELDER);
 
-      const alle = sammleWerte(ctx.db, guid);
+      const alle = sammleWerte(ctx.db, guid, viewerBasisUrl(ctx.db, ctx.env).url);
       const gewuenscht = anfrage.allesLiefern
         ? alle
         : alle.filter(
@@ -233,7 +233,7 @@ export function konnektorApiRoutes(app: FastifyInstance, ctx: Kontext): void {
       if (tickets.length > HOECHSTZAHL_FELDER) throw zuVieleFelder(HOECHSTZAHL_FELDER);
 
       const gesucht = new Set(tickets);
-      const zeilen = sammleWerte(ctx.db, guid).filter(
+      const zeilen = sammleWerte(ctx.db, guid, viewerBasisUrl(ctx.db, ctx.env).url).filter(
         (w) => w.dateiId !== null && gesucht.has(w.propertyId),
       );
 

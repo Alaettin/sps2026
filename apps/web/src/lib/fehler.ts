@@ -63,6 +63,10 @@ const TEXTE: Record<string, [string, string]> = {
     "This pass is not registered. Only registered visitors can be saved as contacts.",
   ],
   "kontakt-selbst": ["Das ist dein eigener Pass.", "This is your own pass."],
+  "kontakte-voll": [
+    "Du hast schon 50 Kontakte. Entferne einen, um einen neuen aufzunehmen.",
+    "You already have 50 contacts. Remove one to add a new one.",
+  ],
   "exponat-unbekannt": ["Dieses Exponat gibt es nicht.", "This exhibit does not exist."],
   "besucher-unbekannt": ["Diesen Besucher gibt es nicht.", "This visitor does not exist."],
   "nutzer-unbekannt": ["Diesen Nutzer gibt es nicht.", "This user does not exist."],

@@ -117,4 +117,18 @@ export function linkTitel(kennung: string, platz: number): string {
 export function kontaktFeld(kennung: string, platz: number, id: string): string {
   return `${kennung}_Contact${platzNr(platz)}_${id}`;
 }
+
+/**
+ * Die Kontakte des Besuchers (gescannte Paesse anderer Besucher), seit dem 04.11.2026 im
+ * Konnektor. Je Platz der Name und der Viewer-Link des Kontakts. Eigener Praefix `Visitor_`,
+ * damit nichts mit den Ansprechpartnern der Exponate (`{K}_Contact{NN}_…`) zusammenfaellt.
+ */
+export const MAX_BESUCHERKONTAKTE = 50;
+
+export function besucherKontaktName(platz: number): string {
+  return `Visitor_Contact${platzNr(platz)}_Name`;
+}
+export function besucherKontaktViewer(platz: number): string {
+  return `Visitor_Contact${platzNr(platz)}_ViewerUrl`;
+}
 // --- Filter ---------------------------------------------------------------------------
