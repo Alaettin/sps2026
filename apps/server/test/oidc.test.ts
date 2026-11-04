@@ -463,6 +463,25 @@ describe("OIDC: Konfiguration", () => {
 
   it("bricht bei halber Konfiguration den Start ab", () => {
     expect(() => readEnv({ ...basis, OIDC_CLIENT_SECRET: "" })).toThrow(/halb eingerichtet/);
+    expect(() =>
+      readEnv({ SESSION_SECRET: TEST_SECRET, OIDC_REDIRECT_URIS: REDIRECT } as NodeJS.ProcessEnv),
+    ).toThrow(/fehlen/);
+  });
+
+  it("laeuft ohne Ruecksprungadresse, lehnt dann aber jede Autorisierung ohne Umleitung ab", async () => {
+    const { s, besucher } = await aufbau({ ...OIDC, OIDC_REDIRECT_URIS: "" });
+    const discovery = await s.app.inject({
+      method: "GET",
+      url: "/.well-known/openid-configuration",
+    });
+    expect(discovery.statusCode).toBe(200);
+    const antwort = await s.app.inject({
+      method: "GET",
+      url: authorizeUrl({ code_challenge: pkce().challenge }),
+      headers: { cookie: besucher.keks },
+    });
+    expect(antwort.statusCode).toBe(400);
+    expect(antwort.headers.location).toBeUndefined();
   });
 
   it("verlangt PUBLIC_BASE_URL, ein langes Geheimnis und einen P-256-Schluessel", () => {

@@ -92,7 +92,10 @@ export interface OidcEnv {
   readonly issuer: string;
   readonly clientId: string;
   readonly clientSecret: string;
-  /** Exakt verglichen, kein Praefix: sonst waere jede Unteradresse ein Ziel fuer Codes. */
+  /**
+   * Exakt verglichen, kein Praefix: sonst waere jede Unteradresse ein Ziel fuer Codes. Leer
+   * heisst: noch keine eingetragen, `/oauth/authorize` lehnt alles ab.
+   */
   readonly redirectUris: readonly string[];
   /** EC P-256 als PKCS8-PEM. */
   readonly signaturSchluessel: string;
@@ -101,26 +104,34 @@ export interface OidcEnv {
 }
 
 /**
- * Liest die OIDC-Werte. Alle vier oder keiner; halb gesetzt bricht den Start ab, aus demselben
- * Grund wie bei `paar`: es saehe eingerichtet aus und liefe nie.
+ * Liest die OIDC-Werte. Client-ID, Geheimnis und Schluessel alle drei oder keiner; halb gesetzt
+ * bricht den Start ab, aus demselben Grund wie bei `paar`: es saehe eingerichtet aus und liefe
+ * nie.
+ *
+ * **Die Ruecksprungadressen duerfen fehlen**, seit dem 04.11.2026. Die Broker-Adresse kennt erst,
+ * wer Keycloak eingerichtet hat, und dafuer braucht er schon Geheimnis und Discovery. Ohne
+ * Adresse laeuft alles ausser `/oauth/authorize`, das jede Anfrage ohne Umleitung ablehnt.
  */
 function leseOidc(source: NodeJS.ProcessEnv, publicBaseUrl: string | null): OidcEnv | null {
-  const namen = [
-    "OIDC_CLIENT_ID",
-    "OIDC_CLIENT_SECRET",
-    "OIDC_REDIRECT_URIS",
-    "OIDC_SIGNATUR_SCHLUESSEL",
-  ] as const;
+  const namen = ["OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_SIGNATUR_SCHLUESSEL"] as const;
   const werte = namen.map((name) => source[name]?.trim() ?? "");
   const gesetzt = namen.filter((_, i) => werte[i] !== "");
-  if (gesetzt.length === 0) return null;
+  const uris = source["OIDC_REDIRECT_URIS"]?.trim() ?? "";
+  if (gesetzt.length === 0) {
+    if (uris !== "") {
+      throw new ConfigError(
+        "OIDC_REDIRECT_URIS ist gesetzt, aber Client-ID, Geheimnis und Schluessel fehlen.",
+      );
+    }
+    return null;
+  }
   if (gesetzt.length < namen.length) {
     const fehlend = namen.filter((_, i) => werte[i] === "");
     throw new ConfigError(
-      `OIDC ist nur halb eingerichtet, es fehlen: ${fehlend.join(", ")}. Alle vier oder keiner.`,
+      `OIDC ist nur halb eingerichtet, es fehlen: ${fehlend.join(", ")}. Alle drei oder keiner.`,
     );
   }
-  const [clientId, clientSecret, uris, schluessel] = werte as [string, string, string, string];
+  const [clientId, clientSecret, schluessel] = werte as [string, string, string];
   if (clientSecret.length < 32) {
     throw new ConfigError("OIDC_CLIENT_SECRET ist zu kurz, mindestens 32 Zeichen sind noetig.");
   }
@@ -166,9 +177,6 @@ function leseOidc(source: NodeJS.ProcessEnv, publicBaseUrl: string | null): Oidc
     throw new ConfigError(
       "OIDC_SIGNATUR_SCHLUESSEL muss ein EC-Schluessel auf P-256 sein (ES256).",
     );
-  }
-  if (redirectUris.length === 0) {
-    throw new ConfigError("OIDC_REDIRECT_URIS ist leer.");
   }
   return {
     issuer: publicBaseUrl,
