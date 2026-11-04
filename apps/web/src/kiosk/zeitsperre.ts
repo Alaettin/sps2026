@@ -35,7 +35,12 @@ export interface Zeitsperre {
  * kaeme dann erst Minuten spaeter. Mit einem Zeitstempel ist die Frist beim Aufwachen
  * bereits abgelaufen und es springt sofort zurueck.
  */
-export function useZeitsperre(aufAblauf: () => void): Zeitsperre {
+/**
+ * `angehalten`: die Uhr steht, solange der Wert gilt, und beginnt danach von vorn. Seit dem
+ * 04.11.2026 fuer die KI-Bilder: das Erzeugen dauert rund 30 Sekunden, in denen niemand
+ * tippt, und der Besucher wartet ja gerade auf das Terminal.
+ */
+export function useZeitsperre(aufAblauf: () => void, angehalten = false): Zeitsperre {
   const [restSekunden, setzeRest] = useState<number | null>(null);
   const letzte = useRef(Date.now());
   const gefeuert = useRef(false);
@@ -43,9 +48,16 @@ export function useZeitsperre(aufAblauf: () => void): Zeitsperre {
   // Im Ref gehalten, damit der Takt nicht bei jedem Rendern neu aufgesetzt wird.
   const ablauf = useRef(aufAblauf);
   ablauf.current = aufAblauf;
+  const halt = useRef(angehalten);
+  halt.current = angehalten;
 
   useEffect(() => {
     const uhr = setInterval(() => {
+      if (halt.current) {
+        letzte.current = Date.now();
+        setzeRest(null);
+        return;
+      }
       const vergangen = Date.now() - letzte.current;
       const rest = SPERRE_MS - vergangen;
 

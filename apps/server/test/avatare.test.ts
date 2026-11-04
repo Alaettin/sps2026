@@ -266,7 +266,11 @@ describe("Galerie und Neustart", () => {
     expect(nachher.map((a) => a.dateiId)).not.toContain(weg);
   });
 
-  it("stellt die Galerie beim Zuruecksetzen wieder her", async () => {
+  /**
+   * Seit dem 04.11.2026 **laesst** das Zuruecksetzen die Galerie stehen, wie sie ist: sie waechst
+   * mit den KI-Bildern vom Terminal. Vorher stellte es die 20 mitgelieferten wieder her.
+   */
+  it("laesst die Galerie beim Zuruecksetzen, wie sie ist", async () => {
     const { s, keks } = await alsAdmin();
     const alle = await galerie(s, keks);
     await s.app.inject({
@@ -284,10 +288,9 @@ describe("Galerie und Neustart", () => {
     });
     expect(zurueck.statusCode).toBe(200);
 
-    expect(
-      await galerie(s, keks),
-      "Zuruecksetzen stellt den Auslieferungszustand her",
-    ).toHaveLength(20);
+    const nachher = await galerie(s, keks);
+    expect(nachher, "das geloeschte Bild kommt nicht zurueck").toHaveLength(19);
+    expect(nachher.map((a) => a.dateiId)).not.toContain(alle[0]?.dateiId);
   });
 });
 

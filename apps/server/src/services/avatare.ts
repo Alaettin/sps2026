@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type { Dateiablage } from "../ablage/dateien.js";
 import type { Db } from "../db/client.js";
 import { avatare, dateien, einstellungen } from "../db/schema.js";
@@ -100,15 +100,22 @@ export async function befuelleGalerieEinmalig(
     .run();
 }
 
+export type Herkunft = "vorlage" | "upload" | "ki";
+
 export interface Avatarzeile {
   dateiId: string;
   sortierung: number;
+  herkunft: Herkunft;
 }
 
 /** Die Galerie in Anzeigereihenfolge. */
 export function leseGalerie(db: Db): Avatarzeile[] {
   return db
-    .select({ dateiId: avatare.dateiId, sortierung: avatare.sortierung })
+    .select({
+      dateiId: avatare.dateiId,
+      sortierung: avatare.sortierung,
+      herkunft: avatare.herkunft,
+    })
     .from(avatare)
     .orderBy(asc(avatare.sortierung))
     .all();
@@ -179,12 +186,24 @@ export async function legeAvatarAn(
     .values({ id, pfad, mimeType, groesse, originalName, sha256, angelegt: Date.now() })
     .run();
 
+  return haengeAn(db, id, "upload");
+}
+
+/**
+ * Haengt eine vorhandene Datei hinten an die Galerie an. Gemeinsam fuer den Upload des Admins
+ * und, seit dem 04.11.2026, das Uebernehmen eines KI-Bildes am Terminal.
+ */
+export function haengeAn(
+  db: Db,
+  dateiId: string,
+  herkunft: Exclude<Herkunft, "vorlage">,
+): Avatarzeile {
   const hoechste =
     db
       .select({ n: sql<number>`coalesce(max(${avatare.sortierung}), 0)` })
       .from(avatare)
       .get()?.n ?? 0;
-  const zeile = { dateiId: id, sortierung: hoechste + 1 };
+  const zeile = { dateiId, sortierung: hoechste + 1, herkunft };
   db.insert(avatare).values(zeile).run();
   return zeile;
 }
@@ -255,11 +274,4 @@ function neuNummerieren(db: Db): void {
         .run();
     });
   });
-}
-
-/** Fuer das Zuruecksetzen: die Galerie leeren, damit die Erstbefuellung wieder greift. */
-export function vergissErstbefuellung(db: Db): void {
-  db.delete(einstellungen)
-    .where(inArray(einstellungen.schluessel, [SCHLUESSEL_ERSTBEFUELLUNG]))
-    .run();
 }

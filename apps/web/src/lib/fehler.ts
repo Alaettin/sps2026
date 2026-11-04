@@ -38,6 +38,22 @@ const TEXTE: Record<string, [string, string]> = {
     "The privacy notice has changed. Please reload and read the current version.",
   ],
   "avatar-unbekannt": ["Dieses Bild gibt es nicht.", "This picture does not exist."],
+  "ki-aus": [
+    "KI-Bilder sind auf diesem Server nicht eingerichtet.",
+    "AI pictures are not set up on this server.",
+  ],
+  "ki-fehlgeschlagen": [
+    "Das Bild ließ sich nicht erstellen. Bitte noch einmal versuchen.",
+    "The picture could not be created. Please try again.",
+  ],
+  "merkmal-ungueltig": [
+    "Diese Auswahl kennt der Server nicht. Bitte die Seite neu laden.",
+    "The server does not know this selection. Please reload the page.",
+  ],
+  "entwurf-unbekannt": [
+    "Dieses KI-Bild gibt es nicht mehr. Bitte neu erstellen.",
+    "This AI picture no longer exists. Please create it again.",
+  ],
   "code-unbekannt": [
     "Diesen Code kennen wir nicht. Bitte den QR-Code am Exponat scannen.",
     "We don't recognise this code. Please scan the QR code on the exhibit.",

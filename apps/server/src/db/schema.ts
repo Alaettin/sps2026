@@ -339,6 +339,28 @@ export const avatare = sqliteTable("avatare", {
     .references(() => dateien.id, { onDelete: "cascade" }),
   /** Eins-basiert und beim Umsortieren neu vergeben, damit keine Luecken entstehen. */
   sortierung: integer("sortierung").notNull(),
+  /**
+   * Woher das Bild kam, seit dem 04.11.2026: mitgeliefert, vom Admin hochgeladen oder am
+   * Terminal per KI erzeugt und uebernommen. Nur zur Anzeige in der Verwaltung; waehlbar
+   * sind alle gleich.
+   */
+  herkunft: text("herkunft", { enum: ["vorlage", "upload", "ki"] })
+    .notNull()
+    .default("vorlage"),
+  angelegt: integer("angelegt").notNull().default(jetzt),
+});
+
+/**
+ * Am Terminal per KI erzeugte Bilder, die **noch nicht uebernommen** sind, seit dem 04.11.2026.
+ *
+ * In die Galerie kommt nur, was ein Besucher uebernimmt; wer dreimal neu erzeugt, soll keine
+ * drei Bilder hinterlassen. Ein Entwurf, den niemand uebernimmt oder verwirft (Besucher geht
+ * weg), wird beim naechsten Erzeugen nach einer Stunde aufgeraeumt, siehe `services/kiavatar.ts`.
+ */
+export const avatarEntwuerfe = sqliteTable("avatar_entwuerfe", {
+  dateiId: text("datei_id")
+    .primaryKey()
+    .references(() => dateien.id, { onDelete: "cascade" }),
   angelegt: integer("angelegt").notNull().default(jetzt),
 });
 

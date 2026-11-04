@@ -1,11 +1,11 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, notInArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import type { Dateiablage } from "../ablage/dateien.js";
-import { stelleStandardAvatarSicher } from "./standardavatar.js";
-import { befuelleGalerieEinmalig, vergissErstbefuellung } from "./avatare.js";
+import { STANDARD_AVATAR_ID, stelleStandardAvatarSicher } from "./standardavatar.js";
 import { SCHLUESSEL_UNBEKANNT } from "./abrufe.js";
 import {
   appNutzer,
+  avatare,
   besucher,
   dateien,
   exponate,
@@ -42,6 +42,12 @@ export interface Bestand {
   globaleDaten: number;
   /** Bleiben beim Zuruecksetzen erhalten. Nur zur Anzeige im Rueckfragedialog. */
   appNutzer: number;
+  /**
+   * Die Avatarauswahl, seit dem 04.11.2026 gezaehlt: sie bleibt beim Zuruecksetzen und waechst
+   * mit jedem uebernommenen KI-Bild. Die Sicherung nennt beide Zahlen.
+   */
+  avatare: number;
+  kiAvatare: number;
 }
 
 /**
@@ -64,11 +70,23 @@ export function leseBestand(db: Db): Bestand {
     abrufe: n(db.select({ n: sql<number>`count(*)` }).from(konnektorAbrufe)),
     globaleDaten: n(db.select({ n: sql<number>`count(*)` }).from(globaleDaten)),
     appNutzer: n(db.select({ n: sql<number>`count(*)` }).from(appNutzer)),
+    avatare: n(db.select({ n: sql<number>`count(*)` }).from(avatare)),
+    kiAvatare: n(
+      db
+        .select({ n: sql<number>`count(*)` })
+        .from(avatare)
+        .where(eq(avatare.herkunft, "ki")),
+    ),
   };
 }
 
 /**
- * Loescht den gesamten Fachbestand. **App-Nutzer bleiben.**
+ * Loescht den gesamten Fachbestand. **App-Nutzer bleiben, und die Avatarauswahl bleibt.**
+ *
+ * Die Auswahl bleibt seit dem 04.11.2026: sie waechst mit jedem KI-Bild, das am Terminal
+ * uebernommen wird, und soll das Leeren des Testbestands vor der Messe ueberstehen. Vorher
+ * wurde sie geloescht und mit den 20 mitgelieferten Bildern neu angelegt. Wer sie leeren will,
+ * loescht in der Avatarverwaltung.
  *
  * Wuerden sie mitgeloescht, kaeme nach dem Zuruecksetzen niemand mehr hinein: der
  * Bootstrap aus `ADMIN_EMAIL` greift erst beim naechsten **Start** und nur, solange kein
@@ -82,10 +100,25 @@ export function leseBestand(db: Db): Bestand {
 export async function setzeZurueck(db: Db, ablage: Dateiablage): Promise<Bestand> {
   const vorher = leseBestand(db);
 
+  /*
+   * Was bleibt: die Bilder der Galerie und der Standard-Avatar. Alles andere in `dateien` geht,
+   * auch nicht uebernommene KI-Entwuerfe (per cascade samt Zeile in `avatar_entwuerfe`).
+   */
+  const bleiben = [
+    STANDARD_AVATAR_ID,
+    ...db
+      .select({ id: avatare.dateiId })
+      .from(avatare)
+      .all()
+      .map((a) => a.id),
+  ];
+  const weg = notInArray(dateien.id, bleiben);
+
   // Pfade vor dem Loeschen merken, danach sind sie weg.
   const pfade = db
     .select({ pfad: dateien.pfad })
     .from(dateien)
+    .where(weg)
     .all()
     .map((d) => d.pfad);
 
@@ -120,31 +153,19 @@ export async function setzeZurueck(db: Db, ablage: Dateiablage): Promise<Bestand
      * der naechste wieder `Global01` und erbte das Axon-Mapping eines geloeschten.
      */
     tx.delete(globaleDaten).run();
-    tx.delete(dateien).run();
+    tx.delete(dateien).where(weg).run();
   });
 
   // Erst jetzt die Platte. Ein Fehler hier laesst eine Waise liegen, keine Luecke.
   for (const pfad of pfade) await ablage.loesche(pfad);
 
   /*
-   * **Den Standard-Avatar wieder anlegen.**
-   *
-   * Er liegt in `dateien` und ging oben mit. Angelegt wurde er bisher nur beim **Start**,
-   * also war er nach einem Zuruecksetzen bis zum naechsten Neustart weg: `/api/standard-avatar`
-   * antwortete 404 und jeder Besucher erschien ohne Bild. Gemeldet am 08.10.2026.
-   *
-   * Zuruecksetzen soll den Zustand einer frischen Installation herstellen, und dazu gehoert er.
+   * **Den Standard-Avatar sicherstellen.** Er bleibt oben stehen; fehlte er schon vorher, legt
+   * das ihn an. Bis zum 08.10.2026 war er nach einem Zuruecksetzen bis zum naechsten Neustart
+   * weg, `/api/standard-avatar` antwortete 404 und jeder Besucher erschien ohne Bild.
    */
   await stelleStandardAvatarSicher(db, ablage, () => {
     // Fehlt das Bild im Repo, ist das kein Grund, das Zuruecksetzen scheitern zu lassen.
-  });
-  /*
-   * Die Galerie wieder herstellen. Dafuer muss der Merker weg: das Zuruecksetzen soll den
-   * Zustand einer frischen Installation herstellen, und dazu gehoeren die 20 Bilder.
-   */
-  vergissErstbefuellung(db);
-  await befuelleGalerieEinmalig(db, ablage, () => {
-    // Fehlt ein Bild im Repo, ist das kein Grund, das Zuruecksetzen scheitern zu lassen.
   });
 
   return vorher;

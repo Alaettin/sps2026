@@ -368,3 +368,145 @@ test.describe("auf Englisch", () => {
     await expect(page.getByRole("heading", { name: "Scan pass" })).toBeVisible();
   });
 });
+
+/**
+ * KI-Bild am Terminal, seit dem 04.11.2026. **OpenAI wird nie gerufen**: die drei KI-Routen
+ * fängt der Browser ab. Als „erzeugtes“ Bild dient ein vorhandenes Galeriebild, damit die
+ * Registrierung danach echt durchgeht. Dass der Server Entwürfe richtig führt, prüft Vitest.
+ */
+test.describe("Bild mit KI", () => {
+  async function mitKi(page: Page, ki: boolean): Promise<string[]> {
+    const aufrufe: string[] = [];
+    let galerie: string[] = [];
+    await page.route("**/api/kiosk/avatare", async (route) => {
+      const echt = await route.fetch();
+      const daten = (await echt.json()) as { avatare: string[] };
+      galerie = daten.avatare;
+      await route.fulfill({ response: echt, json: { ...daten, ki } });
+    });
+    await page.route("**/api/kiosk/avatare/ki**", async (route) => {
+      const r = route.request();
+      aufrufe.push(`${r.method()} ${new URL(r.url()).pathname}`);
+      if (r.method() === "POST" && r.url().endsWith("/ki")) {
+        const rumpf = r.postDataJSON() as { merkmale: Record<string, string> };
+        aufrufe.push(JSON.stringify(rumpf.merkmale));
+        await route.fulfill({ status: 201, json: { dateiId: galerie.at(-1) } });
+      } else if (r.method() === "POST") {
+        await route.fulfill({ json: {} });
+      } else {
+        await route.fulfill({ status: 204 });
+      }
+    });
+    return aufrufe;
+  }
+
+  async function bisZumBild(page: Page, guid: string, email: string): Promise<void> {
+    await page.goto(`/kiosk/${guid}`);
+    await page.getByLabel("Vorname").fill("Kira");
+    await page.getByLabel("Nachname").fill("Kunst");
+    await page.getByLabel("E-Mail").fill(email);
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await page.getByLabel("Passwort", { exact: true }).fill("geheim-123");
+    await page.getByLabel("Passwort wiederholen").fill("geheim-123");
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await expect(page.getByRole("heading", { name: "Dein Bild" })).toBeVisible();
+  }
+
+  test("aus Merkmalen erstellen, übernehmen und damit registrieren", async ({
+    page,
+    request,
+    browser,
+  }) => {
+    const guid = neueGuid();
+    const email = `${guid.toLowerCase()}@example.invalid`;
+    const aufrufe = await mitKi(page, true);
+    try {
+      await bisZumBild(page, guid, email);
+      await page.getByRole("button", { name: "Mit KI erstellen" }).click();
+
+      // Bart und Haarfarbe hängen an anderen Merkmalen.
+      const bart = page.getByRole("group", { name: "Bart" });
+      await expect(bart).toBeVisible();
+      await page
+        .getByRole("group", { name: "Geschlecht" })
+        .getByRole("button", { name: "Weiblich" })
+        .click();
+      await expect(bart).toHaveCount(0);
+      const haarfarbe = page.getByRole("group", { name: "Haarfarbe" });
+      await page
+        .getByRole("group", { name: "Frisur" })
+        .getByRole("button", { name: "Glatze" })
+        .click();
+      await expect(haarfarbe).toHaveCount(0);
+      await page
+        .getByRole("group", { name: "Frisur" })
+        .getByRole("button", { name: "Lang", exact: true })
+        .click();
+      await expect(haarfarbe).toBeVisible();
+      await page
+        .getByRole("group", { name: "Brille" })
+        .getByRole("button", { name: "Brille", exact: true })
+        .click();
+      // Kein Freitextfeld.
+      await expect(page.getByRole("textbox")).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Bild erstellen" }).click();
+      await expect(page.getByRole("img", { name: "Dein KI-Bild" })).toBeVisible();
+      const gesendet = JSON.parse(aufrufe[1] ?? "{}") as Record<string, string>;
+      expect(gesendet).toMatchObject({ geschlecht: "weiblich", frisur: "lang", brille: "brille" });
+      expect(gesendet).not.toHaveProperty("bart");
+
+      // Neu erstellen verwirft den vorigen Entwurf.
+      await page.getByRole("button", { name: "Neu erstellen" }).click();
+      await expect.poll(() => aufrufe.some((a) => a.startsWith("DELETE"))).toBe(true);
+
+      await page.getByRole("button", { name: "Übernehmen" }).click();
+      // Zurück in der Auswahl, das übernommene Bild ist gewählt.
+      const gewaehlt = page
+        .locator('button[aria-pressed="true"]')
+        .filter({ has: page.locator("img") });
+      await expect(gewaehlt).toHaveCount(1);
+      expect(aufrufe.some((a) => a.endsWith("/uebernehmen"))).toBe(true);
+
+      await page.getByRole("button", { name: "Weiter" }).click();
+      await page.getByRole("checkbox").check();
+      await page.getByRole("button", { name: "Registrierung abschließen" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Registrierung abgeschlossen" }),
+      ).toBeVisible();
+
+      // Der Besucher selbst hat keinen KI-Weg.
+      const kontext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+      const besucher = await kontext.newPage();
+      await besucher.goto("/anmeldung");
+      await besucher.getByLabel("E-Mail").fill(email);
+      await besucher.getByLabel("Passwort").fill("geheim-123");
+      await besucher.getByRole("button", { name: "Anmelden" }).click();
+      await besucher.getByRole("button", { name: /Bild aussuchen/ }).click();
+      await expect(besucher.getByRole("heading", { name: "Dein Bild" })).toBeVisible();
+      await expect(besucher.getByRole("button", { name: "Mit KI erstellen" })).toHaveCount(0);
+      await kontext.close();
+    } finally {
+      await raeumeAuf(request, guid);
+    }
+  });
+
+  test("ohne Schlüssel auf dem Server gibt es nur die Vorlagen", async ({ page }) => {
+    await mitKi(page, false);
+    await bisZumBild(page, neueGuid(), "ohne-ki@example.invalid");
+    await expect(page.getByRole("button", { name: "Mit KI erstellen" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Bild auswählen" }).first()).toBeVisible();
+  });
+
+  test("bei 390 px passt der Konfigurator ohne Überlauf", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mitKi(page, true);
+    await bisZumBild(page, neueGuid(), "schmal-ki@example.invalid");
+    await page.getByRole("button", { name: "Mit KI erstellen" }).click();
+    await expect(page.getByRole("group", { name: "Kleidung" })).toBeVisible();
+    await page.evaluate(() => {
+      window.scrollTo(10_000, window.scrollY);
+    });
+    expect(await page.evaluate(() => window.scrollX)).toBe(0);
+  });
+});

@@ -40,6 +40,8 @@ interface Bestand {
   abrufe: number;
   globaleDaten: number;
   appNutzer: number;
+  avatare: number;
+  kiAvatare: number;
 }
 
 interface KonnektorInfo {
@@ -117,6 +119,8 @@ export function Einstellungen({
   }
 
   const b = bestand.daten;
+  // Galerie und Standardbild bleiben beim Zuruecksetzen; geloescht wird der Rest.
+  const geloeschteDateien = Math.max(0, (b?.dateien ?? 0) - (b?.avatare ?? 0) - 1);
   const leer = b !== null && b.besucher === 0 && b.exponate === 0;
 
   return (
@@ -318,8 +322,8 @@ export function Einstellungen({
           <li>
             <b>{b?.besuche ?? 0}</b>{" "}
             {t(
-              `aufgenommene Exponate und ${String(b?.dateien ?? 0)} hochgeladene Dateien`,
-              `added exhibits and ${String(b?.dateien ?? 0)} uploaded files`,
+              `aufgenommene Exponate und ${String(geloeschteDateien)} hochgeladene Dateien`,
+              `added exhibits and ${String(geloeschteDateien)} uploaded files`,
             )}
           </li>
           <li>
@@ -339,6 +343,19 @@ export function Einstellungen({
           {t(
             ", sonst käme danach niemand mehr hinein.",
             ", otherwise nobody could get in afterwards.",
+          )}
+        </p>
+        {/* Seit dem 04.11.2026: die Auswahl wächst mit jedem KI-Bild und übersteht den Reset. */}
+        <p>
+          <b>
+            {t(
+              `Die Avatarauswahl mit ${String(b?.avatare ?? 0)} Bildern bleibt erhalten`,
+              `The avatar selection with ${String(b?.avatare ?? 0)} pictures remains`,
+            )}
+          </b>
+          {t(
+            `, davon ${String(b?.kiAvatare ?? 0)} mit KI erstellt.`,
+            `, ${String(b?.kiAvatare ?? 0)} of them created with AI.`,
           )}
         </p>
       </Rueckfrage>

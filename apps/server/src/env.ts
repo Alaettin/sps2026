@@ -73,6 +73,12 @@ export interface ServerEnv {
    * ist bei Neoception ein anderes Produkt und gehoert hier nicht hin.
    */
   readonly appName: string;
+  /**
+   * KI-Avatare am Terminal, seit dem 04.11.2026. Ohne Schluessel ist der Weg aus und das
+   * Terminal zeigt nur die Galerie. Das Modell ist eine Variable, weil OpenAI Bildmodelle
+   * stilllegt (`gpt-image-1` im Oktober 2026, "does not exist").
+   */
+  readonly openai: { readonly apiKey: string; readonly bildModell: string } | null;
 }
 
 export class ConfigError extends Error {}
@@ -177,5 +183,14 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
       source["VIEWER_BASE_URL"] ?? "https://viewer-sps2026.aas.neoception.dev/",
     ),
     appName: source["APP_NAME"]?.trim() ?? "",
+    openai: (() => {
+      const schluessel = source["OPENAI_API_KEY"]?.trim();
+      if (schluessel === undefined || schluessel === "") return null;
+      const modell = source["OPENAI_IMAGE_MODEL"]?.trim();
+      return {
+        apiKey: schluessel,
+        bildModell: modell === undefined || modell === "" ? "gpt-image-2" : modell,
+      };
+    })(),
   };
 }

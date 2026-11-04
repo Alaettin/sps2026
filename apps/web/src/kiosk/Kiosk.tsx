@@ -7,6 +7,7 @@ import type { Ich } from "../lib/ich.js";
 import { PERSONENFELDER, besucherFehlertext } from "../lib/personenfelder.js";
 import { Kioskrahmen, Knopfleiste } from "./Kioskrahmen.js";
 import { Avatarwahl } from "../bausteine/avatarwahl.js";
+import { KiAvatar, type KiMerkmal } from "../bausteine/kiavatar.js";
 import { Personenformular } from "../bausteine/personenformular.js";
 import { Datenschutztext, type Datenschutzabschnitt } from "../bausteine/datenschutztext.js";
 import { useSprache } from "../lib/sprache.js";
@@ -173,9 +174,18 @@ interface Datenschutz {
 interface Galerie {
   standard: string;
   avatare: string[];
+  /** Seit dem 04.11.2026: ob der KI-Weg an ist (Schlüssel gesetzt), und seine Merkmale. */
+  ki: boolean;
+  merkmale: KiMerkmal[];
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Die zwei Wege zum Bild, seit dem 04.11.2026; der KI-Weg nur, wenn der Server ihn anbietet. */
+const BILDWEGE = [
+  { weg: "vorlage", de: "Aus Vorlagen wählen", en: "Choose from templates" },
+  { weg: "ki", de: "Mit KI erstellen", en: "Create with AI" },
+] as const;
 
 export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void }) {
   const { sprache, t } = useSprache();
@@ -195,6 +205,8 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
   const [passwort, setzePasswort] = useState("");
   const [wiederholung, setzeWiederholung] = useState("");
   const [avatar, setzeAvatar] = useState<string | null>(null);
+  const [bildweg, setzeBildweg] = useState<"vorlage" | "ki">("vorlage");
+  const [kiLaeuft, setzeKiLaeuft] = useState(false);
   const [einverstanden, setzeEinverstanden] = useState(false);
   const [fehler, setzeFehler] = useState<string | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -312,9 +324,11 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
   const nummer = SCHRITTE.findIndex((s) => s.id === schritt) + 1;
 
   return (
-    <Kioskrahmen aufAbmelden={aufAbmelden} aufAblauf={zumScan}>
+    <Kioskrahmen aufAbmelden={aufAbmelden} aufAblauf={zumScan} angehalten={kiLaeuft}>
       <Zustand
-        laedt={pass.laedt || datenschutz.laedt || galerie.laedt}
+        // Nur das erste Laden der Galerie: neu geladen wird sie nach einem übernommenen KI-Bild,
+        // und dann soll der Schritt nicht kurz „Wird geladen“ zeigen.
+        laedt={pass.laedt || datenschutz.laedt || (galerie.laedt && galerie.daten === null)}
         fehler={pass.fehler ?? datenschutz.fehler ?? galerie.fehler}
       >
         {registriert ? (
@@ -469,15 +483,51 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                     "Choose a picture to appear in the viewer. You can change it later.",
                   )}
                 </p>
-                <Avatarwahl
-                  standard={galerie.daten.standard}
-                  avatare={galerie.daten.avatare}
-                  gewaehlt={avatar ?? galerie.daten.standard}
-                  aufWahl={setzeAvatar}
-                />
+                {galerie.daten.ki && (
+                  <div
+                    className="flex flex-wrap gap-3"
+                    role="group"
+                    aria-label={t("Woher das Bild kommt", "Where the picture comes from")}
+                  >
+                    {BILDWEGE.map(({ weg, de, en }) => (
+                      <Knopf
+                        key={weg}
+                        art={bildweg === weg ? "primaer" : "rand"}
+                        aria-pressed={bildweg === weg}
+                        className="h-12 px-6"
+                        disabled={kiLaeuft}
+                        onClick={() => {
+                          setzeBildweg(weg);
+                        }}
+                      >
+                        {t(de, en)}
+                      </Knopf>
+                    ))}
+                  </div>
+                )}
+                {bildweg === "ki" && galerie.daten.ki ? (
+                  <KiAvatar
+                    merkmale={galerie.daten.merkmale}
+                    aufLaeuft={setzeKiLaeuft}
+                    aufUebernommen={(id) => {
+                      // Gewählt und in der Galerie: zurück zur Auswahl, dort steht es markiert.
+                      setzeAvatar(id);
+                      galerie.neu();
+                      setzeBildweg("vorlage");
+                    }}
+                  />
+                ) : (
+                  <Avatarwahl
+                    standard={galerie.daten.standard}
+                    avatare={galerie.daten.avatare}
+                    gewaehlt={avatar ?? galerie.daten.standard}
+                    aufWahl={setzeAvatar}
+                  />
+                )}
                 <Knopfleiste>
                   <Knopf
                     className="h-14 px-8 text-[17px]"
+                    disabled={kiLaeuft}
                     onClick={() => {
                       gehe("datenschutz");
                     }}
@@ -487,6 +537,7 @@ export function KioskRegistrierung({ aufAbmelden }: { aufAbmelden: () => void })
                   <Knopf
                     art="rand"
                     className="h-14 px-8 text-[17px]"
+                    disabled={kiLaeuft}
                     onClick={() => {
                       gehe("passwort");
                     }}

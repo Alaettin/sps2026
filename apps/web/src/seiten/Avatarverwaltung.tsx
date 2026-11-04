@@ -49,6 +49,8 @@ function groesse(bytes: number, gebiet: string): string {
 interface Zeile {
   dateiId: string;
   sortierung: number;
+  /** Seit dem 04.11.2026; KI-Bilder kommen vom Terminal und lassen sich hier aussortieren. */
+  herkunft: "vorlage" | "upload" | "ki";
 }
 
 interface Stand {
@@ -249,12 +251,20 @@ export function Avatarverwaltung() {
               )}
 
               {alle.map((a, i) => (
-                <li key={a.dateiId} className="flex flex-col gap-1">
+                <li key={a.dateiId} className="relative flex flex-col gap-1">
                   <img
                     src={`/api/dateien/${a.dateiId}`}
                     alt={`Avatar ${String(i + 1)}`}
                     className="aspect-square w-full object-cover outline outline-1 outline-linie"
                   />
+                  {a.herkunft === "ki" && (
+                    <span
+                      title={t("Am Terminal mit KI erstellt", "Created with AI at the terminal")}
+                      className="absolute top-1.5 left-1.5 bg-primaer px-1.5 py-0.5 text-[11px] font-semibold text-white"
+                    >
+                      {t("KI", "AI")}
+                    </span>
+                  )}
                   <span className="flex flex-wrap items-center justify-between gap-1">
                     <span className="flex gap-1">
                       <Knopf

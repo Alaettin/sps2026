@@ -21,6 +21,9 @@ interface Bestand {
   /** Fehlt in Sicherungen vor dem 20.10.2026. */
   globaleDaten?: number;
   appNutzer: number;
+  /** Fehlen in Sicherungen vor dem 04.11.2026. */
+  avatare?: number;
+  kiAvatare?: number;
 }
 
 interface Pruefergebnis {
@@ -34,6 +37,8 @@ const ZEILEN: [keyof Bestand, string, string][] = [
   ["besuche", "Aufgenommene Exponate", "Added exhibits"],
   ["dateien", "Dateien", "Files"],
   ["globaleDaten", "Globale Daten", "Global data"],
+  ["avatare", "Avatare zur Auswahl", "Avatars to choose from"],
+  ["kiAvatare", "davon mit KI erstellt", "of them created with AI"],
   ["appNutzer", "Anmeldungen", "Sign-ins"],
 ];
 

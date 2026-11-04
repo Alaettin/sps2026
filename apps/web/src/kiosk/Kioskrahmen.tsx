@@ -51,12 +51,15 @@ export function Kioskrahmen({
   aufAblauf,
   zeitsperre = true,
   besucher = false,
+  /** Haelt die Zeitsperre an, etwa waehrend ein KI-Bild entsteht. */
+  angehalten = false,
 }: {
   children: ReactNode;
   aufAbmelden: () => void;
   aufAblauf?: () => void;
   zeitsperre?: boolean;
   besucher?: boolean;
+  angehalten?: boolean;
 }) {
   const { t, zuruecksetzen } = useSprache();
   const navigate = useNavigate();
@@ -71,7 +74,7 @@ export function Kioskrahmen({
     // seines Vorgaengers: in der des Browsers. Seit dem 03.11.2026.
     zuruecksetzen(browsersprache());
     aufAblauf?.();
-  });
+  }, angehalten);
 
   function abmelden() {
     void api("/api/auth/abmelden", { method: "POST" }).finally(() => {
