@@ -386,3 +386,28 @@ export const globaleDaten = sqliteTable("globale_daten", {
   dateiId: text("datei_id").references(() => dateien.id, { onDelete: "set null" }),
   angelegt: integer("angelegt").notNull().default(jetzt),
 });
+
+// --- Anmeldung fuer die DTI (OpenID Connect) -------------------------------------------
+
+/**
+ * Einmal-Codes des OIDC-Ablaufs, seit dem 04.11.2026. Keycloak der DTI tauscht sie binnen
+ * einer Minute am Token-Endpunkt gegen ein ID-Token.
+ *
+ * **Gespeichert wird nur der Hash des Codes.** Wer die Datenbank oder eine Sicherung liest,
+ * kann damit keinen Code einloesen. Eingeloeste Codes werden geloescht, nicht markiert: so
+ * gelingt ein zweiter Versuch schon deshalb nicht, weil es nichts mehr zu finden gibt.
+ */
+export const oidcCodes = sqliteTable("oidc_codes", {
+  codeHash: text("code_hash").primaryKey(),
+  besucherGuid: text("besucher_guid")
+    .notNull()
+    .references(() => besucher.guid, { onDelete: "cascade" }),
+  clientId: text("client_id").notNull(),
+  redirectUri: text("redirect_uri").notNull(),
+  codeChallenge: text("code_challenge").notNull(),
+  nonce: text("nonce"),
+  scope: text("scope").notNull(),
+  /** Zeitpunkt der Anmeldung, geht als `auth_time` ins ID-Token. */
+  authTime: integer("auth_time").notNull(),
+  ablauf: integer("ablauf").notNull(),
+});

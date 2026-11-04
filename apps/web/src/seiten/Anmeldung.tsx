@@ -12,7 +12,14 @@ import { Sprachwahl, useSprache } from "../lib/sprache.js";
  * Es gibt **keine Selbstregistrierung** und kein "Passwort vergessen": Zugaenge vergibt die
  * Orga, und ein neues Startpasswort setzt ein Admin.
  */
-export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
+export function Anmeldung({
+  aufAngemeldet,
+  fuerDti = false,
+}: {
+  aufAngemeldet: () => void;
+  /** Kommt der Besucher vom DTI-Viewer (Keycloak)? Dann steht ein Hinweis über dem Formular. */
+  fuerDti?: boolean;
+}) {
   const { t } = useSprache();
   const [email, setzeEmail] = useState("");
   const [passwort, setzePasswort] = useState("");
@@ -103,6 +110,17 @@ export function Anmeldung({ aufAngemeldet }: { aufAngemeldet: () => void }) {
             <h1 className="text-[32px] leading-tight font-medium tracking-[-0.01em] text-primaer">
               {t("Anmelden", "Sign in")}
             </h1>
+            {fuerDti && (
+              <p
+                data-testid="dti-hinweis"
+                className="text-[15px] leading-relaxed text-text-hinweis"
+              >
+                {t(
+                  "Melde dich mit deinem Passport an, um im DTI-Viewer weiterzumachen.",
+                  "Sign in with your passport to continue in the DTI Viewer.",
+                )}
+              </p>
+            )}
           </div>
 
           {fehler !== null && <Fehlerhinweis>{fehler}</Fehlerhinweis>}

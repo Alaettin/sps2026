@@ -94,6 +94,9 @@ export function registerErrorHandler(app: FastifyInstance, spaFallback = false):
       request.method === "GET" &&
       !request.url.startsWith("/api/") &&
       !request.url.startsWith("/connector/") &&
+      // Die OIDC-Pfade ruft Keycloak, auch sie bekommen nie die Anwendung.
+      !request.url.startsWith("/oauth/") &&
+      !request.url.startsWith("/.well-known/") &&
       (request.headers.accept ?? "").includes("text/html");
 
     if (gehoertZurAnwendung) {

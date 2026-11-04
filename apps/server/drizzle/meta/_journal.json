@@ -71,6 +71,13 @@
       "when": 1793780981414,
       "tag": "0009_great_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793791405539,
+      "tag": "0010_tiresome_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

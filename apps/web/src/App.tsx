@@ -4,6 +4,7 @@ import { api } from "./lib/api.js";
 import type { Ich } from "./lib/ich.js";
 import { Rahmen } from "./layout/Rahmen.js";
 import { Anmeldung } from "./seiten/Anmeldung.js";
+import { dtiWeiter } from "./lib/weiter.js";
 import { Api } from "./seiten/Api.js";
 import { GlobaleDaten } from "./seiten/GlobaleDaten.js";
 import { Besucher } from "./seiten/Besucher.js";
@@ -56,6 +57,17 @@ export function App() {
   const { t } = useSprache();
   const [ich, setzeIch] = useState<Ich | null>(null);
   const [geprueft, setzeGeprueft] = useState(false);
+  /*
+   * Kommt der Besucher vom DTI-Viewer, steht das Ziel einmal in der Adresse. Im Zustand der
+   * App gehalten, weil der Weg zur Anmeldemaske die Adresse ändert.
+   */
+  const [weiter] = useState(() => dtiWeiter(window.location.search));
+  const zurDti = geprueft && ich !== null && weiter !== null;
+
+  useEffect(() => {
+    // Angemeldet: zurück zum Server, der den Code für Keycloak ausstellt.
+    if (zurDti && weiter !== null) window.location.assign(weiter);
+  }, [zurDti, weiter]);
 
   const pruefe = useCallback(() => {
     api<Ich>("/api/auth/ich")
@@ -87,10 +99,14 @@ export function App() {
 
   // Bis die Auskunft da ist, wird nichts gezeigt. Sonst blitzt die Anmeldung auf, obwohl
   // die Sitzung gueltig ist.
-  if (!geprueft) {
+  if (!geprueft || zurDti) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-grund">
-        <p className="text-sm text-text-hinweis">{t("Wird geladen …", "Loading …")}</p>
+        <p className="text-sm text-text-hinweis">
+          {zurDti
+            ? t("Weiter zum DTI-Viewer …", "Continuing to the DTI Viewer …")
+            : t("Wird geladen …", "Loading …")}
+        </p>
       </div>
     );
   }
@@ -99,7 +115,10 @@ export function App() {
     <BrowserRouter>
       {ich === null ? (
         <Routes>
-          <Route path="/anmeldung" element={<Anmeldung aufAngemeldet={pruefe} />} />
+          <Route
+            path="/anmeldung"
+            element={<Anmeldung aufAngemeldet={pruefe} fuerDti={weiter !== null} />}
+          />
           {RECHTSSEITEN}
           {/*
             Die Anmeldemaske haengt an **keiner** anderen Route. Ein direkter Aufruf von

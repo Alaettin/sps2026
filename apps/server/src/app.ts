@@ -27,6 +27,7 @@ import { healthRoutes } from "./routes/health.js";
 import { nutzerRoutes } from "./routes/nutzer.js";
 import { sicherungRoutes } from "./routes/sicherung.js";
 import { globaldatenRoutes } from "./routes/globaldaten.js";
+import { oidcRoutes } from "./routes/oidc.js";
 import { frontendVorhanden, statischeDateien } from "./routes/statisch.js";
 import { bootstrapAdmin } from "./services/bootstrap.js";
 import { installiereSicherheitskopfzeilen } from "./sicherheitskopfzeilen.js";
@@ -160,6 +161,8 @@ export async function buildServer(
    * mit `Result`, die Verwaltung mit `{code, message}`.
    */
   konnektorApiRoutes(app, ctx);
+  // Anmeldung der Besucher im DTI-Viewer ueber Keycloak, seit dem 04.11.2026.
+  oidcRoutes(app, ctx);
 
   await bootstrapAdmin(db, env, (text) => {
     app.log.info(text);

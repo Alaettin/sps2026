@@ -1,3 +1,4 @@
+import { createPrivateKey } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -79,6 +80,104 @@ export interface ServerEnv {
    * stilllegt (`gpt-image-1` im Oktober 2026, "does not exist").
    */
   readonly openai: { readonly apiKey: string; readonly bildModell: string } | null;
+  /**
+   * Der Passport als OpenID-Connect-Anbieter fuer Keycloak der DTI, seit dem 04.11.2026.
+   * Besucher melden sich damit im DTI-Viewer an. Aus, solange nicht alles gesetzt ist.
+   */
+  readonly oidc: OidcEnv | null;
+}
+
+export interface OidcEnv {
+  /** Die oeffentliche Adresse des Passports, ohne abschliessenden Schraegstrich. */
+  readonly issuer: string;
+  readonly clientId: string;
+  readonly clientSecret: string;
+  /** Exakt verglichen, kein Praefix: sonst waere jede Unteradresse ein Ziel fuer Codes. */
+  readonly redirectUris: readonly string[];
+  /** EC P-256 als PKCS8-PEM. */
+  readonly signaturSchluessel: string;
+  /** Gehen als Claim `roles` ins Token. */
+  readonly rollen: readonly string[];
+}
+
+/**
+ * Liest die OIDC-Werte. Alle vier oder keiner; halb gesetzt bricht den Start ab, aus demselben
+ * Grund wie bei `paar`: es saehe eingerichtet aus und liefe nie.
+ */
+function leseOidc(source: NodeJS.ProcessEnv, publicBaseUrl: string | null): OidcEnv | null {
+  const namen = [
+    "OIDC_CLIENT_ID",
+    "OIDC_CLIENT_SECRET",
+    "OIDC_REDIRECT_URIS",
+    "OIDC_SIGNATUR_SCHLUESSEL",
+  ] as const;
+  const werte = namen.map((name) => source[name]?.trim() ?? "");
+  const gesetzt = namen.filter((_, i) => werte[i] !== "");
+  if (gesetzt.length === 0) return null;
+  if (gesetzt.length < namen.length) {
+    const fehlend = namen.filter((_, i) => werte[i] === "");
+    throw new ConfigError(
+      `OIDC ist nur halb eingerichtet, es fehlen: ${fehlend.join(", ")}. Alle vier oder keiner.`,
+    );
+  }
+  const [clientId, clientSecret, uris, schluessel] = werte as [string, string, string, string];
+  if (clientSecret.length < 32) {
+    throw new ConfigError("OIDC_CLIENT_SECRET ist zu kurz, mindestens 32 Zeichen sind noetig.");
+  }
+  if (publicBaseUrl === null) {
+    throw new ConfigError("OIDC braucht PUBLIC_BASE_URL, sie ist der Issuer der Tokens.");
+  }
+  const redirectUris = uris
+    .split(",")
+    .map((u) => u.trim())
+    .filter((u) => u !== "");
+  for (const uri of redirectUris) {
+    let adresse: URL;
+    try {
+      adresse = new URL(uri);
+    } catch {
+      throw new ConfigError(`OIDC_REDIRECT_URIS enthaelt keine gueltige Adresse: "${uri}".`);
+    }
+    if (adresse.hash !== "") {
+      throw new ConfigError(`OIDC_REDIRECT_URIS darf kein #-Fragment enthalten: "${uri}".`);
+    }
+  }
+  const rollen = (source["OIDC_ROLLEN"]?.trim() || "idta-passport-besucher")
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r !== "");
+  // Sliplane speichert Werte einzeilig; ein PEM kommt dort mit `\n` statt Zeilenumbruechen.
+  const pem = schluessel.replaceAll("\\n", "\n");
+  /*
+   * Hier pruefen, nicht erst beim ersten Token: ein kaputter Schluessel soll den Start
+   * abbrechen, nicht die erste Anmeldung eines Besuchers am Messestand.
+   */
+  let kurve: string | undefined;
+  try {
+    const schluesselObjekt = createPrivateKey(pem);
+    kurve =
+      schluesselObjekt.asymmetricKeyType === "ec"
+        ? schluesselObjekt.asymmetricKeyDetails?.namedCurve
+        : undefined;
+  } catch {
+    throw new ConfigError("OIDC_SIGNATUR_SCHLUESSEL ist kein lesbarer privater Schluessel (PEM).");
+  }
+  if (kurve !== "prime256v1") {
+    throw new ConfigError(
+      "OIDC_SIGNATUR_SCHLUESSEL muss ein EC-Schluessel auf P-256 sein (ES256).",
+    );
+  }
+  if (redirectUris.length === 0) {
+    throw new ConfigError("OIDC_REDIRECT_URIS ist leer.");
+  }
+  return {
+    issuer: publicBaseUrl,
+    clientId,
+    clientSecret,
+    redirectUris,
+    signaturSchluessel: pem,
+    rollen,
+  };
 }
 
 export class ConfigError extends Error {}
@@ -158,6 +257,11 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     source["CONNECTOR_BASIC_PASSWORT"],
   );
 
+  const publicBaseUrl = (() => {
+    const roh = source["PUBLIC_BASE_URL"]?.trim();
+    return roh === undefined || roh === "" ? null : roh.replace(/\/+$/, "");
+  })();
+
   return {
     port: number("PORT", source["PORT"], 3230),
     host: source["HOST"] ?? "0.0.0.0",
@@ -172,10 +276,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     bootstrapAdmin:
       admin === null ? null : { email: admin.a.trim().toLowerCase(), passwort: admin.b },
     connectorBasic: basic === null ? null : { user: basic.a, passwort: basic.b },
-    publicBaseUrl: (() => {
-      const roh = source["PUBLIC_BASE_URL"]?.trim();
-      return roh === undefined || roh === "" ? null : roh.replace(/\/+$/, "");
-    })(),
+    publicBaseUrl,
     // Mit genau einem abschliessenden Schraegstrich, egal wie er gesetzt wurde: der Scan
     // vergleicht den QR-Inhalt gegen diesen Praefix, und ein fehlender Schraegstrich
     // liesse `.../abc` auf `.../abcdef` passen.
@@ -192,5 +293,6 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
         bildModell: modell === undefined || modell === "" ? "gpt-image-2" : modell,
       };
     })(),
+    oidc: leseOidc(source, publicBaseUrl),
   };
 }

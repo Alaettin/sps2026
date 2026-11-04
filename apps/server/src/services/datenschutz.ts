@@ -15,14 +15,15 @@
  * Wer den einen Text aendert, aendert den anderen mit.
  *
  * Fassung `2026-11-03.2` nennt die Kontakte unter Besuchern, `2026-11-04.1` die KI-Bilder am
- * Terminal und die Übermittlung dafür an OpenAI.
+ * Terminal und die Übermittlung dafür an OpenAI, `2026-11-04.2` die Anmeldung im Viewer mit dem
+ * Passport (Keycloak der DTI).
  *
  * **Jede inhaltliche Aenderung bekommt eine neue `DATENSCHUTZ_FASSUNG`.** Gespeichert wird beim
  * Besucher die Fassung, der er zugestimmt hat; eine Registrierung mit einer alten Fassung lehnt
  * der Server ab, damit niemand einem Text zustimmt, der nicht mehr gilt.
  */
 
-export const DATENSCHUTZ_FASSUNG = "2026-11-04.1";
+export const DATENSCHUTZ_FASSUNG = "2026-11-04.2";
 
 export type Sprache = "de" | "en";
 
@@ -80,6 +81,7 @@ export const ABSCHNITTE: Abschnitt[] = [
       "Scannt ein anderer angemeldeter Besucher deinen Pass, speichert er dich als Kontakt. Er sieht dann in seiner Kontaktliste deinen Namen, deine Firma und den Link zu deinem Viewer, solange dein Datensatz besteht. Eine Nachricht darüber bekommst du nicht.",
       "Der Viewer ist über die Adresse auf deinem Pass ohne Anmeldung erreichbar. Wer diese Adresse kennt, etwa durch ein Foto des QR-Codes, kann die dort angezeigten Angaben und Inhalte abrufen. Gib deinen Pass deshalb nicht aus der Hand.",
       "Die Neoception GmbH, Mallaustraße 50-56, 68219 Mannheim, betreibt diese Anwendung, die Plattform AXON und den Viewer im Auftrag der IDTA (Auftragsverarbeitung nach Art. 28 DSGVO). Die Anwendung läuft bei der Sliplane GmbH, Berlin, auf einem Server in Deutschland; AXON und der Viewer laufen bei Neoception in der Europäischen Union.",
+      "Meldest du dich im Viewer mit deinem Passport an, übermitteln wir dafür die Kennung deines Passes, deinen Namen und deine E-Mail-Adresse an die Anmeldung (Keycloak) der DTI-Plattform, die Neoception für die IDTA betreibt. Dort entsteht daraus ein Konto für den Viewer. Das geschieht nur, wenn du diese Anmeldung selbst auslöst; dein Passwort geht dabei nicht mit.",
       "Eine Übermittlung in ein Land außerhalb der Europäischen Union findet nur statt, wenn du am Terminal ein Bild per KI erstellen lässt: dann geht die ausgewählte Beschreibung an die OpenAI, L.L.C., San Francisco, USA. Erstellst du kein KI-Bild, verlassen deine Daten die Europäische Union nicht.",
     ],
   },
@@ -143,6 +145,7 @@ export const ABSCHNITTE_EN: Abschnitt[] = [
       "If another signed-in visitor scans your pass, they save you as a contact. Their contact list then shows your name, your company and the link to your viewer for as long as your record exists. You are not notified about this.",
       "The viewer can be reached via the address on your pass without signing in. Anyone who knows this address, for example from a photo of the QR code, can retrieve the details and content shown there. So do not hand your pass to others.",
       "Neoception GmbH, Mallaustraße 50-56, 68219 Mannheim, Germany, operates this application, the AXON platform and the viewer on behalf of IDTA (data processing under Art. 28 GDPR). The application runs at Sliplane GmbH, Berlin, on a server in Germany; AXON and the viewer run at Neoception in the European Union.",
+      "If you sign in to the viewer with your passport, we transmit the ID of your pass, your name and your email address to the sign-in service (Keycloak) of the DTI platform, which Neoception operates for IDTA. An account for the viewer is created there from this data. This only happens if you start this sign-in yourself; your password is not included.",
       "Data is only transferred to a country outside the European Union if you have a picture created by AI at the terminal: the selected description is then sent to OpenAI, L.L.C., San Francisco, USA. If you do not create an AI picture, your data does not leave the European Union.",
     ],
   },
